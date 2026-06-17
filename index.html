@@ -1010,7 +1010,8 @@ function abrirFormProduto(tipo, id) {
     <div class="card" style="margin-bottom:1rem;border-left:4px solid var(--primary)">
       <div style="font-size:13px;font-weight:700;margin-bottom:4px">${titulo}</div>
       <div style="font-size:12px;color:var(--text2)">${desc}</div>
-      <div style="font-size:16px;font-weight:700;color:var(--text);margin-top:6px">R$ ${preco?.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+      <div style="font-size:16px;font-weight:700;color:var(--text);margin-top:6px" id="gn-preco-final">${fmt(precoAjustado(id,preco))}</div>
+      ${campoAjusteComPreco(id, preco, 'gn-preco-final')}
     </div>
     <div class="card" style="margin-bottom:1rem">
       <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:.75rem;letter-spacing:.3px">DADOS DO CLIENTE</div>
@@ -1126,6 +1127,7 @@ function gerarPDFGenerico(){
   else if(tipo==='virtuos') prod=VIRTUOS.find(x=>x.id===id);
   else if(tipo==='mtsb') prod=MTSB.find(x=>x.id===id);
   if(!prod) return;
+  const precoFinal=precoAjustado(id, prod.preco);
 
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
@@ -1195,7 +1197,7 @@ function gerarPDFGenerico(){
   const bodyDesc=prod.nome.toUpperCase()+'\n'+prod.desc+'\n'+(finame+ncm).trim();
   doc.autoTable({
     head:[['#','Produto / Descrição','Qtde.','Valor']],
-    body:[['1',bodyDesc,'1','R$ '+prod.preco.toLocaleString('pt-BR',{minimumFractionDigits:2})]],
+    body:[['1',bodyDesc,'1','R$ '+precoFinal.toLocaleString('pt-BR',{minimumFractionDigits:2})]],
     startY:y,margin:{left:M,right:M},
     styles:{fontSize:9,cellPadding:4},
     headStyles:{fillColor:[240,240,240],textColor:[40,40,40],fontStyle:'bold',lineWidth:0.3,lineColor:[200,200,200]},
@@ -1208,7 +1210,7 @@ function gerarPDFGenerico(){
   doc.setFillColor(230,230,230);doc.rect(M,y,W-M*2,7,'F');
   doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(20);
   doc.text('Valor total:',W-M-55,y+5.5);
-  doc.text('R$ '+prod.preco.toLocaleString('pt-BR',{minimumFractionDigits:2}),W-M-1,y+5.5,{align:'right'});
+  doc.text('R$ '+precoFinal.toLocaleString('pt-BR',{minimumFractionDigits:2}),W-M-1,y+5.5,{align:'right'});
   y+=9;
 
   // Rodapé
@@ -1940,19 +1942,20 @@ function campoAjuste(id, label){
     <span style="font-size:11px;color:var(--text2)">${label}</span>
   </div>`;
 }
-function campoAjusteComPreco(id, preco){
+function campoAjusteComPreco(id, preco, extraElId){
   const aj=st.ajustes[id]||'';
   const isAdm=isAdmin();
   const cor=isAdm?'#c0392b':'#e67e22';
   const tipo=isAdm?'Desconto':'Acréscimo';
   const precoFinal=precoAjustado(id, preco);
+  const extraUpd=extraElId?`const el2=document.getElementById('${extraElId}');if(el2)el2.textContent=fmt(precoAjustado('${id}',${preco}));`:'';
   return `<div style="display:flex;align-items:center;gap:6px;margin-top:6px;padding:6px 8px;background:var(--bg);border-radius:var(--radius-sm);border:1px dashed var(--border)">
     <span style="font-size:11px;color:${cor};font-weight:600;white-space:nowrap">${tipo} %</span>
     <input type="number" min="0" max="100" step="0.1" placeholder="0,0"
       value="${aj}"
       style="width:70px;border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:12px;background:var(--bg2)"
       onclick="event.stopPropagation()"
-      oninput="event.stopPropagation();st.ajustes['${id}']=parseFloat(this.value)||0;const el=document.getElementById('preco-aj-${id}');if(el)el.textContent=fmt(precoAjustado('${id}',${preco}))">
+      oninput="event.stopPropagation();st.ajustes['${id}']=parseFloat(this.value)||0;const el=document.getElementById('preco-aj-${id}');if(el)el.textContent=fmt(precoAjustado('${id}',${preco}));${extraUpd}">
     <span style="font-size:11px;color:var(--text2)" id="preco-aj-${id}">${fmt(precoFinal)}</span>
   </div>`;
 }
