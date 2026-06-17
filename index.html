@@ -94,7 +94,7 @@ button{font-family:inherit;cursor:pointer;border:none;outline:none}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body>
-<div id="login-screen" style="display:none;position:fixed;inset:0;background:#f8f9fa;z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem">
+<div id="login-screen" style="position:fixed;inset:0;background:#f8f9fa;z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem">
   <div style="background:#fff;border:1px solid #e2e6ea;border-radius:14px;padding:2rem 1.75rem;width:100%;max-width:380px;box-shadow:0 4px 24px rgba(0,0,0,.08)">
     <div style="text-align:center;margin-bottom:1.75rem">
       <img id="login-logo" src="" alt="Bandeirante" style="height:48px;object-fit:contain;margin-bottom:1rem">
@@ -377,6 +377,32 @@ let st = {step:0,marcaSel:null,modeloSel:null,adaptDB:null,carregadorSel:null,ad
 let clientes = [];
 let orcamentos = [];
 let vendedores = [];
+let currentUser = null;
+let currentPerfil = null;
+
+// ---- LOGINS FIXOS DOS VENDEDORES ----
+// Para adicionar um novo vendedor, basta acrescentar um objeto aqui.
+// role pode ser 'admin' (acesso ao Painel Admin) ou 'vendedor' (sem acesso ao admin).
+// senhaPadrao = senha inicial. Cada vendedor pode trocar a própria senha depois de logar
+// (a senha trocada fica salva no navegador/dispositivo dele, em "Minha conta").
+const LOGINS = [
+  {email:'samuel@bandeirantemaquinas.com.br',        senhaPadrao:'bandeirante2026', nome:'Samuel Portella',    role:'admin'},
+  {email:'airton_gasparin@icloud.com',                senhaPadrao:'bandeirante2026', nome:'Airton Gasparin',    role:'vendedor'},
+  {email:'bandeiranteeriton@gmail.com',                senhaPadrao:'bandeirante2026', nome:'Eriton Candeia',     role:'vendedor'},
+  {email:'gilmardefantevendas@gmail.com',              senhaPadrao:'bandeirante2026', nome:'Gilmar Defante',     role:'vendedor'},
+  {email:'leonardomott@gmail.com',                     senhaPadrao:'bandeirante2026', nome:'Leonardo Mott',      role:'vendedor'},
+  {email:'rodrigo@bandeirantemaquinas.com.br',         senhaPadrao:'bandeirante2026', nome:'Rodrigo Formigheri', role:'vendedor'},
+];
+
+// Retorna a senha "ativa" do login: se o vendedor já trocou a senha
+// (salva no navegador dele), usa a nova; senão usa a senha padrão.
+function senhaAtual(login){
+  try{
+    const trocada=localStorage.getItem('bandeirante_senha_'+login.email.toLowerCase());
+    if(trocada)return trocada;
+  }catch(e){}
+  return login.senhaPadrao;
+}
 
 // ---- CARREGAR PRODUTOS DO SUPABASE ----
 async function loadProdutos(){
@@ -1926,7 +1952,7 @@ function precoAjustado(id, preco){
   const precoComAj = aj===0 ? preco : preco*(1+aj/100);
   return ac===0 ? precoComAj : precoComAj*(1+ac/100);
 }
-function isAdmin(){return currentUser?.email==='samuel@bandeirantemaquinas.com.br';}
+function isAdmin(){return currentPerfil?.role==='admin';}
 function campoAjuste(id, label){
   const aj=st.ajustes[id]||'';
   const isAdm=isAdmin();
@@ -2832,6 +2858,114 @@ async function salvarProduto(id){
   }catch(e){toast('Erro ao salvar produto.');}
 }
 
+// ---- LOGIN / LOGOUT ----
+function toggleSenha(){
+  const inp=document.getElementById('login-senha');
+  const icon=document.getElementById('eye-icon');
+  if(!inp)return;
+  if(inp.type==='password'){inp.type='text';if(icon)icon.className='ti ti-eye-off';}
+  else{inp.type='password';if(icon)icon.className='ti ti-eye';}
+}
+
+function esqueciSenha(){
+  toast('Fale com o administrador (Samuel) para redefinir sua senha.');
+}
+
+function mostrarErroLogin(msg){
+  const el=document.getElementById('login-erro');
+  if(!el)return;
+  el.textContent=msg;
+  el.style.display='block';
+}
+
+function fazerLogin(){
+  const email=(document.getElementById('login-email')?.value||'').trim().toLowerCase();
+  const senha=document.getElementById('login-senha')?.value||'';
+  const erroEl=document.getElementById('login-erro');
+  if(erroEl)erroEl.style.display='none';
+
+  if(!email||!senha){mostrarErroLogin('Preencha e-mail e senha.');return;}
+
+  const login=LOGINS.find(l=>l.email.toLowerCase()===email);
+  if(!login || senhaAtual(login)!==senha){mostrarErroLogin('E-mail ou senha inválidos.');return;}
+
+  currentUser={id:email,email:login.email};
+  currentPerfil={nome:login.nome,role:login.role};
+  try{localStorage.setItem('bandeirante_login_email',login.email);}catch(e){}
+
+  entrarNoApp();
+}
+
+function fazerLogout(){
+  currentUser=null;
+  currentPerfil=null;
+  try{localStorage.removeItem('bandeirante_login_email');}catch(e){}
+  const ls=document.getElementById('login-screen');
+  const ma=document.getElementById('main-app');
+  if(ma)ma.style.display='none';
+  if(ls)ls.style.display='flex';
+  const emailInp=document.getElementById('login-email');
+  const senhaInp=document.getElementById('login-senha');
+  if(emailInp)emailInp.value='';
+  if(senhaInp)senhaInp.value='';
+}
+
+function abrirTrocarSenha(){
+  if(!currentUser)return;
+  const html=`
+  <div id="modal-troca-senha" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;display:flex;align-items:center;justify-content:center;padding:1rem">
+    <div style="background:var(--bg2);border-radius:var(--radius-lg);padding:1.5rem;max-width:360px;width:100%">
+      <div style="font-size:14px;font-weight:700;margin-bottom:1rem">Trocar minha senha</div>
+      <div class="ig"><label>Senha atual</label><input type="password" id="ts-atual" placeholder="Senha atual"></div>
+      <div class="ig"><label>Nova senha</label><input type="password" id="ts-nova" placeholder="Nova senha (mín. 6 caracteres)"></div>
+      <div class="ig"><label>Confirmar nova senha</label><input type="password" id="ts-confirma" placeholder="Repita a nova senha"></div>
+      <div id="ts-erro" style="display:none;background:#fff5f5;color:#dc3545;border-radius:6px;padding:.5rem .75rem;font-size:12px;margin-bottom:.75rem"></div>
+      <div style="display:flex;gap:8px;margin-top:.5rem">
+        <button class="btn" style="flex:1" onclick="document.getElementById('modal-troca-senha').remove()">Cancelar</button>
+        <button class="btn btn-primary" style="flex:1" onclick="confirmarTrocaSenha()">Salvar</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend',html);
+  setTimeout(()=>document.getElementById('ts-atual')?.focus(),100);
+}
+
+function confirmarTrocaSenha(){
+  const login=LOGINS.find(l=>l.email.toLowerCase()===currentUser.email.toLowerCase());
+  if(!login)return;
+  const atual=document.getElementById('ts-atual')?.value||'';
+  const nova=document.getElementById('ts-nova')?.value||'';
+  const confirma=document.getElementById('ts-confirma')?.value||'';
+  const erroEl=document.getElementById('ts-erro');
+  const erro=(msg)=>{if(erroEl){erroEl.textContent=msg;erroEl.style.display='block';}};
+  if(erroEl)erroEl.style.display='none';
+
+  if(senhaAtual(login)!==atual){erro('Senha atual incorreta.');return;}
+  if(nova.length<6){erro('A nova senha deve ter pelo menos 6 caracteres.');return;}
+  if(nova!==confirma){erro('As senhas não coincidem.');return;}
+
+  try{localStorage.setItem('bandeirante_senha_'+login.email.toLowerCase(),nova);}catch(e){}
+  document.getElementById('modal-troca-senha')?.remove();
+  toast('✓ Senha alterada com sucesso!');
+}
+
+function entrarNoApp(){
+  const ls=document.getElementById('login-screen');
+  const ma=document.getElementById('main-app');
+  if(ls)ls.style.display='none';
+  if(ma)ma.style.display='block';
+  const badge=document.getElementById('header-badge');
+  if(badge)badge.innerHTML='<span style="font-size:12px;color:var(--text2)">'+(currentPerfil?.nome||'')+'</span>'
+    +'<button class="btn btn-sm" style="margin-left:8px" onclick="abrirTrocarSenha()" title="Trocar senha"><i class="ti ti-key"></i></button>'
+    +'<button class="btn btn-sm" style="margin-left:4px" onclick="fazerLogout()" title="Sair"><i class="ti ti-logout"></i></button>';
+  const navAdmin=document.getElementById('nav-admin');
+  if(navAdmin)navAdmin.style.display=isAdmin()?'':'none';
+  Promise.all([loadProdutos(),loadOrcamentos(),loadVendedores()]).then(()=>{
+    showTab('home');
+    loadClientes(true);
+  });
+}
+
 // ---- INIT ----
 window.addEventListener('DOMContentLoaded',()=>{
   ['hexline','joystick','adaptador','lamina','concha','bag','garfosilagem','garrafeno','conchagarra','enleirador195','enleirador265','garfotoragarra','garfotora','paleteira'].forEach(k=>{
@@ -2840,22 +2974,23 @@ window.addEventListener('DOMContentLoaded',()=>{
   ['r13hy','r11hy','r9hd','r7hd','r6hd_hy','r6hd','r5hd_hy','r5hd','r4hd'].forEach(k=>{
     const el=document.getElementById('_rasthor_'+k);if(el)IMGS['rasthor_'+k]=el.src;
   });
-  // MODO TESTE — acesso direto sem login
-  const ls=document.getElementById('login-screen');
-  const ma=document.getElementById('main-app');
-  if(ls)ls.style.display='none';
-  if(ma)ma.style.display='block';
-  currentUser={id:'teste-samuel',email:'samuel@bandeirantemaquinas.com.br'};
-  currentPerfil={nome:'Samuel Portella',role:'admin'};
-  const badge=document.getElementById('header-badge');
-  if(badge)badge.innerHTML='<span style="font-size:12px;color:var(--text2)">Samuel Portella</span>';
-  if(isAdmin()){const navAdmin=document.getElementById('nav-admin');if(navAdmin)navAdmin.style.display='';}
-  // Carrega produtos/orçamentos/vendedores primeiro (mais rápido)
-  Promise.all([loadProdutos(),loadOrcamentos(),loadVendedores()]).then(()=>{
-    showTab('home');
-    // Clientes carrega em paralelo sem bloquear
-    loadClientes(true);
-  });
+
+  // Permite ir direto para Entrar pressionando Enter no campo de senha
+  const senhaInp=document.getElementById('login-senha');
+  if(senhaInp)senhaInp.addEventListener('keydown',e=>{if(e.key==='Enter')fazerLogin();});
+
+  // Mantém login salvo entre sessões (mesmo navegador/dispositivo)
+  try{
+    const emailSalvo=localStorage.getItem('bandeirante_login_email');
+    if(emailSalvo){
+      const login=LOGINS.find(l=>l.email.toLowerCase()===emailSalvo.toLowerCase());
+      if(login){
+        currentUser={id:login.email,email:login.email};
+        currentPerfil={nome:login.nome,role:login.role};
+        entrarNoApp();
+      }
+    }
+  }catch(e){}
 });
 </script>
 
