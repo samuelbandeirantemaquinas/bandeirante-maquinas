@@ -375,7 +375,7 @@ const IMPLEMENTOS = [
 ];
 
 let currentTab = 'orcamento';
-let st = {step:0,marcaSel:null,modeloSel:null,adaptDB:null,carregadorSel:null,adaptSel:null,joySel:null,implSel:[],clienteSel:null,acrescimo:0,ajustes:{},pgto:'',frete:'',obs:'',vendedor:''};
+let st = {step:0,marcaSel:null,modeloSel:null,adaptDB:null,carregadorSel:null,adaptSel:null,joySel:null,implSel:[],clienteSel:null,acrescimo:0,ajustes:{},pgto:'',frete:'',obs:'',vendedor:'',semEstrutura:false,estruturaAvulsa:null,mostrarEstruturaAvulsa:false};
 let clientes = [];
 let orcamentos = [];
 let vendedores = [];
@@ -1660,6 +1660,10 @@ function renderOrcamento(){
   document.getElementById('app-content').innerHTML=`<div class="progress-bar" id="prog-bar"></div><div class="page-wrap" id="step-content"></div>`;
   renderProg(); renderStep();
 }
+function novoOrcamento(){
+  st={step:0,marcaSel:null,modeloSel:null,adaptDB:null,carregadorSel:null,adaptSel:null,joySel:null,implSel:[],clienteSel:null,acrescimo:0,ajustes:{},pgto:'',frete:'',obs:'',vendedor:'',semEstrutura:false,estruturaAvulsa:null,mostrarEstruturaAvulsa:false};
+  showTab('orcamento');
+}
 function renderProg(){
   document.getElementById('prog-bar').innerHTML=STEPS.map((s,i)=>{
     let cls=i<st.step?'done':i===st.step?'active':'';
@@ -1679,12 +1683,19 @@ function s0(){
   return `<div style="margin-bottom:1rem"><div style="font-size:15px;font-weight:700;margin-bottom:4px">Qual é o trator?</div><div style="font-size:12px;color:var(--text2)">Selecione a marca e o modelo</div></div>
   <div class="marca-grid" style="margin-bottom:1rem">${MARCAS.map(mk=>`<div class="marca-card${st.marcaSel===mk.id?' sel':''}" onclick="selMarca('${mk.id}')" style="${st.marcaSel===mk.id?`border-color:${mk.cor};background:${mk.cor}10`:''}"><div class="marca-avatar" style="background:${mk.cor};color:${mk.txt}">${mk.abbr}</div><div style="font-size:11px;font-weight:500">${mk.label}</div></div>`).join('')}</div>
   ${m?`<div style="margin-bottom:.75rem"><input type="text" id="busca-modelo" oninput="filtrarModelos()" placeholder="Buscar modelo..." autocomplete="off"></div><div id="modelo-list" style="max-height:280px;overflow-y:auto"></div>`:''}
+  ${st.mostrarEstruturaAvulsa?`<div style="margin-top:1rem;padding:.75rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg)">
+    <div style="font-size:12px;font-weight:600;margin-bottom:8px">Qual estrutura o cliente já possui?</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">${CARREGADORES.map(c=>`<button class="btn btn-sm${st.estruturaAvulsa===c.estrutura?' btn-primary':''}" onclick="selEstruturaAvulsa('${c.estrutura}')">${c.estrutura}</button>`).join('')}</div>
+  </div>`:''}
   <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1rem;flex-wrap:wrap;gap:8px">
-    <button class="btn btn-sm" style="color:var(--text2)" onclick="pularTrator()">Pular — trator não listado</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-sm" style="color:var(--text2)" onclick="pularTrator()">Pular — trator não listado</button>
+      <button class="btn btn-sm" style="color:var(--text2)" onclick="jaTemEstrutura()"><i class="ti ti-package"></i> Já tenho a estrutura</button>
+    </div>
     <button class="btn btn-primary" onclick="goStep(1)" ${!st.adaptDB?'disabled':''}>Próximo <i class="ti ti-arrow-right"></i></button>
   </div>`;
 }
-function selMarca(id){st.marcaSel=id;st.modeloSel=null;st.adaptDB=null;renderStep();setTimeout(()=>{const el=document.getElementById('busca-modelo');if(el)filtrarModelos();},50);}
+function selMarca(id){st.marcaSel=id;st.modeloSel=null;st.adaptDB=null;st.semEstrutura=false;st.estruturaAvulsa=null;st.mostrarEstruturaAvulsa=false;renderStep();setTimeout(()=>{const el=document.getElementById('busca-modelo');if(el)filtrarModelos();},50);}
 function filtrarModelos(){renderModelos((document.getElementById('busca-modelo')?.value||'').toLowerCase());}
 function renderModelos(busca){
   const el=document.getElementById('modelo-list');if(!el||!st.marcaSel)return;
@@ -1706,12 +1717,18 @@ function renderModelos(busca){
 }
 function selModelo(marcaId,modelo){
   const row=ADAPTS_DB.find(a=>a.marca===marcaId&&a.modelo===modelo);
-  st.adaptDB=row;st.modeloSel=modelo;
+  st.adaptDB=row;st.modeloSel=modelo;st.semEstrutura=false;st.estruturaAvulsa=null;
   const car=CARREGADORES.find(c=>c.estrutura===row.estrutura.split('/')[0]);
   if(car)st.carregadorSel=car.id;
   renderStep();setTimeout(()=>filtrarModelos(),50);
 }
-function pularTrator(){st.marcaSel=null;st.modeloSel=null;st.adaptDB=null;st.carregadorSel=null;goStep(1);}
+function pularTrator(){st.marcaSel=null;st.modeloSel=null;st.adaptDB=null;st.carregadorSel=null;st.semEstrutura=false;st.estruturaAvulsa=null;st.mostrarEstruturaAvulsa=false;goStep(1);}
+function jaTemEstrutura(){st.mostrarEstruturaAvulsa=true;renderStep();}
+function selEstruturaAvulsa(estrutura){
+  st.marcaSel=null;st.modeloSel=null;st.adaptDB=null;st.carregadorSel=null;
+  st.semEstrutura=true;st.estruturaAvulsa=estrutura;st.mostrarEstruturaAvulsa=false;
+  goStep(2);
+}
 
 function s1(){
   const rec=st.adaptDB?st.adaptDB.estrutura:null;
@@ -1737,9 +1754,9 @@ function s1(){
 function selCar(id){st.carregadorSel=id;renderStep();}
 
 function s2(){
-  const car=CARREGADORES.find(c=>c.id===st.carregadorSel),estr=car?car.estrutura:'';
-  // Se tem adaptador indicado, mostrar só ele + sem adaptador. Senão mostrar todos compatíveis.
-  const listaFull=ADAPTADORES.filter(a=>a.estrutura.includes(estr)||a.id==='adp_nao');
+  const car=CARREGADORES.find(c=>c.id===st.carregadorSel),estr=car?car.estrutura:(st.estruturaAvulsa||'');
+  // Se tem adaptador indicado, mostrar só ele + sem adaptador. Senão mostrar todos compatíveis com a estrutura.
+  const listaFull=estr?ADAPTADORES.filter(a=>a.estrutura.includes(estr)||a.id==='adp_nao'):ADAPTADORES;
   const lista=st.adaptDB&&st.adaptDB.adaptador
     ? listaFull.filter(a=>a.id==='adp_nao'||a.cod===st.adaptDB.adaptador)
     : listaFull;
@@ -1749,13 +1766,14 @@ function s2(){
   ${st.adaptDB&&st.adaptDB.adaptador?`<div style="display:flex;gap:10px;align-items:center;background:${m?m.cor+'12':'var(--bg)'};border:1px solid ${m?m.cor+'44':'var(--border)'};border-radius:var(--radius);padding:.75rem;margin-bottom:1rem">
     ${imgTag('adaptador',60,52)}<div><div style="font-size:11px;color:var(--text2);margin-bottom:4px">Código indicado — ${st.modeloSel}</div>
     <span class="badge badge-gray" style="font-family:monospace">${st.adaptDB.adaptador}</span>${st.adaptDB.obs?` <span class="badge badge-orange">${st.adaptDB.obs}</span>`:''}</div></div>`:''}
+  ${st.semEstrutura?`<div style="margin-bottom:1rem"><span class="badge badge-orange"><i class="ti ti-package"></i> Venda avulsa — estrutura já possuída${st.estruturaAvulsa?`: ${st.estruturaAvulsa}`:''}</span></div>`:''}
   ${lista.map(a=>{const sel=st.adaptSel===a.id;return `<div class="item-row${sel?' sel':''}" onclick="selAdapt('${a.id}')">
     ${a.id!=='adp_nao'?imgTag('adaptador',56,48):`<div class="item-thumb-ph" style="width:56px;height:48px"><i class="ti ti-circle-off" style="font-size:20px;color:var(--text3)"></i></div>`}
     <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">${a.nome}</div><div style="font-size:11px;color:var(--text2)">${a.cod!=='—'?`<span style="font-family:monospace">${a.cod}</span> · `:''}${a.desc}</div></div>
     <div style="text-align:right;flex-shrink:0"><div style="font-size:14px;font-weight:700">${a.preco>0?fmt(a.preco):'—'}</div>${sel?'<i class="ti ti-circle-check" style="color:var(--blue);font-size:18px"></i>':''}</div>
   </div>${sel&&a.preco>0?campoAjusteComPreco(a.id,a.preco):''}`;}).join('')}
   <div style="display:flex;justify-content:space-between;margin-top:.5rem">
-    <button class="btn" onclick="goStep(1)"><i class="ti ti-arrow-left"></i> Voltar</button>
+    <button class="btn" onclick="goStep(${st.semEstrutura?0:1})"><i class="ti ti-arrow-left"></i> Voltar</button>
     <button class="btn btn-primary" onclick="avancarAdapt()">Próximo <i class="ti ti-arrow-right"></i></button>
   </div>`;
 }
