@@ -2175,7 +2175,6 @@ async function salvarOrcamento(){
   try{
     await sbPost('orcamentos',{
       numero:'ORC-'+Date.now().toString().slice(-6),
-      vendedor_id:currentUser?.id||null,
       cliente_id:st.clienteSel?.id||null,
       cliente_nome:g('cli-nome')||st.clienteSel?.nome||null,
       trator_marca:m?.label||null,trator_modelo:st.modeloSel||null,
@@ -2659,7 +2658,7 @@ async function excluirCliente(id){
 async function loadOrcamentos(){
   try{
     const isAdmin=currentPerfil?.role==='admin';
-    const filter=isAdmin?'order=criado_em.desc&limit=200':'vendedor_id=eq.'+(currentUser?.id||'')+'&order=criado_em.desc&limit=100';
+    const filter=isAdmin?'order=criado_em.desc&limit=200':'vendedor=eq.'+encodeURIComponent(currentPerfil?.nome||'')+'&order=criado_em.desc&limit=100';
     orcamentos=await sbGet('orcamentos',filter);
     if(!Array.isArray(orcamentos))orcamentos=[];
   }catch(e){orcamentos=[];}
