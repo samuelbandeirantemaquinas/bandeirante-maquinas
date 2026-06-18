@@ -587,12 +587,13 @@ function linhaSolo(){
       <div style="font-size:11px;color:var(--text2)">Descompactadores Rasthor</div>
     </div>
   </div>
-  <div class="page-wrap">
+  <div class="page-wrap" style="padding-bottom:90px">
     <div style="margin-bottom:1rem">
       <div style="font-size:13px;color:var(--text2)">Selecione o modelo desejado e gere o orçamento</div>
     </div>
     <div id="rasthor-list"></div>
-  </div>`;
+  </div>
+  <div id="rasthor-btn-area" style="position:fixed;left:0;right:0;bottom:0;padding:.75rem 1rem;background:var(--bg2);border-top:1px solid var(--border);z-index:60"></div>`;
   renderRasthor();
 }
 
@@ -652,14 +653,14 @@ function renderRasthor(){
     </div>`;
   }).join('');
 
-  // Botão gerar orçamento
+  // Botão gerar orçamento (área fixa, fora da lista, para não sobrepor itens)
   const temSel = getRasthorSel().length>0;
-  const btnArea = document.createElement('div');
-  btnArea.style.cssText = 'position:sticky;bottom:65px;padding:.75rem 0';
-  btnArea.innerHTML = `<button class="btn btn-primary" style="width:100%;justify-content:center" onclick="gerarOrcRasthor()" ${!temSel?'disabled':''}>
-    <i class="ti ti-receipt"></i> Gerar orçamento
-  </button>`;
-  el.appendChild(btnArea);
+  const btnArea = document.getElementById('rasthor-btn-area');
+  if(btnArea){
+    btnArea.innerHTML = `<button class="btn btn-primary" style="width:100%;justify-content:center" onclick="gerarOrcRasthor()" ${!temSel?'disabled':''}>
+      <i class="ti ti-receipt"></i> Gerar orçamento
+    </button>`;
+  }
 }
 
 function gerarOrcRasthor(){
@@ -995,6 +996,51 @@ const MTSB = [
   {id:'mtsb_3cx',cod:'019786',nome:'MTSB 1060 · 3 Caixas · Motor 1cv',chassi:'3cx',caixas:3,motor:'1cv 220V',preco:9964.89,desc:'Chassi 3cx · 3 Caixas Líquidas · Motor 1cv 220V'},
 ];
 
+// ── Helper genérico: mapeia tipo -> array de produtos, e seleção (qtd>0) por tipo ──
+function arrayPorTipo(tipo){
+  if(tipo==='carreta') return CARRETAS;
+  if(tipo==='aerador') return AERADORES;
+  if(tipo==='plantadeira') return PLANTADEIRAS;
+  if(tipo==='virtuos') return VIRTUOS;
+  if(tipo==='mtsb') return MTSB;
+  return [];
+}
+function getSelPorTipo(tipo){
+  return arrayPorTipo(tipo).filter(p=>getQtd(p.id)>0);
+}
+function renderListaGenerica(tipo, lista, iconHtml){
+  const el = document.getElementById('lista-'+tipo);
+  if(!el) return;
+  el.innerHTML = lista.map(p=>{
+    const qtd = getQtd(p.id);
+    const sel = qtd>0;
+    return `<div style="background:${sel?'var(--blue-light)':'var(--bg2)'};border:${sel?'2px solid #185FA5':'1px solid var(--border)'};border-radius:var(--radius-lg);padding:1rem;margin-bottom:12px;box-shadow:var(--shadow)">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:.75rem">
+        ${p.img?`<div style="width:64px;height:52px;border-radius:var(--radius);overflow:hidden;flex-shrink:0"><img src="${p.img}" style="width:64px;height:52px;object-fit:contain"></div>`:`<div style="width:48px;height:48px;border-radius:var(--radius);background:var(--bg);display:flex;align-items:center;justify-content:center;flex-shrink:0">${iconHtml}</div>`}
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:700">${p.nome}</div>
+          <div style="font-size:11px;color:var(--text2)">${p.desc}</div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:11px;color:var(--text2)">Preço à vista</div>
+          <div style="font-size:16px;font-weight:700;color:var(--primary)">${fmt(p.preco)}</div>
+        </div>
+      </div>
+      ${campoQtdAjuste(p.id, p.preco)}
+    </div>`;
+  }).join('');
+
+  const temSel = getSelPorTipo(tipo).length>0;
+  const btnArea = document.getElementById('btn-area-'+tipo);
+  if(btnArea){
+    btnArea.innerHTML = `<button class="btn btn-primary" style="width:100%;justify-content:center" onclick="abrirFormProduto('${tipo}')" ${!temSel?'disabled':''}>
+      <i class="ti ti-receipt"></i> Gerar orçamento
+    </button>`;
+  }
+}
+
 function linhaTransporte(){
   document.getElementById('app-content').innerHTML=`
   <div style="display:flex;align-items:center;gap:10px;padding:.75rem 1rem;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:56px;z-index:50">
@@ -1004,32 +1050,14 @@ function linhaTransporte(){
       <div style="font-size:11px;color:var(--text2)">Carretas Graneleiras Bandeirante</div>
     </div>
   </div>
-  <div class="page-wrap">
+  <div class="page-wrap" style="padding-bottom:90px">
     <div style="margin-bottom:1rem">
-      <div style="font-size:13px;color:var(--text2)">Selecione o modelo para gerar orçamento</div>
+      <div style="font-size:13px;color:var(--text2)">Selecione o(s) modelo(s) e a quantidade para gerar orçamento</div>
     </div>
-    ${CARRETAS.map(c=>`
-    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1rem;margin-bottom:12px;box-shadow:var(--shadow)">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:.75rem">
-        <div style="width:64px;height:52px;border-radius:var(--radius);background:#FAEEDA;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden">
-          ${c.img ? `<img src="${c.img}" style="width:64px;height:52px;object-fit:contain">` : `<i class="ti ti-truck" style="font-size:22px;color:#633806"></i>`}
-        </div>
-        <div style="flex:1">
-          <div style="font-size:14px;font-weight:700">${c.nome}</div>
-          <div style="font-size:11px;color:var(--text2)">${c.desc}</div>
-        </div>
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div>
-          <div style="font-size:11px;color:var(--text2)">Preço à vista</div>
-          <div style="font-size:16px;font-weight:700;color:var(--primary)">R$ ${c.preco.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
-        </div>
-        <button class="btn btn-primary btn-sm" onclick="abrirFormProduto('carreta','${c.id}')">
-          <i class="ti ti-file-type-pdf"></i> Gerar PDF
-        </button>
-      </div>
-    </div>`).join('')}
-  </div>`;
+    <div id="lista-carreta"></div>
+  </div>
+  <div id="btn-area-carreta" style="position:fixed;left:0;right:0;bottom:0;padding:.75rem 1rem;background:var(--bg2);border-top:1px solid var(--border);z-index:60"></div>`;
+  renderListaGenerica('carreta', CARRETAS, '<i class="ti ti-truck" style="font-size:22px;color:#633806"></i>');
 }
 
 
@@ -1037,40 +1065,22 @@ function linhaTransporte(){
 let _prodSel = null; // {tipo, id, dados}
 let _cliGenSel = null;
 
-function abrirFormProduto(tipo, id) {
-  _prodSel = {tipo, id};
+function abrirFormProduto(tipo) {
+  const sel = getSelPorTipo(tipo);
+  if(!sel.length) return;
+  _prodSel = {tipo};
   _cliGenSel = null;
-  
-  let prod, titulo, preco, desc;
-  if(tipo==='carreta'){
-    prod = CARRETAS.find(x=>x.id===id);
-    titulo = prod?.nome; preco = prod?.preco; desc = prod?.desc;
-  } else if(tipo==='aerador'){
-    prod = AERADORES.find(x=>x.id===id);
-    titulo = prod?.nome; preco = prod?.preco; desc = prod?.desc;
-  } else if(tipo==='plantadeira'){
-    prod = PLANTADEIRAS.find(x=>x.id===id);
-    titulo = prod?.nome; preco = prod?.preco; desc = prod?.desc;
-  } else if(tipo==='virtuos'){
-    prod = VIRTUOS.find(x=>x.id===id);
-    titulo = prod?.nome; preco = prod?.preco; desc = prod?.desc;
-  } else if(tipo==='mtsb'){
-    prod = MTSB.find(x=>x.id===id);
-    titulo = prod?.nome; preco = prod?.preco; desc = prod?.desc;
-  }
-  if(!prod) return;
+
+  const titulos = {carreta:'Carretas Graneleiras',aerador:'Aeradores',plantadeira:'Plantadeiras Agile',virtuos:'Distribuidor de Fertilizantes',mtsb:'Tratadores de Sementes'};
+  const tituloHdr = sel.length===1 ? sel[0].nome : sel.length+' itens selecionados';
 
   document.getElementById('app-content').innerHTML=`
   <div style="display:flex;align-items:center;gap:10px;padding:.75rem 1rem;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:56px;z-index:50">
     <button class="btn btn-sm" onclick="voltarLinha('${tipo}')"><i class="ti ti-arrow-left"></i></button>
-    <div style="font-size:14px;font-weight:700">${titulo}</div>
+    <div style="font-size:14px;font-weight:700">${tituloHdr}</div>
   </div>
   <div class="page-wrap">
-    <div class="card" style="margin-bottom:1rem;border-left:4px solid var(--primary)">
-      <div style="font-size:13px;font-weight:700;margin-bottom:4px">${titulo}</div>
-      <div style="font-size:12px;color:var(--text2)">${desc}</div>
-      <div style="font-size:16px;font-weight:700;color:var(--text);margin-top:6px" id="gn-preco-final">${fmt(precoAjustado(id,preco))}</div>
-      ${campoAjusteComPreco(id, preco, 'gn-preco-final')}
+    <div class="card" style="margin-bottom:1rem;border-left:4px solid var(--primary)" id="gn-itens-card">
     </div>
     <div class="card" style="margin-bottom:1rem">
       <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:.75rem;letter-spacing:.3px">DADOS DO CLIENTE</div>
@@ -1129,6 +1139,71 @@ function abrirFormProduto(tipo, id) {
       </div>
     </div>
   </div>`;
+  renderItensFormGenerico(tipo);
+}
+
+function renderItensFormGenerico(tipo){
+  const sel = getSelPorTipo(tipo);
+  const card = document.getElementById('gn-itens-card');
+  if(!card) return;
+  const totalGeral = sel.reduce((t,p)=>t+precoAjustado(p.id,p.preco)*getQtd(p.id),0);
+  card.innerHTML = sel.map(p=>{
+    const qtd=getQtd(p.id);
+    const unit=precoAjustado(p.id,p.preco);
+    return `<div style="padding:6px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700">${p.nome}</div>
+          <div style="font-size:12px;color:var(--text2)">${p.desc}</div>
+        </div>
+        <div style="font-size:14px;font-weight:700;color:var(--text);white-space:nowrap" id="gn-sub-${p.id}">${fmt(unit*qtd)}</div>
+      </div>
+      ${campoQtdAjusteForm(p.id, p.preco, tipo)}
+    </div>`;
+  }).join('') + `<div style="font-size:16px;font-weight:700;color:var(--text);margin-top:10px;text-align:right" id="gn-total-geral">Total: ${fmt(totalGeral)}</div>`;
+}
+
+// Variante de campoQtdAjuste que, ao alterar qtd/ajuste, também atualiza o total geral da tela de orçamento genérica
+function campoQtdAjusteForm(id, preco, tipo){
+  const qtd=getQtd(id);
+  const aj=st.ajustes[id]||'';
+  const isAdm=isAdmin();
+  const cor=isAdm?'#c0392b':'#e67e22';
+  const tipoLbl=isAdm?'Desconto':'Acréscimo';
+  return `<div style="margin-top:6px;padding:6px 8px;background:var(--bg);border-radius:var(--radius-sm);border:1px dashed var(--border)" onclick="event.stopPropagation()">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:${qtd>0?'6px':'0'}">
+      <span style="font-size:11px;color:var(--text2);white-space:nowrap">Qtd.</span>
+      <button class="btn btn-sm" style="padding:2px 8px" onclick="event.stopPropagation();incQtd('${id}',-1);atualizarItemFormGenerico('${id}',${preco},'${tipo}')">−</button>
+      <input type="number" min="0" step="1" value="${qtd}"
+        style="width:48px;text-align:center;border:1px solid var(--border);border-radius:4px;padding:3px 4px;font-size:12px;background:var(--bg2)"
+        onclick="event.stopPropagation()"
+        oninput="event.stopPropagation();setQtd('${id}',parseInt(this.value)||0);atualizarItemFormGenerico('${id}',${preco},'${tipo}')">
+      <button class="btn btn-sm" style="padding:2px 8px" onclick="event.stopPropagation();incQtd('${id}',1);atualizarItemFormGenerico('${id}',${preco},'${tipo}')">+</button>
+    </div>
+    ${qtd>0?`<div style="display:flex;align-items:center;gap:6px">
+      <span style="font-size:11px;color:${cor};font-weight:600;white-space:nowrap">${tipoLbl} %</span>
+      <input type="number" min="0" max="100" step="0.1" placeholder="0,0"
+        value="${aj}"
+        style="width:60px;border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:12px;background:var(--bg2)"
+        onclick="event.stopPropagation()"
+        oninput="event.stopPropagation();st.ajustes['${id}']=parseFloat(this.value)||0;atualizarItemFormGenerico('${id}',${preco},'${tipo}')">
+    </div>`:''}
+  </div>`;
+}
+
+function atualizarItemFormGenerico(id, preco, tipo){
+  if(getQtd(id)<=0){
+    // Item zerado: refaz a lista inteira (item some, e se nenhum restar, volta para a tela da linha)
+    if(getSelPorTipo(tipo).length===0){ voltarLinha(tipo); return; }
+    renderItensFormGenerico(tipo);
+    return;
+  }
+  const subEl=document.getElementById('gn-sub-'+id);
+  if(subEl) subEl.textContent=fmt(precoAjustado(id,preco)*getQtd(id));
+  const sel = getSelPorTipo(tipo);
+  const totalGeral = sel.reduce((t,p)=>t+precoAjustado(p.id,p.preco)*getQtd(p.id),0);
+  const totEl=document.getElementById('gn-total-geral');
+  if(totEl) totEl.textContent='Total: '+fmt(totalGeral);
 }
 
 function voltarLinha(tipo){
@@ -1177,17 +1252,11 @@ function selecionarCliGen(id){
 
 function gerarPDFGenerico(){
   if(!_prodSel) return;
-  const {tipo,id}=_prodSel;
+  const {tipo}=_prodSel;
   const gn=fid=>(document.getElementById(fid)||{}).value||'';
-  
-  let prod;
-  if(tipo==='carreta') prod=CARRETAS.find(x=>x.id===id);
-  else if(tipo==='aerador') prod=AERADORES.find(x=>x.id===id);
-  else if(tipo==='plantadeira') prod=PLANTADEIRAS.find(x=>x.id===id);
-  else if(tipo==='virtuos') prod=VIRTUOS.find(x=>x.id===id);
-  else if(tipo==='mtsb') prod=MTSB.find(x=>x.id===id);
-  if(!prod) return;
-  const precoFinal=precoAjustado(id, prod.preco);
+
+  const itens = getSelPorTipo(tipo);
+  if(!itens.length) return;
 
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
@@ -1242,8 +1311,9 @@ function gerarPDFGenerico(){
   if(tel||email) y+=3;
   y+=2; doc.setDrawColor(180);doc.line(M,y,W-M,y);y+=4;
 
-  // Imagem do produto
-  if(prod.img){try{doc.addImage(prod.img,'PNG',W-M-55,y,55,42);}catch(e){}}
+  // Imagem do primeiro produto com imagem disponível (se houver)
+  const prodComImg = itens.find(p=>p.img);
+  if(prodComImg){try{doc.addImage(prodComImg.img,'PNG',W-M-55,y,55,42);}catch(e){}}
 
   // Categoria
   const cats={carreta:'CARRETAS GRANELEIRAS',aerador:'AERADORES',plantadeira:'PLANTADEIRAS',virtuos:'DISTRIBUIDOR DE FERTILIZANTES',mtsb:'TRATADORES DE SEMENTES'};
@@ -1251,13 +1321,21 @@ function gerarPDFGenerico(){
   doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(30);
   doc.text(cats[tipo]||'PRODUTO',M+2,y+4.5);y+=8;
 
-  // Descrição
-  const finame=prod.finame?'FINAME '+prod.finame+' · ':'';
-  const ncm=prod.ncm?'NCM '+prod.ncm:'';
-  const bodyDesc=prod.nome.toUpperCase()+'\n'+prod.desc+'\n'+(finame+ncm).trim();
+  // Descrição — uma linha por item selecionado, com quantidade e subtotal ajustado
+  let subtotalGeral=0;
+  const body = itens.map((prod,idx)=>{
+    const qtd=getQtd(prod.id);
+    const unit=precoAjustado(prod.id, prod.preco);
+    const subtotal=unit*qtd;
+    subtotalGeral+=subtotal;
+    const finame=prod.finame?'FINAME '+prod.finame+' · ':'';
+    const ncm=prod.ncm?'NCM '+prod.ncm:'';
+    const bodyDesc=prod.nome.toUpperCase()+'\n'+prod.desc+'\n'+(finame+ncm).trim();
+    return [String(idx+1), bodyDesc, String(qtd), 'R$ '+subtotal.toLocaleString('pt-BR',{minimumFractionDigits:2})];
+  });
   doc.autoTable({
     head:[['#','Produto / Descrição','Qtde.','Valor']],
-    body:[['1',bodyDesc,'1','R$ '+precoFinal.toLocaleString('pt-BR',{minimumFractionDigits:2})]],
+    body:body,
     startY:y,margin:{left:M,right:M},
     styles:{fontSize:9,cellPadding:4},
     headStyles:{fillColor:[240,240,240],textColor:[40,40,40],fontStyle:'bold',lineWidth:0.3,lineColor:[200,200,200]},
@@ -1270,7 +1348,7 @@ function gerarPDFGenerico(){
   doc.setFillColor(230,230,230);doc.rect(M,y,W-M*2,7,'F');
   doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(20);
   doc.text('Valor total:',W-M-55,y+5.5);
-  doc.text('R$ '+precoFinal.toLocaleString('pt-BR',{minimumFractionDigits:2}),W-M-1,y+5.5,{align:'right'});
+  doc.text('R$ '+subtotalGeral.toLocaleString('pt-BR',{minimumFractionDigits:2}),W-M-1,y+5.5,{align:'right'});
   y+=9;
 
   // Rodapé
@@ -1365,29 +1443,14 @@ function linhaAerador(){
       <div style="font-size:11px;color:var(--text2)">Bandeirante — 3 modelos</div>
     </div>
   </div>
-  <div class="page-wrap">
-    ${AERADORES.map(a=>`
-    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1rem;margin-bottom:12px;box-shadow:var(--shadow)">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:.75rem">
-        <div style="width:48px;height:48px;border-radius:var(--radius);background:#EAF3DE;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-          <i class="ti ti-wind" style="font-size:22px;color:#27500A"></i>
-        </div>
-        <div style="flex:1">
-          <div style="font-size:14px;font-weight:700">${a.nome}</div>
-          <div style="font-size:11px;color:var(--text2)">${a.desc}</div>
-        </div>
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div>
-          <div style="font-size:11px;color:var(--text2)">Preço à vista</div>
-          <div style="font-size:16px;font-weight:700;color:var(--primary)">R$ ${a.preco.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
-        </div>
-        <button class="btn btn-primary btn-sm" onclick="abrirFormProduto('aerador','${a.id}')">
-          <i class="ti ti-file-type-pdf"></i> Gerar PDF
-        </button>
-      </div>
-    </div>`).join('')}
-  </div>`;
+  <div class="page-wrap" style="padding-bottom:90px">
+    <div style="margin-bottom:1rem">
+      <div style="font-size:13px;color:var(--text2)">Selecione o(s) modelo(s) e a quantidade para gerar orçamento</div>
+    </div>
+    <div id="lista-aerador"></div>
+  </div>
+  <div id="btn-area-aerador" style="position:fixed;left:0;right:0;bottom:0;padding:.75rem 1rem;background:var(--bg2);border-top:1px solid var(--border);z-index:60"></div>`;
+  renderListaGenerica('aerador', AERADORES, '<i class="ti ti-wind" style="font-size:22px;color:#27500A"></i>');
 }
 
 function gerarPDFAerador(aid){
@@ -1447,33 +1510,18 @@ function linhaPlantadeira(){
       <div style="font-size:11px;color:var(--text2)">3 · 4 · 5 linhas — Plantio Direto</div>
     </div>
   </div>
-  <div class="page-wrap">
-    ${PLANTADEIRAS.map(p=>`
-    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1rem;margin-bottom:12px;box-shadow:var(--shadow)">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:.75rem">
-        <div style="width:48px;height:48px;border-radius:var(--radius);background:#E6F1FB;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-          <i class="ti ti-seeding" style="font-size:22px;color:#0C447C"></i>
-        </div>
-        <div style="flex:1">
-          <div style="font-size:14px;font-weight:700">${p.nome}</div>
-          <div style="font-size:11px;color:var(--text2)">${p.desc}</div>
-        </div>
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div>
-          <div style="font-size:11px;color:var(--text2)">Preço à vista</div>
-          <div style="font-size:16px;font-weight:700;color:var(--primary)">R$ ${p.preco.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
-        </div>
-        <button class="btn btn-primary btn-sm" onclick="abrirFormProduto('plantadeira','${p.id}')">
-          <i class="ti ti-file-type-pdf"></i> Gerar PDF
-        </button>
-      </div>
-    </div>`).join('')}
+  <div class="page-wrap" style="padding-bottom:90px">
+    <div style="margin-bottom:1rem">
+      <div style="font-size:13px;color:var(--text2)">Selecione o(s) modelo(s) e a quantidade para gerar orçamento</div>
+    </div>
+    <div id="lista-plantadeira"></div>
     <div style="margin-top:.5rem;padding:.75rem;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;color:var(--text2)">
       <b>Opcionais disponíveis:</b><br>
       ${PLANTADEIRAS_OPCIONAIS.map(o=>`${o.nome} — R$ ${o.preco.toLocaleString('pt-BR',{minimumFractionDigits:2})}`).join(' &bull; ')}
     </div>
-  </div>`;
+  </div>
+  <div id="btn-area-plantadeira" style="position:fixed;left:0;right:0;bottom:0;padding:.75rem 1rem;background:var(--bg2);border-top:1px solid var(--border);z-index:60"></div>`;
+  renderListaGenerica('plantadeira', PLANTADEIRAS, '<i class="ti ti-seeding" style="font-size:22px;color:#0C447C"></i>');
 }
 
 function gerarPDFPlantadeira(pid){
@@ -1533,29 +1581,14 @@ function linhaVirtuos(){
       <div style="font-size:11px;color:var(--text2)">Virtuos DFB 1300</div>
     </div>
   </div>
-  <div class="page-wrap">
-    ${VIRTUOS.map(v=>`
-    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1rem;margin-bottom:12px;box-shadow:var(--shadow)">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:.75rem">
-        <div style="width:48px;height:48px;border-radius:var(--radius);background:#FAEEDA;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-          <i class="ti ti-spray" style="font-size:22px;color:#633806"></i>
-        </div>
-        <div style="flex:1">
-          <div style="font-size:14px;font-weight:700">${v.nome}</div>
-          <div style="font-size:11px;color:var(--text2)">${v.desc}</div>
-        </div>
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div>
-          <div style="font-size:11px;color:var(--text2)">Preço unitário</div>
-          <div style="font-size:16px;font-weight:700;color:var(--primary)">R$ ${v.preco.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
-        </div>
-        <button class="btn btn-primary btn-sm" onclick="abrirFormProduto('virtuos','${v.id}')">
-          <i class="ti ti-file-type-pdf"></i> Gerar PDF
-        </button>
-      </div>
-    </div>`).join('')}
-  </div>`;
+  <div class="page-wrap" style="padding-bottom:90px">
+    <div style="margin-bottom:1rem">
+      <div style="font-size:13px;color:var(--text2)">Selecione a quantidade para gerar orçamento</div>
+    </div>
+    <div id="lista-virtuos"></div>
+  </div>
+  <div id="btn-area-virtuos" style="position:fixed;left:0;right:0;bottom:0;padding:.75rem 1rem;background:var(--bg2);border-top:1px solid var(--border);z-index:60"></div>`;
+  renderListaGenerica('virtuos', VIRTUOS, '<i class="ti ti-spray" style="font-size:22px;color:#633806"></i>');
 }
 
 function gerarPDFVirtuos(vid){
@@ -1615,29 +1648,14 @@ function linhaTratador(){
       <div style="font-size:11px;color:var(--text2)">MTSB 1060 — 2 modelos</div>
     </div>
   </div>
-  <div class="page-wrap">
-    ${MTSB.map(m=>`
-    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1rem;margin-bottom:12px;box-shadow:var(--shadow)">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:.75rem">
-        <div style="width:48px;height:48px;border-radius:var(--radius);background:#FAECE7;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-          <i class="ti ti-plant" style="font-size:22px;color:#712B13"></i>
-        </div>
-        <div style="flex:1">
-          <div style="font-size:14px;font-weight:700">${m.nome}</div>
-          <div style="font-size:11px;color:var(--text2)">${m.desc}</div>
-        </div>
-      </div>
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div>
-          <div style="font-size:11px;color:var(--text2)">Preço à vista</div>
-          <div style="font-size:16px;font-weight:700;color:var(--primary)">R$ ${m.preco.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
-        </div>
-        <button class="btn btn-primary btn-sm" onclick="abrirFormProduto('mtsb','${m.id}')">
-          <i class="ti ti-file-type-pdf"></i> Gerar PDF
-        </button>
-      </div>
-    </div>`).join('')}
-  </div>`;
+  <div class="page-wrap" style="padding-bottom:90px">
+    <div style="margin-bottom:1rem">
+      <div style="font-size:13px;color:var(--text2)">Selecione o(s) modelo(s) e a quantidade para gerar orçamento</div>
+    </div>
+    <div id="lista-mtsb"></div>
+  </div>
+  <div id="btn-area-mtsb" style="position:fixed;left:0;right:0;bottom:0;padding:.75rem 1rem;background:var(--bg2);border-top:1px solid var(--border);z-index:60"></div>`;
+  renderListaGenerica('mtsb', MTSB, '<i class="ti ti-plant" style="font-size:22px;color:#712B13"></i>');
 }
 
 function gerarPDFMTSB(mid){
