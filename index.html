@@ -617,17 +617,17 @@ const RASTHOR = [
    desc:'Disco de corte 20" · Desarme semi automático'},
 ];
 
-let rasthorSel = null;
-
 function getImgRasthor(id){return IMGS['rasthor_'+id]||null;}
+function getRasthorSel(){return RASTHOR.filter(r=>getQtd(r.id)>0);}
 
 function renderRasthor(){
   const el = document.getElementById('rasthor-list');
   if(!el) return;
   el.innerHTML = RASTHOR.map(r => {
-    const sel = rasthorSel === r.id;
+    const qtd = getQtd(r.id);
+    const sel = qtd>0;
     const isHydra = r.cod.includes('HY') || r.cod.startsWith('065') || r.cod === '051486';
-    return `<div onclick="selRasthor('${r.id}')" style="border:${sel?'2px solid #185FA5':'1px solid var(--border)'};border-radius:var(--radius-lg);padding:.9rem 1rem;margin-bottom:10px;cursor:pointer;background:${sel?'var(--blue-light)':'var(--bg2)'};box-shadow:var(--shadow);transition:all .15s">
+    return `<div style="border:${sel?'2px solid #185FA5':'1px solid var(--border)'};border-radius:var(--radius-lg);padding:.9rem 1rem;margin-bottom:10px;background:${sel?'var(--blue-light)':'var(--bg2)'};box-shadow:var(--shadow);transition:all .15s">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
         <div style="flex:1;min-width:0">
           ${getImgRasthor(r.id)?`<img src="${getImgRasthor(r.id)}" style="width:100%;height:90px;object-fit:contain;border-radius:6px;margin-bottom:8px" alt="">`:''}          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap">
@@ -646,40 +646,48 @@ function renderRasthor(){
         </div>
         <div style="text-align:right;flex-shrink:0">
           <div style="font-size:16px;font-weight:700;color:var(--text)">${fmt(r.preco)}</div>
-          ${sel?'<i class="ti ti-circle-check" style="font-size:20px;color:var(--blue)"></i>':'<i class="ti ti-circle-plus" style="font-size:20px;color:var(--text3)"></i>'}
         </div>
       </div>
+      ${campoQtdAjuste(r.id, r.preco)}
     </div>`;
   }).join('');
 
   // Botão gerar orçamento
+  const temSel = getRasthorSel().length>0;
   const btnArea = document.createElement('div');
   btnArea.style.cssText = 'position:sticky;bottom:65px;padding:.75rem 0';
-  btnArea.innerHTML = `<button class="btn btn-primary" style="width:100%;justify-content:center" onclick="gerarOrcRasthor()" ${!rasthorSel?'disabled':''}>
+  btnArea.innerHTML = `<button class="btn btn-primary" style="width:100%;justify-content:center" onclick="gerarOrcRasthor()" ${!temSel?'disabled':''}>
     <i class="ti ti-receipt"></i> Gerar orçamento
   </button>`;
   el.appendChild(btnArea);
 }
 
-function selRasthor(id){
-  rasthorSel = rasthorSel===id ? null : id;
-  renderRasthor();
-}
-
 function gerarOrcRasthor(){
-  const r = RASTHOR.find(x=>x.id===rasthorSel);
-  if(!r) return;
+  const sel = getRasthorSel();
+  if(!sel.length) return;
+  const tituloHdr = sel.length===1 ? sel[0].nome : sel.length+' itens selecionados';
+  const totalGeral = sel.reduce((t,r)=>t+precoAjustado(r.id,r.preco)*getQtd(r.id),0);
   // Ir para tela de dados do cliente antes de gerar
   document.getElementById('app-content').innerHTML=`
   <div style="display:flex;align-items:center;gap:10px;padding:.75rem 1rem;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:56px;z-index:50">
     <button class="btn btn-sm" onclick="linhaSolo()"><i class="ti ti-arrow-left"></i></button>
-    <div style="font-size:14px;font-weight:700">${r.nome}</div>
+    <div style="font-size:14px;font-weight:700">${tituloHdr}</div>
   </div>
   <div class="page-wrap">
     <div class="card" style="margin-bottom:1rem;border-left:4px solid #27500A">
-      <div style="font-size:13px;font-weight:700;margin-bottom:4px">${r.nome}</div>
-      <div style="font-size:12px;color:var(--text2)">${r.desc}</div>
-      <div style="font-size:16px;font-weight:700;color:var(--text);margin-top:6px">${fmt(r.preco)}</div>
+      ${sel.map(r=>{
+        const qtd=getQtd(r.id);
+        const unit=precoAjustado(r.id,r.preco);
+        return `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:700">${r.nome}</div>
+            <div style="font-size:12px;color:var(--text2)">${r.desc}</div>
+            <div style="font-size:11px;color:var(--text2);margin-top:2px">Qtd. ${qtd} × ${fmt(unit)}</div>
+          </div>
+          <div style="font-size:14px;font-weight:700;color:var(--text);white-space:nowrap">${fmt(unit*qtd)}</div>
+        </div>`;
+      }).join('')}
+      <div style="font-size:16px;font-weight:700;color:var(--text);margin-top:10px;text-align:right">Total: ${fmt(totalGeral)}</div>
     </div>
     <div class="card" style="margin-bottom:1rem">
       <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:.75rem;letter-spacing:.3px">DADOS DO CLIENTE</div>
@@ -724,7 +732,7 @@ function gerarOrcRasthor(){
       </div>
       <div class="ig"><label>Observações</label><textarea id="rc-obs" placeholder="Informações adicionais..."></textarea></div>
     </div>
-    <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="gerarPDFRasthor('${r.id}')">
+    <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="gerarPDFRasthor()">
       <i class="ti ti-file-type-pdf"></i> Baixar PDF
     </button>
     <div id="modal-cli-rasthor" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;padding:1rem;overflow-y:auto">
@@ -779,9 +787,9 @@ function selecionarCliRasthor(id){
   document.getElementById('modal-cli-rasthor').style.display='none';
 }
 
-function gerarPDFRasthor(rid){
-  const r=RASTHOR.find(x=>x.id===rid);
-  if(!r)return;
+function gerarPDFRasthor(){
+  const sel=getRasthorSel();
+  if(!sel.length)return;
   const gr=id=>( document.getElementById(id)||{} ).value||'';
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
@@ -790,7 +798,14 @@ function gerarPDFRasthor(rid){
   const num='ORC-'+Date.now().toString().slice(-6);
   const hoje=new Date().toLocaleDateString('pt-BR');
   const nParc=parseInt(gr('rc-pgto'));
-  const totalFinal=(!isNaN(nParc)&&nParc>1)?r.preco*(1+nParc*0.01):r.preco;
+  const itensRasthor=sel.map(r=>{
+    const qtd=getQtd(r.id);
+    const unit=precoAjustado(r.id,r.preco);
+    return {r,qtd,unit,subtotal:unit*qtd};
+  });
+  const subtotalGeral=itensRasthor.reduce((t,it)=>t+it.subtotal,0);
+  const qtdTotal=itensRasthor.reduce((t,it)=>t+it.qtd,0);
+  const totalFinal=(!isNaN(nParc)&&nParc>1)?subtotalGeral*(1+nParc*0.01):subtotalGeral;
 
   let y=M;
 
@@ -866,15 +881,18 @@ function gerarPDFRasthor(rid){
   doc.text('DESCOMPACTADORES',M+2,y+4.5);
   y+=8;
 
-  // Item
+  // Itens
   doc.autoTable({
     head:[['#','Produto','Qtde.','Subtotal']],
-    body:[[
-      '1',
-      r.nome.toUpperCase()+'\n'+r.desc+'\nFINAME '+r.finame+' · NCM 84322100\nDiscos 20" · Esp. '+r.esp+(r.prof!=='—'?' · Prof. '+r.prof:'')+' · Desarme '+r.desarme,
-      '1',
-      'R$ '+r.preco.toLocaleString('pt-BR',{minimumFractionDigits:2})
-    ]],
+    body:itensRasthor.map((it,i)=>{
+      const r=it.r;
+      return [
+        String(i+1),
+        r.nome.toUpperCase()+'\n'+r.desc+'\nFINAME '+r.finame+' · NCM 84322100\nDiscos 20" · Esp. '+r.esp+(r.prof!=='—'?' · Prof. '+r.prof:'')+' · Desarme '+r.desarme,
+        String(it.qtd),
+        'R$ '+it.subtotal.toLocaleString('pt-BR',{minimumFractionDigits:2})
+      ];
+    }),
     startY:y, margin:{left:M,right:M},
     styles:{fontSize:9,cellPadding:4},
     headStyles:{fillColor:[240,240,240],textColor:[40,40,40],fontStyle:'bold',lineWidth:0.3,lineColor:[200,200,200]},
@@ -887,7 +905,7 @@ function gerarPDFRasthor(rid){
   // Totais
   doc.setFillColor(240,240,240);doc.rect(M,y,W-M*2,6,'F');
   doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(40);
-  doc.text('Qtde. Total:',W-M-30,y+4.5);doc.text('1',W-M-1,y+4.5,{align:'right'});y+=6;
+  doc.text('Qtde. Total:',W-M-30,y+4.5);doc.text(String(qtdTotal),W-M-1,y+4.5,{align:'right'});y+=6;
   doc.setFillColor(230,230,230);doc.rect(M,y,W-M*2,7,'F');
   doc.setFontSize(10);doc.setTextColor(20);
   const lblTot='Valor total:';
