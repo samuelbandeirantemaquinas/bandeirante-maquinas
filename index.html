@@ -185,8 +185,20 @@ async function sbReq(method, table, params, body, extraHeaders) {
   const opts = {method, headers};
   if (body) opts.body = JSON.stringify(body);
   const r = await fetch(url, opts);
+  if (!r.ok) {
+    let errBody = null;
+    try { errBody = await r.json(); } catch(e) {}
+    const msg = (errBody && (errBody.message || errBody.hint || errBody.details)) || ('HTTP ' + r.status);
+    console.error('sbReq error', method, table, r.status, errBody);
+    const err = new Error(msg);
+    err.status = r.status;
+    err.body = errBody;
+    throw err;
+  }
   if (method === 'DELETE') return;
-  return r.json();
+  const text = await r.text();
+  if (!text) return null;
+  try { return JSON.parse(text); } catch(e) { return null; }
 }
 const sbGet = (t, p, h) => sbReq('GET', t, p, null, h);
 const sbPost = (t, b) => sbReq('POST', t, '', b);
@@ -736,7 +748,8 @@ function abrirSeletorClienteRasthor(){
 
 function filtrarCliRasthor(){
   const q=(document.getElementById('busca-cli-rasthor')?.value||'').toLowerCase();
-  const res=clientes.filter(c=>!q||c.nome?.toLowerCase().includes(q)||c.empresa?.toLowerCase().includes(q));
+  const qNum=q.replace(/\D/g,'');
+  const res=clientes.filter(c=>!q||c.nome?.toLowerCase().includes(q)||c.empresa?.toLowerCase().includes(q)||c.cpfcnpj?.toLowerCase().includes(q)||(qNum&&c.cpfcnpj?.replace(/\D/g,'').includes(qNum)));
   const el=document.getElementById('lista-cli-rasthor');if(!el)return;
   if(!res.length){el.innerHTML=`<div class="empty" style="padding:1rem">Nenhum resultado</div>`;return;}
   el.innerHTML=res.map(c=>`<div class="cli-card" onclick="selecionarCliRasthor('${c.id}')">
@@ -1116,7 +1129,8 @@ function abrirModalCliGen(){
 
 function filtrarCliGen(){
   const q=(document.getElementById('busca-cli-gen')?.value||'').toLowerCase();
-  const res=clientes.filter(c=>!q||c.nome?.toLowerCase().includes(q)||c.empresa?.toLowerCase().includes(q));
+  const qNum=q.replace(/\D/g,'');
+  const res=clientes.filter(c=>!q||c.nome?.toLowerCase().includes(q)||c.empresa?.toLowerCase().includes(q)||c.cpfcnpj?.toLowerCase().includes(q)||(qNum&&c.cpfcnpj?.replace(/\D/g,'').includes(qNum)));
   const el=document.getElementById('lista-cli-gen');if(!el)return;
   if(!res.length){el.innerHTML=`<div class="empty" style="padding:1rem">Nenhum resultado</div>`;return;}
   el.innerHTML=res.map(c=>`<div class="cli-card" onclick="selecionarCliGen('${c.id}')">
@@ -1947,7 +1961,8 @@ function _abrirSeletorClienteUI(){const m=document.getElementById('modal-cli');i
 function fecharSeletorCliente(){const m=document.getElementById('modal-cli');if(m)m.style.display='none';}
 function filtrarCliModal(){
   const q=(document.getElementById('busca-cli')?.value||'').toLowerCase();
-  const res=clientes.filter(c=>!q||c.nome?.toLowerCase().includes(q)||c.empresa?.toLowerCase().includes(q));
+  const qNum=q.replace(/\D/g,'');
+  const res=clientes.filter(c=>!q||c.nome?.toLowerCase().includes(q)||c.empresa?.toLowerCase().includes(q)||c.cpfcnpj?.toLowerCase().includes(q)||(qNum&&c.cpfcnpj?.replace(/\D/g,'').includes(qNum)));
   const el=document.getElementById('lista-cli-modal');if(!el)return;
   if(!res.length){el.innerHTML=`<div class="empty" style="padding:1rem"><i class="ti ti-users"></i>Nenhum resultado</div>`;return;}
   el.innerHTML=res.map(c=>`<div class="cli-card" onclick="selecionarCliente('${c.id}')">
@@ -2156,7 +2171,11 @@ async function salvarOrcamento(){
     toast('Orçamento salvo! ✓');
     loadOrcamentos();
     if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-circle-check"></i> Salvo!';}
-  }catch(e){toast('Erro ao salvar.');if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-device-floppy"></i> Salvar';}}
+  }catch(e){
+    console.error('Erro ao salvar orçamento:', e);
+    toast('Erro ao salvar: '+(e.message||'falha desconhecida'));
+    if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-device-floppy"></i> Salvar';}
+  }
 }
 
 function gerarPDF(){
