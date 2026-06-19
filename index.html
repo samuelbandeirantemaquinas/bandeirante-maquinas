@@ -2963,6 +2963,26 @@ async function renderAdmin(){
   document.getElementById('app-content').innerHTML=`<div class="page-wrap"><div style="font-size:16px;font-weight:700;margin-bottom:1rem">Carregando produtos...</div></div>`;
   let rows=[];
   try{rows=await sbGet('produtos','order=categoria.asc,id.asc');}catch(e){}
+
+  // Auto-seed: garante que os produtos das categorias novas (carreta, aerador,
+  // plantadeira, virtuos, mtsb) existam na tabela 'produtos' do Supabase, para que
+  // apareçam editáveis aqui no Admin. Insere apenas os que ainda não existem.
+  const seedDefs = [
+    ...CARRETAS.map(p=>({id:p.id,categoria:'carreta',nome:p.nome,preco:p.preco,descricao:p.desc||'',ativo:true})),
+    ...AERADORES.map(p=>({id:p.id,categoria:'aerador',nome:p.nome,preco:p.preco,descricao:p.desc||'',ativo:true})),
+    ...PLANTADEIRAS.map(p=>({id:p.id,categoria:'plantadeira',nome:p.nome,preco:p.preco,descricao:p.desc||'',ativo:true})),
+    ...VIRTUOS.map(p=>({id:p.id,categoria:'virtuos',nome:p.nome,preco:p.preco,descricao:p.desc||'',ativo:true})),
+    ...MTSB.map(p=>({id:p.id,categoria:'mtsb',nome:p.nome,preco:p.preco,descricao:p.desc||'',ativo:true})),
+  ];
+  const existentes = new Set(rows.map(r=>r.id));
+  const faltantes = seedDefs.filter(s=>!existentes.has(s.id));
+  if(faltantes.length>0){
+    for(const item of faltantes){
+      try{ await sbPost('produtos', item); }catch(e){ console.warn('Erro ao semear produto', item.id, e); }
+    }
+    try{ rows = await sbGet('produtos','order=categoria.asc,id.asc'); }catch(e){}
+  }
+
   const cats={carregador:'Carregadores',adaptador:'Adaptadores',joystick:'Joysticks',implemento:'Implementos',rasthor:'Rasthor — Preparo de Solo',carreta:'Carretas Graneleiras',aerador:'Aeradores',plantadeira:'Plantadeiras Agile',virtuos:'Distribuidor de Fertilizantes',mtsb:'Tratadores de Sementes'};
   const grupos=Object.keys(cats);
   document.getElementById('app-content').innerHTML=`
