@@ -653,7 +653,7 @@ function renderRasthor(){
           <div style="font-size:16px;font-weight:700;color:var(--text)">${fmt(r.preco)}</div>
         </div>
       </div>
-      ${campoQtdAjuste(r.id, r.preco)}
+      ${campoQtdAjusteLista(r.id, r.preco, 'renderRasthor()')}
     </div>`;
   }).join('');
 
@@ -1015,6 +1015,22 @@ function arrayPorTipo(tipo){
 function getSelPorTipo(tipo){
   return arrayPorTipo(tipo).filter(p=>getQtd(p.id)>0);
 }
+// Mapeia tipo -> ícone usado nos cards (mesmo ícone passado em cada chamada original de renderListaGenerica)
+function iconePorTipo(tipo){
+  if(tipo==='carreta') return '<i class="ti ti-truck" style="font-size:22px;color:#633806"></i>';
+  if(tipo==='aerador') return '<i class="ti ti-wind" style="font-size:22px;color:#27500A"></i>';
+  if(tipo==='plantadeira') return '<i class="ti ti-seeding" style="font-size:22px;color:#0C447C"></i>';
+  if(tipo==='virtuos') return '<i class="ti ti-spray" style="font-size:22px;color:#633806"></i>';
+  if(tipo==='mtsb') return '<i class="ti ti-plant" style="font-size:22px;color:#712B13"></i>';
+  return '';
+}
+// Re-renderiza a lista genérica do tipo informado, sem precisar repassar array/ícone manualmente.
+// Usada como callback pelos botões +/-/input de quantidade dentro de cada card, para que a
+// tela (qtd exibida, destaque do card, campo de ajuste %, subtotal e botão "Gerar orçamento")
+// seja atualizada imediatamente após o clique.
+function rerenderLista(tipo){
+  renderListaGenerica(tipo, arrayPorTipo(tipo), iconePorTipo(tipo));
+}
 function renderListaGenerica(tipo, lista, iconHtml){
   const el = document.getElementById('lista-'+tipo);
   if(!el) return;
@@ -1035,7 +1051,7 @@ function renderListaGenerica(tipo, lista, iconHtml){
           <div style="font-size:16px;font-weight:700;color:var(--primary)">${fmt(p.preco)}</div>
         </div>
       </div>
-      ${campoQtdAjuste(p.id, p.preco)}
+      ${campoQtdAjusteLista(p.id, p.preco, `rerenderLista('${tipo}')`)}
     </div>`;
   }).join('');
 
@@ -2096,6 +2112,42 @@ function campoQtdAjuste(id, preco){
         onclick="event.stopPropagation()"
         oninput="event.stopPropagation();setQtd('${id}',parseInt(this.value)||0)">
       <button class="btn btn-sm" style="padding:2px 8px" onclick="event.stopPropagation();incQtd('${id}',1)">+</button>
+    </div>
+    ${qtd>0?`<div style="display:flex;align-items:center;gap:6px">
+      <span style="font-size:11px;color:${cor};font-weight:600;white-space:nowrap">${tipo} %</span>
+      <input type="number" min="0" max="100" step="0.1" placeholder="0,0"
+        value="${aj}"
+        style="width:60px;border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:12px;background:var(--bg2)"
+        onclick="event.stopPropagation()"
+        oninput="event.stopPropagation();st.ajustes['${id}']=parseFloat(this.value)||0;const el=document.getElementById('sub-${id}');if(el)el.textContent=fmt(precoAjustado('${id}',${preco})*getQtd('${id}'));">
+      <span style="font-size:11px;color:var(--text2);margin-left:auto" id="sub-${id}">${fmt(subtotal)}</span>
+    </div>`:''}
+  </div>`;
+}
+
+// Variante de campoQtdAjuste para listas FORA do wizard de Carregadores (Rasthor, Carretas,
+// Aerador, Plantadeira, Virtuos, MTSB). Diferente da original, esta recebe a CHAMADA COMPLETA
+// (string, já com parênteses, ex.: "renderRasthor()" ou "rerenderLista('carreta')") de uma
+// função de re-render, chamada após qualquer alteração de qtd/ajuste — garantindo que o card,
+// o destaque visual e o botão "Gerar orçamento" sejam atualizados. Isso corrige o bug em que
+// os botões +/- "não respondiam" visualmente nessas telas.
+function campoQtdAjusteLista(id, preco, renderCall){
+  const qtd=getQtd(id);
+  const aj=st.ajustes[id]||'';
+  const isAdm=isAdmin();
+  const cor=isAdm?'#c0392b':'#e67e22';
+  const tipo=isAdm?'Desconto':'Acréscimo';
+  const unit=precoAjustado(id, preco);
+  const subtotal=unit*qtd;
+  return `<div style="margin-top:6px;padding:6px 8px;background:var(--bg);border-radius:var(--radius-sm);border:1px dashed var(--border)" onclick="event.stopPropagation()">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:${qtd>0?'6px':'0'}">
+      <span style="font-size:11px;color:var(--text2);white-space:nowrap">Qtd.</span>
+      <button class="btn btn-sm" style="padding:2px 8px" onclick="event.stopPropagation();incQtd('${id}',-1);${renderCall}">−</button>
+      <input type="number" min="0" step="1" value="${qtd}"
+        style="width:48px;text-align:center;border:1px solid var(--border);border-radius:4px;padding:3px 4px;font-size:12px;background:var(--bg2)"
+        onclick="event.stopPropagation()"
+        oninput="event.stopPropagation();setQtd('${id}',parseInt(this.value)||0);${renderCall}">
+      <button class="btn btn-sm" style="padding:2px 8px" onclick="event.stopPropagation();incQtd('${id}',1);${renderCall}">+</button>
     </div>
     ${qtd>0?`<div style="display:flex;align-items:center;gap:6px">
       <span style="font-size:11px;color:${cor};font-weight:600;white-space:nowrap">${tipo} %</span>
