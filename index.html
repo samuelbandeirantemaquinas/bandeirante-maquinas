@@ -710,6 +710,9 @@ function gerarOrcRasthor(){
         <div class="ig"><label>Cidade</label><input type="text" id="rc-cidade" placeholder="Cidade / UF"></div>
       </div>
       <div class="fr2">
+        <div class="ig"><label>CEP</label><input type="text" id="rc-cep" placeholder="00000-000"></div>
+      </div>
+      <div class="fr2">
         <div class="ig"><label>Pagamento</label>
           <select id="rc-pgto">
             <option value="">— Selecionar —</option>
@@ -843,7 +846,7 @@ function gerarPDFRasthor(){
   const ie=rasthorClienteSel?.ie||'';
   const rua=rasthorClienteSel?.rua||'';
   const bairro=rasthorClienteSel?.bairro||'';
-  const cep=rasthorClienteSel?.cep||'';
+  const cep=rasthorClienteSel?.cep||gr('rc-cep')||'';
   const email=rasthorClienteSel?.email||'';
 
   const df=(label,val,x,yw)=>{
@@ -856,7 +859,7 @@ function gerarPDFRasthor(){
   df('Nome Fantasia:',empresa||nome,W/2,y);
   y+=5;
   if(cpf) { df('CPF/CNPJ:',cpf,M,y); }
-  if(ie) { df('Insc. Estadual:',ie,W/2,y); }
+  if(ie) { df('Insc. Estadual:  ',ie,W/2,y); }
   if(cpf||ie) y+=5;
   if(rua) { df('Endereço:',(rua+(bairro?' — '+bairro:'')).toUpperCase(),M,y); y+=5; }
   df('Cidade:',cidade.toUpperCase(),M,y);
@@ -1102,6 +1105,9 @@ function abrirFormProduto(tipo) {
         <div class="ig"><label>Cidade</label><input type="text" id="gn-cidade" placeholder="Cidade / UF"></div>
       </div>
       <div class="fr2">
+        <div class="ig"><label>CEP</label><input type="text" id="gn-cep" placeholder="00000-000"></div>
+      </div>
+      <div class="fr2">
         <div class="ig"><label>Pagamento</label>
           <select id="gn-pgto">
             <option value="">— Selecionar —</option>
@@ -1280,7 +1286,7 @@ function gerarPDFGenerico(){
   const ie=_cliGenSel?.ie||'';
   const rua=_cliGenSel?.rua||'';
   const bairro=_cliGenSel?.bairro||'';
-  const cep=_cliGenSel?.cep||'';
+  const cep=_cliGenSel?.cep||gn('gn-cep')||'';
   const email=_cliGenSel?.email||'';
 
   let y=M;
@@ -1305,7 +1311,7 @@ function gerarPDFGenerico(){
   df('Cliente:',nome,M,y);
   df('Nome Fantasia:',empresa||nome,W/2,y); y+=5;
   if(cpf){df('CPF/CNPJ:',cpf,M,y);}
-  if(ie){df('Insc. Estadual: ',ie,W/2,y);}
+  if(ie){df('Insc. Estadual:  ',ie,W/2,y);}
   if(cpf||ie) y+=5;
   if(rua){df('Endereço:',(rua+(bairro?' — '+bairro:'')).toUpperCase(),M,y);y+=5;}
   df('Cidade:',cidade.toUpperCase(),M,y);
@@ -1937,6 +1943,9 @@ function s5(){
       <div class="ig"><label>Cidade</label><input type="text" id="cli-cidade" value="${st.clienteSel?((st.clienteSel.cidade||'')+' '+(st.clienteSel.estado||'')).trim():''}"></div>
     </div>
     <div class="fr2">
+      <div class="ig"><label>CEP</label><input type="text" id="cli-cep" value="${st.clienteSel?.cep||''}" placeholder="00000-000"></div>
+    </div>
+    <div class="fr2">
       <div class="ig">
         <label>Forma de pagamento</label>
         <select id="cli-pgto" onchange="st.pgto=this.value;calcParcelas()">
@@ -2236,7 +2245,7 @@ function gerarPDF(){
   const cpf=st.clienteSel?.cpfcnpj||'';
   const ie=st.clienteSel?.ie||'';
   const rua=st.clienteSel?.rua||'';
-  const cep=st.clienteSel?.cep||'';
+  const cep=g('cli-cep')||st.clienteSel?.cep||'';
   const pgto=g('cli-pgto')||st.pgto||'';
   const frete=g('cli-frete')||st.frete||'';
   const obs=g('cli-obs')||st.obs||'';
@@ -2299,7 +2308,7 @@ function gerarPDF(){
   drawField('Nome Fantasia:', empresa||nomeCliente, W/2, y);
   y += 5;
   if(cpf) { drawField('CPF/CNPJ:', cpf, M, y); }
-  if(ie) { drawField('Inscrição Estadual:', ie, W/2, y); }
+  if(ie) { drawField('Inscrição Estadual:  ', ie, W/2, y); }
   y += 5;
   if(rua) { drawField('Endereço:', rua.toUpperCase(), M, y); y+=5; }
   const estado = st.clienteSel?.estado||'';
