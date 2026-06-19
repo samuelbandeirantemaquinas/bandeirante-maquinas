@@ -444,6 +444,21 @@ async function loadProdutos(){
       } else if(p.categoria==='rasthor'){
         const r=RASTHOR.find(x=>x.id===p.id);
         if(r){r.preco=parseFloat(p.preco);if(p.nome)r.nome=p.nome;if(p.descricao)r.desc=p.descricao;}
+      } else if(p.categoria==='carreta'){
+        const c=CARRETAS.find(x=>x.id===p.id);
+        if(c){c.preco=parseFloat(p.preco);if(p.nome)c.nome=p.nome;if(p.descricao)c.desc=p.descricao;}
+      } else if(p.categoria==='aerador'){
+        const a=AERADORES.find(x=>x.id===p.id);
+        if(a){a.preco=parseFloat(p.preco);if(p.nome)a.nome=p.nome;if(p.descricao)a.desc=p.descricao;}
+      } else if(p.categoria==='plantadeira'){
+        const pl=PLANTADEIRAS.find(x=>x.id===p.id);
+        if(pl){pl.preco=parseFloat(p.preco);if(p.nome)pl.nome=p.nome;if(p.descricao)pl.desc=p.descricao;}
+      } else if(p.categoria==='virtuos'){
+        const v=VIRTUOS.find(x=>x.id===p.id);
+        if(v){v.preco=parseFloat(p.preco);if(p.nome)v.nome=p.nome;if(p.descricao)v.desc=p.descricao;}
+      } else if(p.categoria==='mtsb'){
+        const m=MTSB.find(x=>x.id===p.id);
+        if(m){m.preco=parseFloat(p.preco);if(p.nome)m.nome=p.nome;if(p.descricao)m.desc=p.descricao;}
       }
     });
   }catch(e){console.warn('Erro ao carregar produtos:',e);}
@@ -2948,7 +2963,7 @@ async function renderAdmin(){
   document.getElementById('app-content').innerHTML=`<div class="page-wrap"><div style="font-size:16px;font-weight:700;margin-bottom:1rem">Carregando produtos...</div></div>`;
   let rows=[];
   try{rows=await sbGet('produtos','order=categoria.asc,id.asc');}catch(e){}
-  const cats={carregador:'Carregadores',adaptador:'Adaptadores',joystick:'Joysticks',implemento:'Implementos',rasthor:'Rasthor — Preparo de Solo'};
+  const cats={carregador:'Carregadores',adaptador:'Adaptadores',joystick:'Joysticks',implemento:'Implementos',rasthor:'Rasthor — Preparo de Solo',carreta:'Carretas Graneleiras',aerador:'Aeradores',plantadeira:'Plantadeiras Agile',virtuos:'Distribuidor de Fertilizantes',mtsb:'Tratadores de Sementes'};
   const grupos=Object.keys(cats);
   document.getElementById('app-content').innerHTML=`
   <div class="page-wrap">
