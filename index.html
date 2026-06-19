@@ -729,10 +729,10 @@ function gerarOrcRasthor(){
         </div>
       </div>
       <div class="ig"><label>Vendedor</label>
-        <select id="rc-vendedor">
+        ${isAdmin() ? `<select id="rc-vendedor">
           <option value="">— Selecionar —</option>
           ${vendedores.map(v=>`<option value="${v.nome}" ${currentPerfil?.nome===v.nome?'selected':''}>${v.nome}</option>`).join('')}
-        </select>
+        </select>` : `<input type="text" id="rc-vendedor" value="${currentPerfil?.nome||''}" readonly disabled style="background:var(--bg);color:var(--text2)">`}
       </div>
       <div class="ig"><label>Observações</label><textarea id="rc-obs" placeholder="Informações adicionais..."></textarea></div>
     </div>
@@ -1121,10 +1121,10 @@ function abrirFormProduto(tipo) {
         </div>
       </div>
       <div class="ig"><label>Vendedor</label>
-        <select id="gn-vendedor">
+        ${isAdmin() ? `<select id="gn-vendedor">
           <option value="">— Selecionar —</option>
           ${vendedores.map(v=>`<option value="${v.nome}" ${currentPerfil?.nome===v.nome?'selected':''}>${v.nome}</option>`).join('')}
-        </select>
+        </select>` : `<input type="text" id="gn-vendedor" value="${currentPerfil?.nome||''}" readonly disabled style="background:var(--bg);color:var(--text2)">`}
       </div>
       <div class="ig"><label>Observações</label><textarea id="gn-obs" placeholder="Informações adicionais..."></textarea></div>
     </div>
@@ -1950,10 +1950,10 @@ function s5(){
         <div id="pgto-calc" style="display:none;margin-top:6px;background:var(--blue-light);border-radius:var(--radius-sm);padding:.6rem .9rem;font-size:12px;color:var(--blue-dark)"></div>
       </div>
       <div class="ig"><label>Vendedor</label>
-        <select id="cli-vendedor" onchange="st.vendedor=this.value">
+        ${isAdmin() ? `<select id="cli-vendedor" onchange="st.vendedor=this.value">
           <option value="">— Selecionar —</option>
           ${vendedores.map(v=>`<option value="${v.nome}" ${(st.vendedor||currentPerfil?.nome)===v.nome?'selected':''}>${v.nome}</option>`).join('')}
-        </select>
+        </select>` : `<input type="text" id="cli-vendedor" value="${currentPerfil?.nome||''}" readonly disabled style="background:var(--bg);color:var(--text2)">`}
       </div>
     </div>
     <div class="fr2">
