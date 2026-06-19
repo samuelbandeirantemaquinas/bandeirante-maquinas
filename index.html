@@ -886,8 +886,8 @@ function gerarPDFRasthor(){
   y+=2;
   doc.setDrawColor(180);doc.line(M,y,W-M,y);y+=4;
 
-  // Imagem do produto
-  const imgRasthor = getImgRasthor(rid);
+  // Imagem do produto (usa a imagem do primeiro item selecionado, se houver)
+  const imgRasthor = itensRasthor.length ? getImgRasthor(itensRasthor[0].r.id) : null;
   if(imgRasthor){
     try{
       const imgW = 55;
