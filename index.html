@@ -468,6 +468,14 @@ async function loadProdutos(){
 }
 
 function fmt(v){return v===0?'—':'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
+// Detecta o formato REAL de uma imagem em data URI a partir da assinatura dos bytes em
+// base64, pois o MIME type declarado na string (data:image/png ou /jpeg) está incorreto
+// em várias imagens cadastradas no sistema. JPEG começa com "/9j/", PNG com "iVBOR".
+function imgFmt(dataUri){
+  if(!dataUri) return 'PNG';
+  const b64body = (dataUri.split(',')[1]||dataUri);
+  return b64body.startsWith('/9j/') ? 'JPEG' : 'PNG';
+}
 function iniciais(n){if(!n)return '?';const p=n.trim().split(/\s+/);return p.length>=2?(p[0][0]+p[p.length-1][0]).toUpperCase():n.slice(0,2).toUpperCase();}
 function genNum(){return 'ORC-'+Date.now().toString().slice(-6);}
 function toast(msg,dur=2500){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),dur);}
@@ -838,7 +846,7 @@ function gerarPDFRasthor(){
   // Logo
   try{
     const logoEl=document.querySelector('.app-header img');
-    if(logoEl) doc.addImage(logoEl.src,'PNG',M,y,45,14);
+    if(logoEl) doc.addImage(logoEl.src,imgFmt(logoEl.src),M,y,45,14);
   }catch(e){}
 
   // Cabeçalho empresa
@@ -895,7 +903,9 @@ function gerarPDFRasthor(){
     try{
       const imgW = 55;
       const imgH = 40;
-      doc.addImage(imgRasthor,'PNG', W-M-imgW, y, imgW, imgH);
+      const b64body = (imgRasthor.split(',')[1] || '');
+      const fmtR = b64body.startsWith('/9j/') ? 'JPEG' : 'PNG';
+      doc.addImage(imgRasthor,fmtR, W-M-imgW, y, imgW, imgH);
       y += imgH + 4;
     }catch(e){}
   }
@@ -1324,7 +1334,7 @@ function gerarPDFGenerico(){
   const email=_cliGenSel?.email||'';
 
   let y=M;
-  try{const logoEl=document.querySelector('.app-header img');if(logoEl)doc.addImage(logoEl.src,'PNG',M,y,45,14);}catch(e){}
+  try{const logoEl=document.querySelector('.app-header img');if(logoEl) doc.addImage(logoEl.src,imgFmt(logoEl.src),M,y,45,14);}catch(e){}
   doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(30);
   doc.text('BANDEIRANTE IND. E COMERCIO DE MAQUINAS LTDA',W/2,y+4,{align:'center'});
   doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(80);
@@ -1359,7 +1369,11 @@ function gerarPDFGenerico(){
   const prodComImg = itens.find(p=>p.img);
   if(prodComImg){
     try{
-      const fmt = /image\/jpe?g/i.test(prodComImg.img) ? 'JPEG' : 'PNG';
+      // O MIME type declarado na string (data:image/png ou /jpeg) nem sempre reflete
+      // o formato real do arquivo nesta base de produtos — detectamos pela assinatura
+      // real dos bytes em base64: JPEG começa com "/9j/", PNG começa com "iVBOR".
+      const b64body = prodComImg.img.split(',')[1] || '';
+      const fmt = b64body.startsWith('/9j/') ? 'JPEG' : 'PNG';
       doc.addImage(prodComImg.img,fmt,W-M-55,y,55,42);
     }catch(e){}
   }
@@ -1441,7 +1455,7 @@ function gerarPDFCarreta(cid){
   const hoje=new Date().toLocaleDateString('pt-BR');
   const vendedor=currentPerfil?.nome||'—';
   let y=M;
-  try{const logoEl=document.querySelector('.app-header img');if(logoEl)doc.addImage(logoEl.src,'PNG',M,y,45,14);}catch(e){}
+  try{const logoEl=document.querySelector('.app-header img');if(logoEl) doc.addImage(logoEl.src,imgFmt(logoEl.src),M,y,45,14);}catch(e){}
   doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(30);
   doc.text('BANDEIRANTE IND. E COMERCIO DE MAQUINAS LTDA',W/2,y+4,{align:'center'});
   doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(80);
@@ -1454,7 +1468,7 @@ function gerarPDFCarreta(cid){
   y+=6;
   doc.setDrawColor(180);doc.setLineWidth(0.4);doc.line(M,y,W-M,y);y+=4;
   // Imagem do produto
-  if(c.img){try{const fmt=/image\/jpe?g/i.test(c.img)?'JPEG':'PNG';doc.addImage(c.img,fmt,W-M-50,y,50,38);}catch(e){}}
+  if(c.img){try{doc.addImage(c.img,imgFmt(c.img),W-M-50,y,50,38);}catch(e){}}
   doc.setFillColor(240,240,240);doc.rect(M,y,W-M*2,7,'F');
   doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(30);
   doc.text('CARRETAS GRANELEIRAS',M+2,y+4.5);y+=8;
@@ -1511,7 +1525,7 @@ function gerarPDFAerador(aid){
   const hoje=new Date().toLocaleDateString('pt-BR');
   const vendedor=currentPerfil?.nome||'—';
   let y=M;
-  try{const logoEl=document.querySelector('.app-header img');if(logoEl)doc.addImage(logoEl.src,'PNG',M,y,45,14);}catch(e){}
+  try{const logoEl=document.querySelector('.app-header img');if(logoEl) doc.addImage(logoEl.src,imgFmt(logoEl.src),M,y,45,14);}catch(e){}
   doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(30);
   doc.text('BANDEIRANTE IND. E COMERCIO DE MAQUINAS LTDA',W/2,y+4,{align:'center'});
   doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(80);
@@ -1582,7 +1596,7 @@ function gerarPDFPlantadeira(pid){
   const hoje=new Date().toLocaleDateString('pt-BR');
   const vendedor=currentPerfil?.nome||'—';
   let y=M;
-  try{const logoEl=document.querySelector('.app-header img');if(logoEl)doc.addImage(logoEl.src,'PNG',M,y,45,14);}catch(e){}
+  try{const logoEl=document.querySelector('.app-header img');if(logoEl) doc.addImage(logoEl.src,imgFmt(logoEl.src),M,y,45,14);}catch(e){}
   doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(30);
   doc.text('BANDEIRANTE IND. E COMERCIO DE MAQUINAS LTDA',W/2,y+4,{align:'center'});
   doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(80);
@@ -1649,7 +1663,7 @@ function gerarPDFVirtuos(vid){
   const hoje=new Date().toLocaleDateString('pt-BR');
   const vendedor=currentPerfil?.nome||'—';
   let y=M;
-  try{const logoEl=document.querySelector('.app-header img');if(logoEl)doc.addImage(logoEl.src,'PNG',M,y,45,14);}catch(e){}
+  try{const logoEl=document.querySelector('.app-header img');if(logoEl) doc.addImage(logoEl.src,imgFmt(logoEl.src),M,y,45,14);}catch(e){}
   doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(30);
   doc.text('BANDEIRANTE IND. E COMERCIO DE MAQUINAS LTDA',W/2,y+4,{align:'center'});
   doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(80);
@@ -1716,7 +1730,7 @@ function gerarPDFMTSB(mid){
   const hoje=new Date().toLocaleDateString('pt-BR');
   const vendedor=currentPerfil?.nome||'—';
   let y=M;
-  try{const logoEl=document.querySelector('.app-header img');if(logoEl)doc.addImage(logoEl.src,'PNG',M,y,45,14);}catch(e){}
+  try{const logoEl=document.querySelector('.app-header img');if(logoEl) doc.addImage(logoEl.src,imgFmt(logoEl.src),M,y,45,14);}catch(e){}
   doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(30);
   doc.text('BANDEIRANTE IND. E COMERCIO DE MAQUINAS LTDA',W/2,y+4,{align:'center'});
   doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(80);
@@ -2338,7 +2352,7 @@ function gerarPDF(){
   // Logo
   try{
     const logoEl=document.querySelector('.app-header img');
-    if(logoEl) doc.addImage(logoEl.src,'PNG', M, y, 45, 14);
+    if(logoEl) doc.addImage(logoEl.src,imgFmt(logoEl.src), M, y, 45, 14);
   }catch(e){}
 
   // Dados da empresa (centro)
@@ -2438,7 +2452,7 @@ function gerarPDF(){
     // Imagem
     try{
       if(it.img && IMGS[it.img]){
-        doc.addImage(IMGS[it.img],'PNG', cx, y+1, 14, 14);
+        doc.addImage(IMGS[it.img],imgFmt(IMGS[it.img]), cx, y+1, 14, 14);
       }
     }catch(e){}
     cx+=colW.img;
@@ -2776,22 +2790,41 @@ function renderHistorico(){
   <div class="page-wrap">
     <div style="margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center">
       <div><div style="font-size:16px;font-weight:700">Histórico</div>
-      <div style="font-size:12px;color:var(--text2)">${orcamentos.length} orçamento${orcamentos.length!==1?'s':''}</div></div>
+      <div style="font-size:12px;color:var(--text2)" id="hist-contador">${orcamentos.length} orçamento${orcamentos.length!==1?'s':''}</div></div>
     </div>
-    ${orcamentos.length===0?`<div class="empty"><i class="ti ti-receipt"></i><div style="font-weight:600">Nenhum orçamento salvo</div></div>`:
-      orcamentos.map(o=>`<div class="orc-card" onclick="abrirOrcamento('${o.id}')" style="cursor:pointer">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.5rem">
-          <div><div style="font-size:14px;font-weight:700">${o.numero}</div>
-          <div style="font-size:12px;color:var(--text2)">${o.cliente_nome||'—'} · ${o.vendedor||'—'}</div></div>
-          <div style="text-align:right">
-            <div style="font-size:16px;font-weight:700">R$ ${Number(o.total||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
-            <span class="badge badge-green" style="font-size:11px">${o.status||'Em aberto'}</span>
-          </div>
-        </div>
-        ${o.trator_marca&&o.trator_modelo?`<div style="font-size:12px;color:var(--text2)"><i class="ti ti-tractor" style="font-size:13px"></i> ${o.trator_marca} · ${o.trator_modelo}</div>`:''}
-        <div style="font-size:11px;color:var(--text3);margin-top:3px">${new Date(o.criado_em).toLocaleDateString('pt-BR')} ${new Date(o.criado_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div>
-      </div>`).join('')}
+    <div style="margin-bottom:1rem">
+      <input type="text" id="hist-busca" placeholder="Buscar por número do orçamento..." oninput="filtrarHistorico()" style="width:100%">
+    </div>
+    <div id="hist-lista"></div>
   </div>`;
+  renderListaHistorico(orcamentos);
+}
+
+function renderListaHistorico(lista){
+  const contador=document.getElementById('hist-contador');
+  if(contador) contador.textContent=lista.length+' orçamento'+(lista.length!==1?'s':'');
+  const el=document.getElementById('hist-lista');
+  if(!el) return;
+  el.innerHTML = lista.length===0?`<div class="empty"><i class="ti ti-receipt"></i><div style="font-weight:600">Nenhum orçamento encontrado</div></div>`:
+    lista.map(o=>`<div class="orc-card" onclick="abrirOrcamento('${o.id}')" style="cursor:pointer">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.5rem">
+        <div><div style="font-size:14px;font-weight:700">${o.numero}</div>
+        <div style="font-size:12px;color:var(--text2)">${o.cliente_nome||'—'} · ${o.vendedor||'—'}</div></div>
+        <div style="text-align:right">
+          <div style="font-size:16px;font-weight:700">R$ ${Number(o.total||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+          <span class="badge badge-green" style="font-size:11px">${o.status||'Em aberto'}</span>
+        </div>
+      </div>
+      ${o.trator_marca&&o.trator_modelo?`<div style="font-size:12px;color:var(--text2)"><i class="ti ti-tractor" style="font-size:13px"></i> ${o.trator_marca} · ${o.trator_modelo}</div>`:''}
+      <div style="font-size:11px;color:var(--text3);margin-top:3px">${new Date(o.criado_em).toLocaleDateString('pt-BR')} ${new Date(o.criado_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div>
+    </div>`).join('');
+}
+
+function filtrarHistorico(){
+  const termo=(document.getElementById('hist-busca')?.value||'').trim().toLowerCase();
+  if(!termo){ renderListaHistorico(orcamentos); return; }
+  const filtrados=orcamentos.filter(o=>(o.numero||'').toLowerCase().includes(termo));
+  renderListaHistorico(filtrados);
 }
 
 function abrirOrcamento(id){
@@ -2893,7 +2926,7 @@ function regenarPDFHistorico(id){
   const hoje=new Date(o.criado_em).toLocaleDateString('pt-BR');
 
   // Cabeçalho
-  if(IMGS.hexline){try{doc.addImage(IMGS.hexline,'PNG',M,10,38,14);}catch(e){}}
+  if(IMGS.hexline){try{doc.addImage(IMGS.hexline,imgFmt(IMGS.hexline),M,10,38,14);}catch(e){}}
   doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(30);
   doc.text('BANDEIRANTE IND. E COMERCIO DE MAQUINAS LTDA',W/2,14,{align:'center'});
   doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(80);
@@ -2932,7 +2965,7 @@ function regenarPDFHistorico(id){
     cx2=M+1;
     doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(60);
     doc.text(String(idx+1),cx2+2,y+8);cx2+=colW2.num;
-    try{const imgK=it.img||'hexline';if(IMGS[imgK])doc.addImage(IMGS[imgK],'PNG',cx2,y+2,12,12);}catch(e){}
+    try{const imgK=it.img||'hexline';if(IMGS[imgK])doc.addImage(IMGS[imgK],imgFmt(IMGS[imgK]),cx2,y+2,12,12);}catch(e){}
     cx2+=colW2.img;
     doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(30);
     const nl=doc.splitTextToSize((it.nome||'').toUpperCase(),colW2.nome-2);
