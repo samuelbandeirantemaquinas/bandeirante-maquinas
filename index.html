@@ -944,7 +944,7 @@ function gerarPDFRasthor(){
         '',
         r.nome.toUpperCase()+'\n'+r.desc+'\nFINAME '+r.finame+' · NCM 84322100\nDiscos 20" · Esp. '+r.esp+(r.prof!=='—'?' · Prof. '+r.prof:'')+' · Desarme '+r.desarme,
         String(it.qtd),
-        'R$ '+it.subtotal.toLocaleString('pt-BR',{minimumFractionDigits:2})
+        'R$ '+it.subtotal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})
       ];
     }),
     startY:y, margin:{left:M,right:M},
@@ -981,7 +981,7 @@ function gerarPDFRasthor(){
   doc.setFontSize(10);doc.setTextColor(20);
   const lblTot='Valor total:';
   doc.text(lblTot,W-M-55,y+5.5);
-  doc.text('R$ '+totalFinal.toLocaleString('pt-BR',{minimumFractionDigits:2}),W-M-1,y+5.5,{align:'right'});
+  doc.text('R$ '+totalFinal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}),W-M-1,y+5.5,{align:'right'});
   y+=8;
 
   // Info rodapé
@@ -1457,7 +1457,7 @@ function gerarPDFGenerico(){
     const finame=prod.finame?'FINAME '+prod.finame+' · ':'';
     const ncm=prod.ncm?'NCM '+prod.ncm:'';
     const bodyDesc=prod.nome.toUpperCase()+'\n'+prod.desc+'\n'+(finame+ncm).trim();
-    return ['', bodyDesc, String(qtd), 'R$ '+subtotal.toLocaleString('pt-BR',{minimumFractionDigits:2})];
+    return ['', bodyDesc, String(qtd), 'R$ '+subtotal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})];
   });
   doc.autoTable({
     head:[['Foto','Produto / Descrição','Qtde.','Valor']],
@@ -1490,7 +1490,7 @@ function gerarPDFGenerico(){
   doc.setFillColor(230,230,230);doc.rect(M,y,W-M*2,7,'F');
   doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(20);
   doc.text('Valor total:',W-M-55,y+5.5);
-  doc.text('R$ '+subtotalGeral.toLocaleString('pt-BR',{minimumFractionDigits:2}),W-M-1,y+5.5,{align:'right'});
+  doc.text('R$ '+subtotalGeral.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}),W-M-1,y+5.5,{align:'right'});
   y+=9;
 
   // Rodapé
@@ -1553,7 +1553,7 @@ function gerarPDFCarreta(cid){
   doc.text('CARRETAS GRANELEIRAS',M+2,y+4.5);y+=8;
   doc.autoTable({
     head:[['#','Produto / Descrição','Qtde.','Valor']],
-    body:[['1',c.nome.toUpperCase()+'\n'+c.desc+'\nCód: '+c.cod+' · FINAME '+c.finame+' · NCM '+c.ncm,'1','R$ '+c.preco.toLocaleString('pt-BR',{minimumFractionDigits:2})]],
+    body:[['1',c.nome.toUpperCase()+'\n'+c.desc+'\nCód: '+c.cod+' · FINAME '+c.finame+' · NCM '+c.ncm,'1','R$ '+c.preco.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})]],
     startY:y,margin:{left:M,right:M},
     styles:{fontSize:9,cellPadding:4},
     headStyles:{fillColor:[240,240,240],textColor:[40,40,40],fontStyle:'bold',lineWidth:0.3,lineColor:[200,200,200]},
@@ -1564,7 +1564,7 @@ function gerarPDFCarreta(cid){
   doc.setFillColor(230,230,230);doc.rect(M,y,W-M*2,7,'F');
   doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(20);
   doc.text('Valor total:',W-M-55,y+5.5);
-  doc.text('R$ '+c.preco.toLocaleString('pt-BR',{minimumFractionDigits:2}),W-M-1,y+5.5,{align:'right'});
+  doc.text('R$ '+c.preco.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}),W-M-1,y+5.5,{align:'right'});
   y+=9;
   [{label:'Condição de Pagamento:',val:'—'},{label:'Transportadora / Frete:',val:'—'},{label:'Vendedor:',val:vendedor},{label:'Data de Emissão:',val:hoje}].forEach(row=>{
     doc.setFillColor(248,248,248);doc.rect(M,y,W-M*2,6,'FD');
@@ -1620,7 +1620,7 @@ function gerarPDFAerador(aid){
   doc.text('AERADORES',M+2,y+4.5);y+=8;
   doc.autoTable({
     head:[['#','Produto / Descrição','Qtde.','Valor']],
-    body:[['1',a.nome.toUpperCase()+'\n'+a.desc+'\nCód: '+a.cod+' · FINAME '+a.finame+' · NCM '+a.ncm,'1','R$ '+a.preco.toLocaleString('pt-BR',{minimumFractionDigits:2})]],
+    body:[['1',a.nome.toUpperCase()+'\n'+a.desc+'\nCód: '+a.cod+' · FINAME '+a.finame+' · NCM '+a.ncm,'1','R$ '+a.preco.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})]],
     startY:y,margin:{left:M,right:M},
     styles:{fontSize:9,cellPadding:4},
     headStyles:{fillColor:[240,240,240],textColor:[40,40,40],fontStyle:'bold',lineWidth:0.3,lineColor:[200,200,200]},
@@ -1631,7 +1631,7 @@ function gerarPDFAerador(aid){
   doc.setFillColor(230,230,230);doc.rect(M,y,W-M*2,7,'F');
   doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(20);
   doc.text('Valor total:',W-M-55,y+5.5);
-  doc.text('R$ '+a.preco.toLocaleString('pt-BR',{minimumFractionDigits:2}),W-M-1,y+5.5,{align:'right'});
+  doc.text('R$ '+a.preco.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}),W-M-1,y+5.5,{align:'right'});
   y+=9;
   [{label:'Condição de Pagamento:',val:'—'},{label:'Transportadora / Frete:',val:'—'},{label:'Vendedor:',val:vendedor},{label:'Data de Emissão:',val:hoje}].forEach(row=>{
     doc.setFillColor(248,248,248);doc.rect(M,y,W-M*2,6,'FD');
@@ -1659,7 +1659,7 @@ function linhaPlantadeira(){
     <div id="lista-plantadeira"></div>
     <div style="margin-top:.5rem;padding:.75rem;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;color:var(--text2)">
       <b>Opcionais disponíveis:</b><br>
-      ${PLANTADEIRAS_OPCIONAIS.map(o=>`${o.nome} — R$ ${o.preco.toLocaleString('pt-BR',{minimumFractionDigits:2})}`).join(' &bull; ')}
+      ${PLANTADEIRAS_OPCIONAIS.map(o=>`${o.nome} — R$ ${o.preco.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}`).join(' &bull; ')}
     </div>
   </div>
   <div id="btn-area-plantadeira" style="position:fixed;left:0;right:0;bottom:0;padding:.75rem 1rem;background:var(--bg2);border-top:1px solid var(--border);z-index:60"></div>`;
@@ -1691,7 +1691,7 @@ function gerarPDFPlantadeira(pid){
   doc.text('PLANTADEIRAS',M+2,y+4.5);y+=8;
   doc.autoTable({
     head:[['#','Produto / Descrição','Qtde.','Valor']],
-    body:[['1',p.nome.toUpperCase()+'\n'+p.desc+'\nCód: '+p.cod+' · FINAME '+p.finame+' · NCM '+p.ncm,'1','R$ '+p.preco.toLocaleString('pt-BR',{minimumFractionDigits:2})]],
+    body:[['1',p.nome.toUpperCase()+'\n'+p.desc+'\nCód: '+p.cod+' · FINAME '+p.finame+' · NCM '+p.ncm,'1','R$ '+p.preco.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})]],
     startY:y,margin:{left:M,right:M},
     styles:{fontSize:9,cellPadding:4},
     headStyles:{fillColor:[240,240,240],textColor:[40,40,40],fontStyle:'bold',lineWidth:0.3,lineColor:[200,200,200]},
@@ -1702,7 +1702,7 @@ function gerarPDFPlantadeira(pid){
   doc.setFillColor(230,230,230);doc.rect(M,y,W-M*2,7,'F');
   doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(20);
   doc.text('Valor total:',W-M-55,y+5.5);
-  doc.text('R$ '+p.preco.toLocaleString('pt-BR',{minimumFractionDigits:2}),W-M-1,y+5.5,{align:'right'});
+  doc.text('R$ '+p.preco.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}),W-M-1,y+5.5,{align:'right'});
   y+=9;
   [{label:'Condição de Pagamento:',val:'—'},{label:'Transportadora / Frete:',val:'—'},{label:'Vendedor:',val:vendedor},{label:'Data de Emissão:',val:hoje}].forEach(row=>{
     doc.setFillColor(248,248,248);doc.rect(M,y,W-M*2,6,'FD');
@@ -1758,7 +1758,7 @@ function gerarPDFVirtuos(vid){
   doc.text('DISTRIBUIDOR DE FERTILIZANTES',M+2,y+4.5);y+=8;
   doc.autoTable({
     head:[['#','Produto / Descrição','Qtde.','Valor']],
-    body:[['1',v.nome.toUpperCase()+'\n'+v.desc+'\nCód: '+v.cod+' · FINAME '+v.finame+' · NCM '+v.ncm,'1','R$ '+v.preco.toLocaleString('pt-BR',{minimumFractionDigits:2})]],
+    body:[['1',v.nome.toUpperCase()+'\n'+v.desc+'\nCód: '+v.cod+' · FINAME '+v.finame+' · NCM '+v.ncm,'1','R$ '+v.preco.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})]],
     startY:y,margin:{left:M,right:M},
     styles:{fontSize:9,cellPadding:4},
     headStyles:{fillColor:[240,240,240],textColor:[40,40,40],fontStyle:'bold',lineWidth:0.3,lineColor:[200,200,200]},
@@ -1769,7 +1769,7 @@ function gerarPDFVirtuos(vid){
   doc.setFillColor(230,230,230);doc.rect(M,y,W-M*2,7,'F');
   doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(20);
   doc.text('Valor total:',W-M-55,y+5.5);
-  doc.text('R$ '+v.preco.toLocaleString('pt-BR',{minimumFractionDigits:2}),W-M-1,y+5.5,{align:'right'});
+  doc.text('R$ '+v.preco.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}),W-M-1,y+5.5,{align:'right'});
   y+=9;
   [{label:'Condição de Pagamento:',val:'—'},{label:'Transportadora / Frete:',val:'—'},{label:'Vendedor:',val:vendedor},{label:'Data de Emissão:',val:hoje}].forEach(row=>{
     doc.setFillColor(248,248,248);doc.rect(M,y,W-M*2,6,'FD');
@@ -1825,7 +1825,7 @@ function gerarPDFMTSB(mid){
   doc.text('TRATADORES DE SEMENTES',M+2,y+4.5);y+=8;
   doc.autoTable({
     head:[['#','Produto / Descrição','Qtde.','Valor']],
-    body:[['1',m.nome.toUpperCase()+'\n'+m.desc+'\nCód: '+m.cod,'1','R$ '+m.preco.toLocaleString('pt-BR',{minimumFractionDigits:2})]],
+    body:[['1',m.nome.toUpperCase()+'\n'+m.desc+'\nCód: '+m.cod,'1','R$ '+m.preco.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})]],
     startY:y,margin:{left:M,right:M},
     styles:{fontSize:9,cellPadding:4},
     headStyles:{fillColor:[240,240,240],textColor:[40,40,40],fontStyle:'bold',lineWidth:0.3,lineColor:[200,200,200]},
@@ -1836,7 +1836,7 @@ function gerarPDFMTSB(mid){
   doc.setFillColor(230,230,230);doc.rect(M,y,W-M*2,7,'F');
   doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(20);
   doc.text('Valor total:',W-M-55,y+5.5);
-  doc.text('R$ '+m.preco.toLocaleString('pt-BR',{minimumFractionDigits:2}),W-M-1,y+5.5,{align:'right'});
+  doc.text('R$ '+m.preco.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}),W-M-1,y+5.5,{align:'right'});
   y+=9;
   [{label:'Condição de Pagamento:',val:'—'},{label:'Transportadora / Frete:',val:'—'},{label:'Vendedor:',val:vendedor},{label:'Data de Emissão:',val:hoje}].forEach(row=>{
     doc.setFillColor(248,248,248);doc.rect(M,y,W-M*2,6,'FD');
@@ -1983,10 +1983,11 @@ function avancarAdapt(){
     if(lista.length>0) st.qtds[lista[0].id]=1;
   }
   // Desconto automático de 10% no adaptador para John Deere linha 6000 (1550/1950/2200)
+  // Valor negativo reduz o preço de fato (precoAjustado = preco*(1+aj/100)).
   if(st.descAdaptJD6000){
     ADAPTADORES.forEach(a=>{
       if(a.id!=='adp_nao' && getQtd(a.id)>0 && !st.ajustes[a.id]){
-        st.ajustes[a.id]=10;
+        st.ajustes[a.id]=-10;
       }
     });
   }
@@ -2381,6 +2382,11 @@ async function salvarOrcamento(){
   const itens=montarItens();
   const total=calcTotal();
   const m=st.marcaSel?MARCAS.find(x=>x.id===st.marcaSel):null;
+  // Saldo extra gerado pelo acréscimo geral (campo "Acréscimo %" da tela de Cliente),
+  // calculado como a diferença entre o total com e sem esse acréscimo embutido.
+  const ac=st.acrescimo||0;
+  const totalSemAcrescimoGeral = ac!==0 ? total/(1+ac/100) : total;
+  const saldoExtra = ac>0 ? (total-totalSemAcrescimoGeral) : 0;
   const btn=document.getElementById('btn-salvar');
   if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .7s linear infinite"></i> Salvando...';}
   try{
@@ -2393,6 +2399,7 @@ async function salvarOrcamento(){
       adaptador_cod:st.adaptDB?.adaptador||null,
       joystick_cod:st.adaptDB?.joystick||null,
       itens,total,
+      acrescimo_geral:ac,saldo_extra:saldoExtra,
       vendedor:g('cli-vendedor')||st.vendedor||st.clienteSel?.vendedor||currentPerfil?.nome||null,
       obs:g('cli-obs'),status:'Em aberto'
     });
@@ -2571,7 +2578,7 @@ function gerarPDF(){
     doc.setFont('helvetica','bold');
     doc.setFontSize(8.5);
     doc.setTextColor(30);
-    doc.text('R$ '+it.preco.toLocaleString('pt-BR',{minimumFractionDigits:2}), W-M-1, y+8, {align:'right'});
+    doc.text('R$ '+it.preco.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}), W-M-1, y+8, {align:'right'});
 
     y += rh;
   });
@@ -2600,11 +2607,11 @@ function gerarPDF(){
   doc.setTextColor(20);
   const labelTot = 'Valor total:';
   doc.text(labelTot, W-M-50, y+5.5);
-  doc.text('R$ '+total.toLocaleString('pt-BR',{minimumFractionDigits:2}), W-M-1, y+5.5, {align:'right'});
+  doc.text('R$ '+total.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}), W-M-1, y+5.5, {align:'right'});
   if(false){
     doc.setFontSize(7.5);
     doc.setTextColor(100);
-    doc.text('À vista: R$ '+total.toLocaleString('pt-BR',{minimumFractionDigits:2}), W-M-1, y+10, {align:'right'});
+    doc.text('À vista: R$ '+total.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}), W-M-1, y+10, {align:'right'});
     y+=4;
   }
   y+=8;
@@ -2902,7 +2909,7 @@ function renderListaHistorico(lista){
         <div><div style="font-size:14px;font-weight:700">${o.numero}</div>
         <div style="font-size:12px;color:var(--text2)">${o.cliente_nome||'—'} · ${o.vendedor||'—'}</div></div>
         <div style="text-align:right">
-          <div style="font-size:16px;font-weight:700">R$ ${Number(o.total||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+          <div style="font-size:16px;font-weight:700">R$ ${Number(o.total||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
           <span class="badge badge-green" style="font-size:11px">${o.status||'Em aberto'}</span>
         </div>
       </div>
@@ -2965,12 +2972,14 @@ function abrirOrcamento(id){
       </div>`).join('')}
       <div style="display:flex;justify-content:space-between;padding:8px 0;border-top:2px solid var(--border);margin-top:4px">
         <span style="font-weight:700">Total</span>
-        <span style="font-size:18px;font-weight:700">R$ ${Number(o.total||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
+        <span style="font-size:18px;font-weight:700">R$ ${Number(o.total||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
       </div>
-      ${adm&&saldoTotalAcrescimo>0?`<div style="display:flex;justify-content:space-between;padding:6px 0;background:#FAEEDA;border-radius:var(--radius-sm);margin-top:6px;padding-left:8px;padding-right:8px">
-        <span style="font-size:12px;font-weight:700;color:#633806"><i class="ti ti-discount-2"></i> Saldo total de acréscimo</span>
-        <span style="font-size:13px;font-weight:700;color:#633806">+${fmt(saldoTotalAcrescimo)}</span>
-      </div>`:''}
+      ${adm&&(saldoTotalAcrescimo>0||Number(o.saldo_extra||0)>0)?`<div style="display:flex;justify-content:space-between;padding:6px 0;background:#FAEEDA;border-radius:var(--radius-sm);margin-top:6px;padding-left:8px;padding-right:8px">
+        <span style="font-size:12px;font-weight:700;color:#633806"><i class="ti ti-discount-2"></i> Saldo extra</span>
+        <span style="font-size:13px;font-weight:700;color:#633806">+${fmt(saldoTotalAcrescimo+Number(o.saldo_extra||0))}</span>
+      </div>
+      ${saldoTotalAcrescimo>0&&Number(o.saldo_extra||0)>0?`<div style="font-size:10px;color:var(--text2);margin-top:3px">Inclui acréscimo por item (${fmt(saldoTotalAcrescimo)}) + acréscimo geral (${fmt(Number(o.saldo_extra||0))})</div>`:''}
+      ${Number(o.saldo_extra||0)>0?`<div style="font-size:10px;color:var(--text2);margin-top:3px">Acréscimo geral aplicado no orçamento: ${o.acrescimo_geral||0}%</div>`:''}`:''}
     </div>
 
     ${adm?`<div class="card" style="margin-bottom:1rem">
@@ -3107,7 +3116,7 @@ function regenarPDFHistorico(id){
     if(it.ajuste){doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(180,90,0);doc.text((it.ajuste>0?'+':'')+it.ajuste+'%',cx2+1,y+6+nl.length*4);}
     doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(30);
     doc.text(String(it.qtd||1),W-M-26+5,y+8,{align:'center'});
-    doc.text('R$ '+it.preco.toLocaleString('pt-BR',{minimumFractionDigits:2}),W-M-1,y+8,{align:'right'});
+    doc.text('R$ '+it.preco.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}),W-M-1,y+8,{align:'right'});
     y+=rh;
   });
 
@@ -3115,7 +3124,7 @@ function regenarPDFHistorico(id){
   doc.setFillColor(235,235,235);doc.rect(M,y,W-M*2,8,'FD');
   doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(20);
   doc.text('TOTAL GERAL',M+2,y+5.5);
-  doc.text('R$ '+total.toLocaleString('pt-BR',{minimumFractionDigits:2}),W-M-1,y+5.5,{align:'right'});
+  doc.text('R$ '+total.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}),W-M-1,y+5.5,{align:'right'});
   y+=12;
   doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(100);
   doc.text('Validade: 10 dias · Entrega: 30–60 dias · Sujeito a reajuste sem aviso prévio.',M,y);
