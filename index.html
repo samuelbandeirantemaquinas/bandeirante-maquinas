@@ -928,19 +928,6 @@ function gerarPDFRasthor(){
   y+=2;
   doc.setDrawColor(180);doc.line(M,y,W-M,y);y+=4;
 
-  // Imagem do produto (usa a imagem do primeiro item selecionado, se houver)
-  const imgRasthor = itensRasthor.length ? getImgRasthor(itensRasthor[0].r.id) : null;
-  if(imgRasthor){
-    try{
-      const imgW = 55;
-      const imgH = 40;
-      const b64body = (imgRasthor.split(',')[1] || '');
-      const fmtR = b64body.startsWith('/9j/') ? 'JPEG' : 'PNG';
-      doc.addImage(imgRasthor,fmtR, W-M-imgW, y, imgW, imgH);
-      y += imgH + 4;
-    }catch(e){}
-  }
-
   // Categoria
   doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(30);
   doc.text('DESCOMPACTADORES',M,y+4);
@@ -950,11 +937,11 @@ function gerarPDFRasthor(){
 
   // Itens
   doc.autoTable({
-    head:[['#','Produto','Qtde.','Subtotal']],
+    head:[['Foto','Produto','Qtde.','Subtotal']],
     body:itensRasthor.map((it,i)=>{
       const r=it.r;
       return [
-        String(i+1),
+        '',
         r.nome.toUpperCase()+'\n'+r.desc+'\nFINAME '+r.finame+' · NCM 84322100\nDiscos 20" · Esp. '+r.esp+(r.prof!=='—'?' · Prof. '+r.prof:'')+' · Desarme '+r.desarme,
         String(it.qtd),
         'R$ '+it.subtotal.toLocaleString('pt-BR',{minimumFractionDigits:2})
@@ -963,8 +950,25 @@ function gerarPDFRasthor(){
     startY:y, margin:{left:M,right:M},
     styles:{fontSize:9,cellPadding:4},
     headStyles:{fillColor:[240,240,240],textColor:[40,40,40],fontStyle:'bold',lineWidth:0.3,lineColor:[200,200,200]},
-    columnStyles:{0:{cellWidth:8},1:{cellWidth:'auto'},2:{cellWidth:12,halign:'center'},3:{cellWidth:30,halign:'right',fontStyle:'bold'}},
-    bodyStyles:{lineColor:[220,220,220],lineWidth:0.2},
+    columnStyles:{0:{cellWidth:22},1:{cellWidth:'auto'},2:{cellWidth:12,halign:'center'},3:{cellWidth:30,halign:'right',fontStyle:'bold'}},
+    bodyStyles:{lineColor:[220,220,220],lineWidth:0.2,minCellHeight:20},
+    didDrawCell:(data)=>{
+      if(data.section==='body' && data.column.index===0){
+        const it = itensRasthor[data.row.index];
+        const imgSrc = it ? getImgRasthor(it.r.id) : null;
+        if(imgSrc){
+          try{
+            const b64body = imgSrc.split(',')[1] || '';
+            const imgFormat = b64body.startsWith('/9j/') ? 'JPEG' : 'PNG';
+            const cellW = data.cell.width, cellH = data.cell.height;
+            const imgW = Math.min(cellW-4, 18), imgH = Math.min(cellH-4, 16);
+            const ix = data.cell.x + (cellW-imgW)/2;
+            const iy = data.cell.y + (cellH-imgH)/2;
+            doc.addImage(imgSrc, imgFormat, ix, iy, imgW, imgH);
+          }catch(e){}
+        }
+      }
+    },
   });
 
   y=doc.lastAutoTable.finalY;
@@ -1436,27 +1440,13 @@ function gerarPDFGenerico(){
   if(tel||email) y+=3;
   y+=2; doc.setDrawColor(180);doc.line(M,y,W-M,y);y+=4;
 
-  // Imagem do primeiro produto com imagem disponível (se houver)
-  const prodComImg = itens.find(p=>p.img);
-  if(prodComImg){
-    try{
-      // O MIME type declarado na string (data:image/png ou /jpeg) nem sempre reflete
-      // o formato real do arquivo nesta base de produtos — detectamos pela assinatura
-      // real dos bytes em base64: JPEG começa com "/9j/", PNG começa com "iVBOR".
-      const b64body = prodComImg.img.split(',')[1] || '';
-      const fmt = b64body.startsWith('/9j/') ? 'JPEG' : 'PNG';
-      doc.addImage(prodComImg.img,fmt,W-M-55,y,55,42);
-      y += 42 + 4;
-    }catch(e){}
-  }
-
   // Categoria
   const cats={carreta:'CARRETAS GRANELEIRAS',aerador:'AERADORES',plantadeira:'PLANTADEIRAS',virtuos:'DISTRIBUIDOR DE FERTILIZANTES',mtsb:'TRATADORES DE SEMENTES'};
   doc.setFillColor(240,240,240);doc.rect(M,y,W-M*2,7,'F');
   doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(30);
   doc.text(cats[tipo]||'PRODUTO',M+2,y+4.5);y+=8;
 
-  // Descrição — uma linha por item selecionado, com quantidade e subtotal ajustado
+  // Descrição — uma linha por item selecionado, com imagem, quantidade e subtotal ajustado
   let subtotalGeral=0;
   const body = itens.map((prod,idx)=>{
     const qtd=getQtd(prod.id);
@@ -1466,16 +1456,32 @@ function gerarPDFGenerico(){
     const finame=prod.finame?'FINAME '+prod.finame+' · ':'';
     const ncm=prod.ncm?'NCM '+prod.ncm:'';
     const bodyDesc=prod.nome.toUpperCase()+'\n'+prod.desc+'\n'+(finame+ncm).trim();
-    return [String(idx+1), bodyDesc, String(qtd), 'R$ '+subtotal.toLocaleString('pt-BR',{minimumFractionDigits:2})];
+    return ['', bodyDesc, String(qtd), 'R$ '+subtotal.toLocaleString('pt-BR',{minimumFractionDigits:2})];
   });
   doc.autoTable({
-    head:[['#','Produto / Descrição','Qtde.','Valor']],
+    head:[['Foto','Produto / Descrição','Qtde.','Valor']],
     body:body,
     startY:y,margin:{left:M,right:M},
     styles:{fontSize:9,cellPadding:4},
     headStyles:{fillColor:[240,240,240],textColor:[40,40,40],fontStyle:'bold',lineWidth:0.3,lineColor:[200,200,200]},
-    columnStyles:{0:{cellWidth:8},1:{cellWidth:'auto'},2:{cellWidth:12,halign:'center'},3:{cellWidth:32,halign:'right',fontStyle:'bold'}},
-    bodyStyles:{lineColor:[220,220,220],lineWidth:0.2},
+    columnStyles:{0:{cellWidth:22},1:{cellWidth:'auto'},2:{cellWidth:12,halign:'center'},3:{cellWidth:32,halign:'right',fontStyle:'bold'}},
+    bodyStyles:{lineColor:[220,220,220],lineWidth:0.2,minCellHeight:20},
+    didDrawCell:(data)=>{
+      if(data.section==='body' && data.column.index===0){
+        const prod = itens[data.row.index];
+        if(prod && prod.img){
+          try{
+            const b64body = prod.img.split(',')[1] || '';
+            const imgFormat = b64body.startsWith('/9j/') ? 'JPEG' : 'PNG';
+            const cellW = data.cell.width, cellH = data.cell.height;
+            const imgW = Math.min(cellW-4, 18), imgH = Math.min(cellH-4, 16);
+            const ix = data.cell.x + (cellW-imgW)/2;
+            const iy = data.cell.y + (cellH-imgH)/2;
+            doc.addImage(prod.img, imgFormat, ix, iy, imgW, imgH);
+          }catch(e){}
+        }
+      }
+    },
   });
   y=doc.lastAutoTable.finalY;
 
