@@ -3129,9 +3129,15 @@ async function renderAdmin(){
   <div class="page-wrap">
     <div style="margin-bottom:1rem">
       <div style="font-size:16px;font-weight:700">⚙️ Painel Admin</div>
-      <div style="font-size:12px;color:var(--text2)">Edite preços, descrições e gerencie vendedores</div>
+      <div style="font-size:12px;color:var(--text2)">Edite preços, descrições, gerencie vendedores e acompanhe performance</div>
     </div>
 
+    <div style="display:flex;gap:6px;margin-bottom:1.25rem;border-bottom:1px solid var(--border)">
+      <button class="adm-tab-btn active" id="adm-tab-btn-produtos" onclick="showAdminTab('produtos')" style="padding:.6rem 1rem;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid var(--primary);color:var(--primary);cursor:pointer">Produtos &amp; Vendedores</button>
+      <button class="adm-tab-btn" id="adm-tab-btn-performance" onclick="showAdminTab('performance')" style="padding:.6rem 1rem;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;color:var(--text2);cursor:pointer">📊 Performance</button>
+    </div>
+
+    <div id="admin-tab-produtos">
     <div style="margin-bottom:1.5rem">
       <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.5rem">Vendedores</div>
       <div id="lista-vendedores">
@@ -3182,7 +3188,185 @@ async function renderAdmin(){
         </div>`).join('')}
       </div>
     `).join('')}
+    </div>
+
+    <div id="admin-tab-performance" style="display:none"></div>
   </div>`;
+}
+
+function showAdminTab(tab){
+  const isPerf = tab==='performance';
+  document.getElementById('admin-tab-produtos').style.display = isPerf?'none':'';
+  document.getElementById('admin-tab-performance').style.display = isPerf?'':'none';
+  const btnP=document.getElementById('adm-tab-btn-produtos'), btnPerf=document.getElementById('adm-tab-btn-performance');
+  btnP.style.borderBottomColor = isPerf?'transparent':'var(--primary)';
+  btnP.style.color = isPerf?'var(--text2)':'var(--primary)';
+  btnPerf.style.borderBottomColor = isPerf?'var(--primary)':'transparent';
+  btnPerf.style.color = isPerf?'var(--primary)':'var(--text2)';
+  if(isPerf) renderAdminPerformance();
+}
+
+// ── PAINEL DE PERFORMANCE (Admin) ──
+let _perfStatusFiltro = 'todos';
+
+function getOrcamentosFiltrados(){
+  if(_perfStatusFiltro==='todos') return orcamentos;
+  return orcamentos.filter(o=>(o.status||'Em aberto')===_perfStatusFiltro);
+}
+
+function clientePorId(id){ return clientes.find(c=>c.id===id); }
+
+async function renderAdminPerformance(){
+  const el = document.getElementById('admin-tab-performance');
+  if(!el) return;
+  el.innerHTML = `<div style="padding:2rem 0;text-align:center;color:var(--text2);font-size:13px">Carregando performance...</div>`;
+  if(!clientes.length){ try{ await loadClientes(true); }catch(e){} }
+
+  const filtros = ['todos','Em aberto','Aprovado','Cancelado'];
+  el.innerHTML = `
+    <div style="display:flex;gap:6px;margin-bottom:1.25rem;flex-wrap:wrap">
+      ${filtros.map(f=>`<button class="btn btn-sm" style="${_perfStatusFiltro===f?'background:var(--primary);color:#fff;border-color:var(--primary)':''}" onclick="_perfStatusFiltro='${f}';renderAdminPerformance()">${f==='todos'?'Todos':f}</button>`).join('')}
+    </div>
+    <div id="perf-body"></div>
+  `;
+  renderPerfBody();
+}
+
+function renderPerfBody(){
+  const body = document.getElementById('perf-body');
+  if(!body) return;
+  const lista = getOrcamentosFiltrados();
+
+  // ── KPIs do mês atual ──
+  const hoje = new Date();
+  const mesAtual = hoje.getMonth(), anoAtual = hoje.getFullYear();
+  const doMes = lista.filter(o=>{
+    const d = new Date(o.criado_em);
+    return d.getMonth()===mesAtual && d.getFullYear()===anoAtual;
+  });
+  const totalMes = doMes.reduce((t,o)=>t+Number(o.total||0),0);
+  const qtdMes = doMes.length;
+  const ticketMedio = qtdMes>0 ? totalMes/qtdMes : 0;
+  const totalGeral = lista.reduce((t,o)=>t+Number(o.total||0),0);
+
+  // ── Ranking por UF (mapa de calor textual) ──
+  const porUF = {};
+  lista.forEach(o=>{
+    const cli = clientePorId(o.cliente_id);
+    const uf = (cli?.estado||'').toUpperCase().trim() || '—';
+    porUF[uf] = (porUF[uf]||0) + Number(o.total||0);
+  });
+  const ufOrdenado = Object.entries(porUF).sort((a,b)=>b[1]-a[1]);
+  const maxUF = ufOrdenado.length ? ufOrdenado[0][1] : 0;
+
+  // ── Curva ABC de produtos ──
+  // Atenção: o formato do campo "preco" em cada item varia por fluxo —
+  // no wizard de Carregadores, "preco" já é o total do item (preco_unit*qtd);
+  // no Rasthor e no fluxo genérico, "preco" é o valor unitário (precisa multiplicar por qtd).
+  const porProduto = {};
+  lista.forEach(o=>{
+    (o.itens||[]).forEach(it=>{
+      const nome = it.nome||'—';
+      const valor = it.preco_unit!==undefined ? Number(it.preco||0) : Number(it.preco||0)*Number(it.qtd||0);
+      porProduto[nome] = (porProduto[nome]||0) + valor;
+    });
+  });
+  const produtosOrdenados = Object.entries(porProduto).sort((a,b)=>b[1]-a[1]);
+  const totalProdutos = produtosOrdenados.reduce((t,[,v])=>t+v,0);
+  let acumulado = 0;
+  const curvaABC = produtosOrdenados.map(([nome,valor])=>{
+    acumulado += valor;
+    const pctAcum = totalProdutos>0 ? (acumulado/totalProdutos*100) : 0;
+    const classe = pctAcum<=80?'A':(pctAcum<=95?'B':'C');
+    return {nome,valor,pctAcum,classe};
+  });
+
+  // ── Ranking de vendedores ──
+  const porVendedor = {};
+  lista.forEach(o=>{
+    const v = o.vendedor || '—';
+    if(!porVendedor[v]) porVendedor[v] = {total:0,qtd:0};
+    porVendedor[v].total += Number(o.total||0);
+    porVendedor[v].qtd += 1;
+  });
+  const vendedoresOrdenados = Object.entries(porVendedor).sort((a,b)=>b[1].total-a[1].total);
+  const maxVend = vendedoresOrdenados.length ? vendedoresOrdenados[0][1].total : 0;
+
+  const corClasse = {A:'#27500A',B:'#854F0B',C:'#791F1F'};
+  const bgClasse = {A:'#EAF3DE',B:'#FAEEDA',C:'#FCEBEB'};
+
+  body.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:1.5rem">
+      <div style="background:var(--bg);border-radius:var(--radius);padding:1rem">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:4px">Vendas este mês</div>
+        <div style="font-size:20px;font-weight:700">${fmt(totalMes)}</div>
+      </div>
+      <div style="background:var(--bg);border-radius:var(--radius);padding:1rem">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:4px">Orçamentos este mês</div>
+        <div style="font-size:20px;font-weight:700">${qtdMes}</div>
+      </div>
+      <div style="background:var(--bg);border-radius:var(--radius);padding:1rem">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:4px">Ticket médio</div>
+        <div style="font-size:20px;font-weight:700">${fmt(ticketMedio)}</div>
+      </div>
+      <div style="background:var(--bg);border-radius:var(--radius);padding:1rem">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:4px">Total (filtro atual)</div>
+        <div style="font-size:20px;font-weight:700">${fmt(totalGeral)}</div>
+      </div>
+    </div>
+
+    <div style="font-size:13px;font-weight:700;margin-bottom:.75rem">Ranking de vendedores</div>
+    <div style="margin-bottom:1.75rem">
+      ${vendedoresOrdenados.length===0?`<div style="font-size:12px;color:var(--text2)">Nenhum orçamento no filtro selecionado.</div>`:
+      vendedoresOrdenados.map(([nome,d],i)=>{
+        const pct = maxVend>0 ? (d.total/maxVend*100) : 0;
+        return `<div style="margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+            <span style="font-weight:600">${i+1}. ${nome}</span>
+            <span style="color:var(--text2)">${fmt(d.total)} · ${d.qtd} orç.</span>
+          </div>
+          <div style="background:var(--bg);border-radius:4px;height:8px;overflow:hidden">
+            <div style="background:var(--primary);height:100%;width:${pct}%"></div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div style="font-size:13px;font-weight:700;margin-bottom:.75rem">Vendas por estado (UF)</div>
+    <div style="margin-bottom:1.75rem">
+      ${ufOrdenado.length===0?`<div style="font-size:12px;color:var(--text2)">Nenhum dado de cidade/UF disponível para o filtro selecionado.</div>`:
+      ufOrdenado.map(([uf,valor])=>{
+        const pct = maxUF>0 ? (valor/maxUF*100) : 0;
+        const intensidade = Math.max(0.15, pct/100);
+        return `<div style="margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+            <span style="font-weight:600">${uf}</span>
+            <span style="color:var(--text2)">${fmt(valor)}</span>
+          </div>
+          <div style="background:var(--bg);border-radius:4px;height:14px;overflow:hidden">
+            <div style="background:#185FA5;opacity:${intensidade};height:100%;width:${pct}%"></div>
+          </div>
+        </div>`;
+      }).join('')}
+      <div style="font-size:11px;color:var(--text2);margin-top:6px">Estado vinculado pelo cadastro do cliente no orçamento. Clientes sem UF cadastrada aparecem como "—".</div>
+    </div>
+
+    <div style="font-size:13px;font-weight:700;margin-bottom:.75rem">Curva ABC de produtos</div>
+    <div style="display:flex;gap:14px;margin-bottom:.75rem;font-size:11px">
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:${corClasse.A}"></span>A — até 80% da receita</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:${corClasse.B}"></span>B — até 95%</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:${corClasse.C}"></span>C — restante</span>
+    </div>
+    <div>
+      ${curvaABC.length===0?`<div style="font-size:12px;color:var(--text2)">Nenhum item vendido no filtro selecionado.</div>`:
+      curvaABC.map((p,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border)">
+        <span style="background:${bgClasse[p.classe]};color:${corClasse[p.classe]};font-weight:700;font-size:11px;border-radius:4px;padding:2px 7px;flex-shrink:0">${p.classe}</span>
+        <span style="flex:1;font-size:12px">${i+1}. ${p.nome}</span>
+        <span style="font-size:12px;font-weight:600;white-space:nowrap">${fmt(p.valor)}</span>
+        <span style="font-size:11px;color:var(--text2);white-space:nowrap;width:48px;text-align:right">${p.pctAcum.toFixed(0)}%</span>
+      </div>`).join('')}
+    </div>
+  `;
 }
 
 async function adicionarVendedor(){
