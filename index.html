@@ -761,14 +761,17 @@ function gerarOrcRasthor(){
       <div class="ig"><label>Vendedor</label>
         ${isAdmin() ? `<select id="rc-vendedor">
           <option value="">— Selecionar —</option>
-          ${vendedores.map(v=>`<option value="${v.nome}" ${currentPerfil?.nome===v.nome?'selected':''}>${v.nome}</option>`).join('')}
+          ${(vendedores.some(v=>v.nome===currentPerfil?.nome)?vendedores:[{nome:currentPerfil?.nome},...vendedores]).map(v=>`<option value="${v.nome}" ${currentPerfil?.nome===v.nome?'selected':''}>${v.nome}</option>`).join('')}
         </select>` : `<input type="text" id="rc-vendedor" value="${currentPerfil?.nome||''}" readonly disabled style="background:var(--bg);color:var(--text2)">`}
       </div>
       <div class="ig"><label>Observações</label><textarea id="rc-obs" placeholder="Informações adicionais..."></textarea></div>
     </div>
-    <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="gerarPDFRasthor()">
-      <i class="ti ti-file-type-pdf"></i> Baixar PDF
-    </button>
+    <div style="display:flex;gap:8px">
+      <button class="btn" id="btn-salvar-rasthor" onclick="salvarOrcamentoRasthor()"><i class="ti ti-device-floppy"></i> Salvar</button>
+      <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="gerarPDFRasthor()">
+        <i class="ti ti-file-type-pdf"></i> Baixar PDF
+      </button>
+    </div>
     <div id="modal-cli-rasthor" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;padding:1rem;overflow-y:auto">
       <div style="background:var(--bg2);border-radius:var(--radius-lg);padding:1.25rem;max-width:480px;margin:60px auto 0">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
@@ -819,6 +822,35 @@ function selecionarCliRasthor(id){
     <div style="font-size:12px;font-weight:600">${c.nome}</div>
   </div>`;
   document.getElementById('modal-cli-rasthor').style.display='none';
+}
+
+async function salvarOrcamentoRasthor(){
+  const sel = getRasthorSel();
+  if(!sel.length) return;
+  const gr=fid=>(document.getElementById(fid)||{}).value||'';
+  const itens = sel.map(r=>({nome:r.nome,qtd:getQtd(r.id),preco:precoAjustado(r.id,r.preco),ajuste:st.ajustes[r.id]||0}));
+  const total = sel.reduce((t,r)=>t+precoAjustado(r.id,r.preco)*getQtd(r.id),0);
+  const btn=document.getElementById('btn-salvar-rasthor');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .7s linear infinite"></i> Salvando...';}
+  try{
+    await sbPost('orcamentos',{
+      numero:'ORC-'+Date.now().toString().slice(-6),
+      cliente_id:rasthorClienteSel?.id||null,
+      cliente_nome:gr('rc-nome')||rasthorClienteSel?.nome||null,
+      trator_marca:null,trator_modelo:null,estrutura:null,
+      adaptador_cod:null,joystick_cod:null,
+      itens,total,
+      vendedor:gr('rc-vendedor')||document.getElementById('rc-vendedor')?.value||st.vendedor||currentPerfil?.nome||null,
+      obs:gr('rc-obs'),status:'Em aberto'
+    });
+    toast('Orçamento salvo! ✓');
+    loadOrcamentos();
+    if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-circle-check"></i> Salvo!';}
+  }catch(e){
+    console.error('Erro ao salvar orçamento:', e);
+    toast('Erro ao salvar: '+(e.message||'falha desconhecida'));
+    if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-device-floppy"></i> Salvar';}
+  }
 }
 
 function gerarPDFRasthor(){
@@ -1175,14 +1207,17 @@ function abrirFormProduto(tipo) {
       <div class="ig"><label>Vendedor</label>
         ${isAdmin() ? `<select id="gn-vendedor">
           <option value="">— Selecionar —</option>
-          ${vendedores.map(v=>`<option value="${v.nome}" ${currentPerfil?.nome===v.nome?'selected':''}>${v.nome}</option>`).join('')}
+          ${(vendedores.some(v=>v.nome===currentPerfil?.nome)?vendedores:[{nome:currentPerfil?.nome},...vendedores]).map(v=>`<option value="${v.nome}" ${currentPerfil?.nome===v.nome?'selected':''}>${v.nome}</option>`).join('')}
         </select>` : `<input type="text" id="gn-vendedor" value="${currentPerfil?.nome||''}" readonly disabled style="background:var(--bg);color:var(--text2)">`}
       </div>
       <div class="ig"><label>Observações</label><textarea id="gn-obs" placeholder="Informações adicionais..."></textarea></div>
     </div>
-    <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="gerarPDFGenerico()">
-      <i class="ti ti-file-type-pdf"></i> Baixar PDF
-    </button>
+    <div style="display:flex;gap:8px">
+      <button class="btn" id="btn-salvar-gen" onclick="salvarOrcamentoGenerico()"><i class="ti ti-device-floppy"></i> Salvar</button>
+      <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="gerarPDFGenerico()">
+        <i class="ti ti-file-type-pdf"></i> Baixar PDF
+      </button>
+    </div>
     <div id="modal-cli-gen" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;padding:1rem;overflow-y:auto">
       <div style="background:var(--bg2);border-radius:var(--radius-lg);padding:1.25rem;max-width:480px;margin:60px auto 0">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
@@ -1303,6 +1338,37 @@ function selecionarCliGen(id){
     <div style="font-size:12px;font-weight:600">${c.nome}</div>
   </div>`;
   document.getElementById('modal-cli-gen').style.display='none';
+}
+
+async function salvarOrcamentoGenerico(){
+  if(!_prodSel) return;
+  const {tipo}=_prodSel;
+  const gn=fid=>(document.getElementById(fid)||{}).value||'';
+  const itens = getSelPorTipo(tipo);
+  if(!itens.length) return;
+  const itensSalvar = itens.map(p=>({nome:p.nome,qtd:getQtd(p.id),preco:precoAjustado(p.id,p.preco),ajuste:st.ajustes[p.id]||0}));
+  const total = itens.reduce((t,p)=>t+precoAjustado(p.id,p.preco)*getQtd(p.id),0);
+  const btn=document.getElementById('btn-salvar-gen');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .7s linear infinite"></i> Salvando...';}
+  try{
+    await sbPost('orcamentos',{
+      numero:'ORC-'+Date.now().toString().slice(-6),
+      cliente_id:_cliGenSel?.id||null,
+      cliente_nome:gn('gn-nome')||_cliGenSel?.nome||null,
+      trator_marca:null,trator_modelo:null,estrutura:null,
+      adaptador_cod:null,joystick_cod:null,
+      itens:itensSalvar,total,
+      vendedor:gn('gn-vendedor')||document.getElementById('gn-vendedor')?.value||st.vendedor||currentPerfil?.nome||null,
+      obs:gn('gn-obs'),status:'Em aberto'
+    });
+    toast('Orçamento salvo! ✓');
+    loadOrcamentos();
+    if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-circle-check"></i> Salvo!';}
+  }catch(e){
+    console.error('Erro ao salvar orçamento:', e);
+    toast('Erro ao salvar: '+(e.message||'falha desconhecida'));
+    if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-device-floppy"></i> Salvar';}
+  }
 }
 
 function gerarPDFGenerico(){
@@ -2017,7 +2083,7 @@ function s5(){
       <div class="ig"><label>Vendedor</label>
         ${isAdmin() ? `<select id="cli-vendedor" onchange="st.vendedor=this.value">
           <option value="">— Selecionar —</option>
-          ${vendedores.map(v=>`<option value="${v.nome}" ${(st.vendedor||currentPerfil?.nome)===v.nome?'selected':''}>${v.nome}</option>`).join('')}
+          ${(vendedores.some(v=>v.nome===currentPerfil?.nome)?vendedores:[{nome:currentPerfil?.nome},...vendedores]).map(v=>`<option value="${v.nome}" ${(st.vendedor||currentPerfil?.nome)===v.nome?'selected':''}>${v.nome}</option>`).join('')}
         </select>` : `<input type="text" id="cli-vendedor" value="${currentPerfil?.nome||''}" readonly disabled style="background:var(--bg);color:var(--text2)">`}
       </div>
     </div>
