@@ -390,7 +390,7 @@ const IMPLEMENTOS = [
 ];
 
 let currentTab = 'orcamento';
-let st = {step:0,marcaSel:null,modeloSel:null,adaptDB:null,clienteSel:null,acrescimo:0,ajustes:{},pgto:'',frete:'',obs:'',vendedor:'',semEstrutura:false,estruturaAvulsa:null,mostrarEstruturaAvulsa:false,qtds:{}};
+let st = {step:0,marcaSel:null,modeloSel:null,adaptDB:null,clienteSel:null,acrescimo:0,ajustes:{},pgto:'',frete:'',obs:'',vendedor:'',semEstrutura:false,estruturaAvulsa:null,mostrarEstruturaAvulsa:false,qtds:{},descAdaptJD6000:false};
 let clientes = [];
 let orcamentos = [];
 let vendedores = [];
@@ -1853,7 +1853,7 @@ function renderOrcamento(){
   renderProg(); renderStep();
 }
 function novoOrcamento(){
-  st={step:0,marcaSel:null,modeloSel:null,adaptDB:null,clienteSel:null,acrescimo:0,ajustes:{},pgto:'',frete:'',obs:'',vendedor:'',semEstrutura:false,estruturaAvulsa:null,mostrarEstruturaAvulsa:false,qtds:{}};
+  st={step:0,marcaSel:null,modeloSel:null,adaptDB:null,clienteSel:null,acrescimo:0,ajustes:{},pgto:'',frete:'',obs:'',vendedor:'',semEstrutura:false,estruturaAvulsa:null,mostrarEstruturaAvulsa:false,qtds:{},descAdaptJD6000:false};
   showTab('orcamento');
 }
 function renderProg(){
@@ -1882,7 +1882,7 @@ function s0(){
     <button class="btn btn-primary" onclick="goStep(1)" ${!st.adaptDB?'disabled':''}>Próximo <i class="ti ti-arrow-right"></i></button>
   </div>`;
 }
-function selMarca(id){st.marcaSel=id;st.modeloSel=null;st.adaptDB=null;st.semEstrutura=false;st.estruturaAvulsa=null;st.mostrarEstruturaAvulsa=false;renderStep();setTimeout(()=>{const el=document.getElementById('busca-modelo');if(el)filtrarModelos();},50);}
+function selMarca(id){st.marcaSel=id;st.modeloSel=null;st.adaptDB=null;st.semEstrutura=false;st.estruturaAvulsa=null;st.mostrarEstruturaAvulsa=false;st.descAdaptJD6000=false;renderStep();setTimeout(()=>{const el=document.getElementById('busca-modelo');if(el)filtrarModelos();},50);}
 function filtrarModelos(){renderModelos((document.getElementById('busca-modelo')?.value||'').toLowerCase());}
 function renderModelos(busca){
   const el=document.getElementById('modelo-list');if(!el||!st.marcaSel)return;
@@ -1908,9 +1908,12 @@ function selModelo(marcaId,modelo){
   limparQtds(CARREGADORES);
   const car=CARREGADORES.find(c=>c.estrutura===row.estrutura.split('/')[0]);
   if(car)st.qtds[car.id]=1;
+  // John Deere linha 6000 (modelo começando com "6") nas estruturas 1550/1950/2200
+  // tem direito a 10% de desconto adicional no adaptador — aplicado automaticamente.
+  st.descAdaptJD6000 = (marcaId==='jd' && /^6/.test(modelo.trim()) && ['1550','1950','2200'].includes(row.estrutura));
   renderStep();setTimeout(()=>filtrarModelos(),50);
 }
-function pularTrator(){st.marcaSel=null;st.modeloSel=null;st.adaptDB=null;limparQtds(CARREGADORES);st.semEstrutura=false;st.estruturaAvulsa=null;st.mostrarEstruturaAvulsa=false;goStep(1);}
+function pularTrator(){st.marcaSel=null;st.modeloSel=null;st.adaptDB=null;limparQtds(CARREGADORES);st.semEstrutura=false;st.estruturaAvulsa=null;st.mostrarEstruturaAvulsa=false;st.descAdaptJD6000=false;goStep(1);}
 function jaTemEstrutura(){st.mostrarEstruturaAvulsa=true;renderStep();}
 function selEstruturaAvulsa(estrutura){
   limparQtds(CARREGADORES);
@@ -1961,6 +1964,7 @@ function s2(){
     ${imgTag('adaptador',60,52)}<div><div style="font-size:11px;color:var(--text2);margin-bottom:4px">Código indicado — ${st.modeloSel}</div>
     <span class="badge badge-gray" style="font-family:monospace">${st.adaptDB.adaptador}</span>${st.adaptDB.obs?` <span class="badge badge-orange">${st.adaptDB.obs}</span>`:''}</div></div>`:''}
   ${st.semEstrutura?`<div style="margin-bottom:1rem"><span class="badge badge-orange"><i class="ti ti-package"></i> Venda avulsa — estrutura já possuída${st.estruturaAvulsa?`: ${st.estruturaAvulsa}`:''}</span></div>`:''}
+  ${st.descAdaptJD6000?`<div style="margin-bottom:1rem"><span class="badge badge-green"><i class="ti ti-discount-2"></i> Linha JD 6000 — 10% de desconto adicional aplicado automaticamente no adaptador</span></div>`:''}
   ${lista.map(a=>{const sel=getQtd(a.id)>0;return `<div class="item-row${sel?' sel':''}" onclick="if(getQtd('${a.id}')===0){incQtd('${a.id}',1);}">
     ${a.id!=='adp_nao'?imgTag('adaptador',56,48):`<div class="item-thumb-ph" style="width:56px;height:48px"><i class="ti ti-circle-off" style="font-size:20px;color:var(--text3)"></i></div>`}
     <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">${a.nome}</div><div style="font-size:11px;color:var(--text2)">${a.cod!=='—'?`<span style="font-family:monospace">${a.cod}</span> · `:''}${a.desc}</div></div>
@@ -1977,6 +1981,14 @@ function avancarAdapt(){
     const estr=estruturaAtiva();
     const lista=ADAPTADORES.filter(a=>a.estrutura.includes(estr)&&a.id!=='adp_nao');
     if(lista.length>0) st.qtds[lista[0].id]=1;
+  }
+  // Desconto automático de 10% no adaptador para John Deere linha 6000 (1550/1950/2200)
+  if(st.descAdaptJD6000){
+    ADAPTADORES.forEach(a=>{
+      if(a.id!=='adp_nao' && getQtd(a.id)>0 && !st.ajustes[a.id]){
+        st.ajustes[a.id]=10;
+      }
+    });
   }
   goStep(3);
 }
@@ -2911,6 +2923,22 @@ function abrirOrcamento(id){
   if(!o)return;
   const adm=isAdmin();
   const itens=Array.isArray(o.itens)?o.itens:[];
+
+  // Calcula, por item, o valor total já vendido (preco_total) e o "saldo de acréscimo"
+  // — a diferença entre o preço cobrado e o preço-base de tabela, quando o vendedor
+  // aplicou um acréscimo (ajuste>0). Em Carregadores "preco" já é o total do item
+  // (preco_unit existe); em Rasthor/Genérico "preco" é o valor unitário.
+  const itensCalc = itens.map(it=>{
+    const qtd = Number(it.qtd||0);
+    const ehTotalDireto = it.preco_unit!==undefined;
+    const precoTotal = ehTotalDireto ? Number(it.preco||0) : Number(it.preco||0)*qtd;
+    const ajuste = Number(it.ajuste||0);
+    const precoBaseTotal = ajuste!==0 ? precoTotal/(1+ajuste/100) : precoTotal;
+    const saldoAcrescimo = ajuste>0 ? (precoTotal-precoBaseTotal) : 0;
+    return {...it, precoTotal, precoBaseTotal, saldoAcrescimo};
+  });
+  const saldoTotalAcrescimo = itensCalc.reduce((t,it)=>t+it.saldoAcrescimo,0);
+
   document.getElementById('app-content').innerHTML=`
   <div class="page-wrap">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem">
@@ -2928,14 +2956,21 @@ function abrirOrcamento(id){
 
     <div class="card" style="margin-bottom:1rem">
       <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:.75rem;letter-spacing:.3px">ITENS</div>
-      ${itens.map(it=>`<div class="orc-row">
-        <span style="color:var(--text2)">${it.qtd>1?`${it.qtd}× `:''}${it.nome}${it.ajuste?` <span style="font-size:10px;color:${it.ajuste<0?'#c0392b':'#e67e22'}">(${it.ajuste>0?'+':''}${it.ajuste}%)</span>`:''}</span>
-        <span style="font-weight:600">${fmt(it.preco)}</span>
+      ${itensCalc.map(it=>`<div class="orc-row" style="flex-direction:column;align-items:stretch;gap:2px">
+        <div style="display:flex;justify-content:space-between">
+          <span style="color:var(--text2)">${it.qtd>1?`${it.qtd}× `:''}${it.nome}${it.ajuste?` <span style="font-size:10px;color:${it.ajuste<0?'#c0392b':'#e67e22'}">(${it.ajuste>0?'+':''}${it.ajuste}%)</span>`:''}</span>
+          <span style="font-weight:600">${fmt(it.precoTotal)}</span>
+        </div>
+        ${adm&&it.saldoAcrescimo>0?`<div style="display:flex;justify-content:space-between;font-size:11px;color:#854F0B"><span>Saldo de acréscimo (acima da tabela)</span><span>+${fmt(it.saldoAcrescimo)}</span></div>`:''}
       </div>`).join('')}
       <div style="display:flex;justify-content:space-between;padding:8px 0;border-top:2px solid var(--border);margin-top:4px">
         <span style="font-weight:700">Total</span>
         <span style="font-size:18px;font-weight:700">R$ ${Number(o.total||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
       </div>
+      ${adm&&saldoTotalAcrescimo>0?`<div style="display:flex;justify-content:space-between;padding:6px 0;background:#FAEEDA;border-radius:var(--radius-sm);margin-top:6px;padding-left:8px;padding-right:8px">
+        <span style="font-size:12px;font-weight:700;color:#633806"><i class="ti ti-discount-2"></i> Saldo total de acréscimo</span>
+        <span style="font-size:13px;font-weight:700;color:#633806">+${fmt(saldoTotalAcrescimo)}</span>
+      </div>`:''}
     </div>
 
     ${adm?`<div class="card" style="margin-bottom:1rem">
