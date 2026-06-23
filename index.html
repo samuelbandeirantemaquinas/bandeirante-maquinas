@@ -412,6 +412,11 @@ const LOGINS = [
   {email:'brunoferreiramaq@gmail.com',                 senhaPadrao:'bandeirante2026', nome:'Bruno Ferreira',     role:'vendedor'},
   {email:'vendas@esoares.net.br',                      senhaPadrao:'bandeirante2026', nome:'Everton Soares',     role:'vendedor'},
   {email:'flavioaguiar.vendasmt@gmail.com',            senhaPadrao:'bandeirante2026', nome:'Flavio Aguiar',      role:'vendedor'},
+  {email:'alb.representacaocomercial@gmail.com',       senhaPadrao:'bandeirante2026', nome:'André Bidin',        role:'vendedor'},
+  {email:'ig-10@outlook.com.br',                       senhaPadrao:'bandeirante2026', nome:'Igor Soares',        role:'vendedor'},
+  {email:'jcbrazrepresenta@gmail.com',                 senhaPadrao:'bandeirante2026', nome:'Julio Braz',         role:'vendedor'},
+  {email:'agromasvendas@gmail.com',                    senhaPadrao:'bandeirante2026', nome:'Marco Antonio',      role:'vendedor'},
+  {email:'forti.representacoes@gmail.com',             senhaPadrao:'bandeirante2026', nome:'Renato Forti',       role:'vendedor'},
 ];
 
 // Retorna a senha "ativa" do login: se o vendedor já trocou a senha
@@ -2937,17 +2942,25 @@ function abrirOrcamento(id){
   const adm=isAdmin();
   const itens=Array.isArray(o.itens)?o.itens:[];
 
-  // Calcula, por item, o valor total já vendido (preco_total) e o "saldo de acréscimo"
-  // — a diferença entre o preço cobrado e o preço-base de tabela, quando o vendedor
-  // aplicou um acréscimo (ajuste>0). Em Carregadores "preco" já é o total do item
-  // (preco_unit existe); em Rasthor/Genérico "preco" é o valor unitário.
+  // Calcula, por item, o "saldo de acréscimo" — a diferença entre o preço efetivamente
+  // cobrado e o preço-base de tabela no momento da venda. No fluxo de Carregadores, cada
+  // item já guarda "preco_base" (preço de tabela, sem nenhum ajuste); comparando com
+  // "preco" (valor final, com ajuste por item + acréscimo geral já embutidos), capturamos
+  // o saldo total — sem precisar de nenhuma coluna nova no banco. Em Rasthor/Genérico,
+  // que não têm "preco_base" salvo, usamos o campo "ajuste" por item como antes.
   const itensCalc = itens.map(it=>{
     const qtd = Number(it.qtd||0);
     const ehTotalDireto = it.preco_unit!==undefined;
     const precoTotal = ehTotalDireto ? Number(it.preco||0) : Number(it.preco||0)*qtd;
-    const ajuste = Number(it.ajuste||0);
-    const precoBaseTotal = ajuste!==0 ? precoTotal/(1+ajuste/100) : precoTotal;
-    const saldoAcrescimo = ajuste>0 ? (precoTotal-precoBaseTotal) : 0;
+    let precoBaseTotal, saldoAcrescimo;
+    if(it.preco_base!==undefined){
+      precoBaseTotal = Number(it.preco_base||0)*qtd;
+      saldoAcrescimo = Math.max(0, precoTotal-precoBaseTotal);
+    } else {
+      const ajuste = Number(it.ajuste||0);
+      precoBaseTotal = ajuste!==0 ? precoTotal/(1+ajuste/100) : precoTotal;
+      saldoAcrescimo = ajuste>0 ? (precoTotal-precoBaseTotal) : 0;
+    }
     return {...it, precoTotal, precoBaseTotal, saldoAcrescimo};
   });
   const saldoTotalAcrescimo = itensCalc.reduce((t,it)=>t+it.saldoAcrescimo,0);
