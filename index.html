@@ -370,21 +370,22 @@ const JOYSTICKS = [
    codigos:['066340','066379','064212','064585','066298','066306','066304','066443','066308','066310','066318','066369','066483','066487','066489','066367','067621','066381','066464','066462','066335','066357','066400','066365','064598','064379']},
   {id:'joy_nao',cod:'—',nome:'Sem joystick',preco:0,desc:'Cliente já possui ou não necessita',codigos:[]},
 ];
-const IMPLEMENTOS = [
+let IMPLEMENTOS = [
   // ── Lâminas ──
   {id:'lam195',cod:'071546',nome:'Lâmina 1,95m',preco:4001.99,img:'lamina',grupo:'Lâminas'},
   {id:'lam220',cod:'PA33.00.00.55',nome:'Lâmina 2,20m',preco:5196.61,img:'lamina',grupo:'Lâminas'},
-  {id:'lam265',cod:'PA41.00.00.00',nome:'Lâmina 2,65m',preco:8002.94,img:'lamina',grupo:'Lâminas'},
+  {id:'lam265',cod:'PA41.00.00.00',nome:'Lâmina 2,65m',preco:8002.94,img:'lamina',grupo:'Lâminas',estruturaMin:'1950'},
   // ── Conchas ──
   {id:'concha195',cod:'PA29.00.00.55',nome:'Concha 1,95m × 0,57m³',preco:5272.47,img:'concha',grupo:'Conchas'},
   {id:'concha220',cod:'PA31.00.00.12',nome:'Concha 2,20m × 0,85m³',preco:6014.93,img:'concha',grupo:'Conchas'},
+  {id:'concha265',cod:'PENDENTE',nome:'Concha 2,65m',preco:0,img:'concha',grupo:'Conchas',estruturaMin:'1950'},
   {id:'conchagarra195',cod:'PA54.00.00.00',nome:'Concha com Garra 1,95m × 1,2m³',preco:13336.84,img:'conchagarra',grupo:'Conchas'},
   // ── Garfos ──
   {id:'garfosilagem',cod:'PA16.31.00.00',nome:'Garfo Silagem 0,7m³ × 1,65m',preco:13354.74,img:'garfosilagem',grupo:'Garfos'},
   {id:'garfotora',cod:'PA16.52.00.00',nome:'Garfo Tora Simples 1500kg',preco:5347.03,img:'garfotora',grupo:'Garfos'},
   {id:'garfotoragarra',cod:'PA16.53.00.00',nome:'Garfo Tora com 2 Garras 1500kg × 1685mm',preco:13083.24,img:'garfotoragarra',grupo:'Garfos'},
   // ── Enleiradores ──
-  {id:'enleirador265',cod:'PA16.61.00.00',nome:'Enleirador 2,65m',preco:10448.22,img:'enleirador265',grupo:'Enleiradores'},
+  {id:'enleirador265',cod:'PA16.61.00.00',nome:'Enleirador 2,65m',preco:10448.22,img:'enleirador265',grupo:'Enleiradores',estruturaMin:'1950'},
   {id:'enleirador195',cod:'PA16.62.00.00',nome:'Enleirador 1,95m',preco:7805.43,img:'enleirador195',grupo:'Enleiradores'},
   // ── Garra ──
   {id:'garrafeno',cod:'PA74.01.00.00',nome:'Garra para Rolo de Feno 1300mm × 400kg',preco:10448.22,img:'garrafeno',grupo:'Garras'},
@@ -454,7 +455,24 @@ async function loadProdutos(){
         if(j){j.preco=parseFloat(p.preco);if(p.nome)j.nome=p.nome;if(p.descricao)j.desc=p.descricao;}
       } else if(p.categoria==='implemento'){
         const i=IMPLEMENTOS.find(x=>x.id===p.id);
-        if(i){i.preco=parseFloat(p.preco);if(p.nome)i.nome=p.nome;}
+        if(i){
+          // Produto já existe no seed local: apenas atualiza os campos editáveis.
+          i.preco=parseFloat(p.preco);
+          if(p.nome) i.nome=p.nome;
+          if(p.descricao!==undefined && p.descricao!==null) i.desc=p.descricao;
+          if(p.cod) i.cod=p.cod;
+          if(p.grupo) i.grupo=p.grupo;
+          if(p.img) i.img=p.img;
+          if(p.estrutura_min!==undefined) i.estruturaMin=p.estrutura_min||null;
+        } else {
+          // Produto novo, cadastrado no Admin e ainda não presente no array local:
+          // adiciona ao IMPLEMENTOS para que apareça na tela de orçamento.
+          IMPLEMENTOS.push({
+            id:p.id, cod:p.cod||'', nome:p.nome||'Produto sem nome',
+            preco:parseFloat(p.preco)||0, img:p.img||null,
+            grupo:p.grupo||'Outros', estruturaMin:p.estrutura_min||null
+          });
+        }
       } else if(p.categoria==='rasthor'){
         const r=RASTHOR.find(x=>x.id===p.id);
         if(r){r.preco=parseFloat(p.preco);if(p.nome)r.nome=p.nome;if(p.descricao)r.desc=p.descricao;}
@@ -2053,12 +2071,33 @@ function avancarJoy(){
   goStep(4);
 }
 
+// Ordem das estruturas, da menor para a maior, usada para checar compatibilidade
+// de implementos que exigem uma estrutura mínima (ex: itens de 2,65m exigem 1950+).
+const ORDEM_ESTRUTURAS = ['1450','1550','1950','2200'];
+function estruturaAtendeMinimo(estrutura, minimo){
+  if(!minimo) return true;
+  const iAtual = ORDEM_ESTRUTURAS.indexOf(estrutura);
+  const iMin = ORDEM_ESTRUTURAS.indexOf(minimo);
+  if(iAtual===-1 || iMin===-1) return true; // estrutura desconhecida: não bloqueia
+  return iAtual>=iMin;
+}
+
 function s4(){
+  const estrAtiva=estruturaAtiva();
+  // Se algum implemento já selecionado deixou de ser compatível com a estrutura atual
+  // (ex: vendedor trocou de trator depois de escolher um item 2,65m), remove a seleção.
+  IMPLEMENTOS.forEach(i=>{
+    if(getQtd(i.id)>0 && !estruturaAtendeMinimo(estrAtiva,i.estruturaMin)){
+      delete st.qtds[i.id];
+      delete st.ajustes[i.id];
+    }
+  });
   const total=calcTotal();
-  const grupos=[...new Set(IMPLEMENTOS.map(i=>i.grupo||'Outros'))];
+  const implementosCompat=IMPLEMENTOS.filter(i=>estruturaAtendeMinimo(estrAtiva,i.estruturaMin));
+  const grupos=[...new Set(implementosCompat.map(i=>i.grupo||'Outros'))];
   return `<div style="margin-bottom:1rem"><div style="font-size:15px;font-weight:700;margin-bottom:4px">Implementos opcionais</div><div style="font-size:12px;color:var(--text2)">Selecione um ou mais</div></div>
   ${grupos.map(grupo=>{
-    const itens=IMPLEMENTOS.filter(i=>(i.grupo||'Outros')===grupo);
+    const itens=implementosCompat.filter(i=>(i.grupo||'Outros')===grupo);
     return '<div style="margin-bottom:4px;margin-top:10px;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">'+grupo+'</div>'+
     itens.map(i=>{const sel=getQtd(i.id)>0;return `<div class="item-row${sel?' sel':''}" onclick="if(getQtd('${i.id}')===0){incQtd('${i.id}',1);}">
       ${i.img?imgTag(i.img,56,48):`<div class="item-thumb-ph" style="width:56px;height:48px"><i class="ti ti-tool" style="font-size:20px;color:var(--text3)"></i></div>`}
@@ -3181,6 +3220,7 @@ async function renderAdmin(){
     ...PLANTADEIRAS.map(p=>({id:p.id,categoria:'plantadeira',nome:p.nome,preco:p.preco,descricao:p.desc||'',ativo:true})),
     ...VIRTUOS.map(p=>({id:p.id,categoria:'virtuos',nome:p.nome,preco:p.preco,descricao:p.desc||'',ativo:true})),
     ...MTSB.map(p=>({id:p.id,categoria:'mtsb',nome:p.nome,preco:p.preco,descricao:p.desc||'',ativo:true})),
+    ...IMPLEMENTOS.map(p=>({id:p.id,categoria:'implemento',nome:p.nome,preco:p.preco,descricao:p.desc||'',cod:p.cod||'',grupo:p.grupo||'Outros',img:p.img||null,estrutura_min:p.estruturaMin||null,ativo:true})),
   ];
   const existentes = new Set(rows.map(r=>r.id));
   const faltantes = seedDefs.filter(s=>!existentes.has(s.id));
@@ -3250,10 +3290,57 @@ async function renderAdmin(){
             <label>Descrição</label>
             <input type="text" id="adm-desc-${p.id}" value="${(p.descricao||'').replace(/"/g,'&quot;')}" style="font-size:12px">
           </div>
+          ${cat==='implemento'?`
+          <div class="fr2" style="gap:8px;margin-top:6px">
+            <div class="ig" style="margin:0">
+              <label>Código</label>
+              <input type="text" id="adm-cod-${p.id}" value="${(p.cod||'').replace(/"/g,'&quot;')}" style="font-size:12px">
+            </div>
+            <div class="ig" style="margin:0">
+              <label>Estrutura mínima exigida</label>
+              <select id="adm-estrmin-${p.id}" style="font-size:12px">
+                <option value="" ${!p.estrutura_min?'selected':''}>Nenhuma (compatível com todas)</option>
+                <option value="1450" ${p.estrutura_min==='1450'?'selected':''}>1450</option>
+                <option value="1550" ${p.estrutura_min==='1550'?'selected':''}>1550</option>
+                <option value="1950" ${p.estrutura_min==='1950'?'selected':''}>1950</option>
+                <option value="2200" ${p.estrutura_min==='2200'?'selected':''}>2200</option>
+              </select>
+            </div>
+          </div>`:''}
           <button class="btn btn-sm btn-primary" style="margin-top:8px" onclick="salvarProduto('${p.id}')">
             <i class="ti ti-device-floppy"></i> Salvar
           </button>
         </div>`).join('')}
+        ${cat==='implemento'?`
+        <div class="card" style="padding:.9rem 1rem;border:1.5px dashed var(--border)">
+          <div style="font-size:12px;font-weight:700;margin-bottom:.5rem">+ Adicionar produto novo nesta categoria</div>
+          <div class="fr2" style="gap:8px">
+            <div class="ig" style="margin:0"><label>Nome *</label><input type="text" id="new-prod-implemento-nome" placeholder="Ex: Concha 2,65m" style="font-size:12px"></div>
+            <div class="ig" style="margin:0"><label>Código</label><input type="text" id="new-prod-implemento-cod" placeholder="Referência" style="font-size:12px"></div>
+          </div>
+          <div class="fr2" style="gap:8px;margin-top:6px">
+            <div class="ig" style="margin:0"><label>Preço (R$) *</label><input type="number" id="new-prod-implemento-preco" step="0.01" placeholder="0,00" style="font-size:12px"></div>
+            <div class="ig" style="margin:0"><label>Grupo (subcategoria)</label><input type="text" id="new-prod-implemento-grupo" placeholder="Ex: Conchas" style="font-size:12px"></div>
+          </div>
+          <div class="ig" style="margin-top:6px;margin-bottom:0"><label>Descrição</label><input type="text" id="new-prod-implemento-desc" placeholder="Descrição curta" style="font-size:12px"></div>
+          <div class="ig" style="margin-top:6px;margin-bottom:0">
+            <label>Estrutura mínima exigida</label>
+            <select id="new-prod-implemento-estrmin" style="font-size:12px">
+              <option value="">Nenhuma (compatível com todas)</option>
+              <option value="1450">1450</option>
+              <option value="1550">1550</option>
+              <option value="1950">1950</option>
+              <option value="2200">2200</option>
+            </select>
+          </div>
+          <div class="ig" style="margin-top:6px;margin-bottom:0">
+            <label>Imagem do produto</label>
+            <input type="file" id="new-prod-implemento-img" accept="image/*" style="font-size:12px">
+          </div>
+          <button class="btn btn-sm btn-primary" style="margin-top:10px" onclick="adicionarProdutoNovo('implemento')">
+            <i class="ti ti-plus"></i> Cadastrar produto
+          </button>
+        </div>`:''}
       </div>
     `).join('')}
     </div>
@@ -3463,12 +3550,71 @@ async function salvarProduto(id){
   const nome=document.getElementById('adm-nome-'+id)?.value||'';
   const preco=parseFloat(document.getElementById('adm-preco-'+id)?.value)||0;
   const descricao=document.getElementById('adm-desc-'+id)?.value||'';
+  const update={nome,preco,descricao,atualizado_em:new Date().toISOString()};
+  const codEl=document.getElementById('adm-cod-'+id);
+  const estrMinEl=document.getElementById('adm-estrmin-'+id);
+  if(codEl) update.cod=codEl.value||'';
+  if(estrMinEl) update.estrutura_min=estrMinEl.value||null;
   try{
-    await sbReq('PATCH','produtos','id=eq.'+id,{nome,preco,descricao,atualizado_em:new Date().toISOString()});
+    await sbReq('PATCH','produtos','id=eq.'+id,update);
     toast('✓ Produto atualizado!');
     // Atualizar arrays locais imediatamente
     await loadProdutos();
   }catch(e){toast('Erro ao salvar produto.');}
+}
+
+// Lê um arquivo de imagem do input de upload e retorna a string data:URI em base64,
+// ou null se nenhum arquivo foi selecionado.
+function lerImagemComoBase64(inputEl){
+  return new Promise((resolve)=>{
+    const file = inputEl?.files?.[0];
+    if(!file){ resolve(null); return; }
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
+}
+
+// Gera um id simples e único (slug) a partir do nome do produto, para usar como
+// chave primária na tabela produtos quando um item novo é cadastrado pelo Admin.
+function gerarIdProduto(nome){
+  const base = (nome||'produto').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'') // remove acentos
+    .replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,40);
+  return (base||'produto') + '_' + Date.now().toString(36);
+}
+
+async function adicionarProdutoNovo(categoria){
+  const nome=document.getElementById(`new-prod-${categoria}-nome`)?.value?.trim();
+  const preco=parseFloat(document.getElementById(`new-prod-${categoria}-preco`)?.value);
+  const cod=document.getElementById(`new-prod-${categoria}-cod`)?.value?.trim()||'';
+  const grupo=document.getElementById(`new-prod-${categoria}-grupo`)?.value?.trim()||'Outros';
+  const desc=document.getElementById(`new-prod-${categoria}-desc`)?.value?.trim()||'';
+  const estrMinEl=document.getElementById(`new-prod-${categoria}-estrmin`);
+  const estrutura_min=estrMinEl?(estrMinEl.value||null):null;
+  const imgInput=document.getElementById(`new-prod-${categoria}-img`);
+
+  if(!nome || isNaN(preco)){
+    toast('Preencha pelo menos Nome e Preço.');
+    return;
+  }
+
+  const img = await lerImagemComoBase64(imgInput);
+  const id = gerarIdProduto(nome);
+
+  try{
+    await sbPost('produtos', {
+      id, categoria, nome, preco, descricao:desc, cod, grupo,
+      img, estrutura_min, ativo:true
+    });
+    toast('✓ Produto cadastrado!');
+    await loadProdutos();
+    renderAdmin();
+  }catch(e){
+    console.error('Erro ao cadastrar produto:', e);
+    toast('Erro ao cadastrar produto.');
+  }
 }
 
 // ---- LOGIN / LOGOUT ----
