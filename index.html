@@ -2891,7 +2891,7 @@ function renderHistorico(){
       <div style="font-size:12px;color:var(--text2)" id="hist-contador">${orcamentos.length} orçamento${orcamentos.length!==1?'s':''}</div></div>
     </div>
     <div style="margin-bottom:1rem">
-      <input type="text" id="hist-busca" placeholder="Buscar por número do orçamento..." oninput="filtrarHistorico()" style="width:100%">
+      <input type="text" id="hist-busca" placeholder="Buscar por número, cliente ou vendedor..." oninput="filtrarHistorico()" style="width:100%">
     </div>
     <div id="hist-lista"></div>
   </div>`;
@@ -2921,7 +2921,11 @@ function renderListaHistorico(lista){
 function filtrarHistorico(){
   const termo=(document.getElementById('hist-busca')?.value||'').trim().toLowerCase();
   if(!termo){ renderListaHistorico(orcamentos); return; }
-  const filtrados=orcamentos.filter(o=>(o.numero||'').toLowerCase().includes(termo));
+  const filtrados=orcamentos.filter(o=>
+    (o.numero||'').toLowerCase().includes(termo) ||
+    (o.cliente_nome||'').toLowerCase().includes(termo) ||
+    (o.vendedor||'').toLowerCase().includes(termo)
+  );
   renderListaHistorico(filtrados);
 }
 
