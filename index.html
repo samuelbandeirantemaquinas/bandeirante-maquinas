@@ -2337,6 +2337,11 @@ function s6(){
   const nomeCliente=g('cli-nome')||st.clienteSel?.nome||'—';
   const vendedor=(g('cli-vendedor')||document.getElementById('cli-vendedor')?.value||st.vendedor||currentPerfil?.nome||st.clienteSel?.vendedor||'—');
   const itensJSON=JSON.stringify(itens).replace(/`/g,'').replace(/\\/g,'\\\\');
+  // Saldo do acréscimo geral (campo "Acréscimo %" da tela de Cliente), calculado ao vivo
+  // a partir do total atual — não depende de nenhuma coluna nova no banco de dados.
+  const acGeral = st.acrescimo||0;
+  const totalSemAcGeral = acGeral!==0 ? total/(1+acGeral/100) : total;
+  const saldoAcGeral = acGeral>0 ? (total-totalSemAcGeral) : 0;
   return `<div class="card" style="margin-bottom:1rem">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.75rem">
       <div><div style="font-size:9px;color:var(--text2);font-weight:600;letter-spacing:.5px">BANDEIRANTE MÁQUINAS</div>
@@ -2358,12 +2363,15 @@ function s6(){
     <hr class="divider">
     ${itens.map(it=>`<div class="orc-row"><span style="color:var(--text2)">${it.qtd>1?`${it.qtd}× `:''}${it.nome}${it.ajuste?` <span style="font-size:10px;color:${isAdmin()?'#c0392b':'#e67e22'}">(${isAdmin()?'-':'+'+(it.ajuste)}%)</span>`:''}</span><span style="font-weight:600;flex-shrink:0;margin-left:8px">${fmt(it.preco)}</span></div>`).join('')}
     ${itens.length===0?'<div style="font-size:12px;color:var(--text2);padding:8px 0">Nenhum item selecionado.</div>':''}
-    <!-- acréscimo embutido proporcionalmente em cada item, não exibido separadamente -->
     <hr class="divider">
     <div style="display:flex;justify-content:space-between;align-items:center">
       <span style="font-size:14px;font-weight:700">Total</span>
       <span style="font-size:22px;font-weight:700">${fmt(total)}</span>
     </div>
+    ${saldoAcGeral>0?`<div style="display:flex;justify-content:space-between;padding:6px 8px;background:#FAEEDA;border-radius:var(--radius-sm);margin-top:6px">
+      <span style="font-size:12px;font-weight:700;color:#633806"><i class="ti ti-discount-2"></i> Saldo extra (acréscimo geral ${acGeral}%)</span>
+      <span style="font-size:13px;font-weight:700;color:#633806">+${fmt(saldoAcGeral)}</span>
+    </div>`:''}
     <div style="font-size:10px;color:var(--text2);margin-top:.5rem">Validade: 10 dias · Entrega: 30–60 dias · Sujeito a reajuste</div>
     ${g('cli-obs')?`<hr style="border:none;border-top:1px solid var(--border);margin:.65rem 0"><div style="font-size:11px;color:var(--text2);font-weight:600;margin-bottom:3px">OBSERVAÇÕES</div><div style="font-size:12px">${g('cli-obs')}</div>`:''}
   </div>
@@ -2382,11 +2390,6 @@ async function salvarOrcamento(){
   const itens=montarItens();
   const total=calcTotal();
   const m=st.marcaSel?MARCAS.find(x=>x.id===st.marcaSel):null;
-  // Saldo extra gerado pelo acréscimo geral (campo "Acréscimo %" da tela de Cliente),
-  // calculado como a diferença entre o total com e sem esse acréscimo embutido.
-  const ac=st.acrescimo||0;
-  const totalSemAcrescimoGeral = ac!==0 ? total/(1+ac/100) : total;
-  const saldoExtra = ac>0 ? (total-totalSemAcrescimoGeral) : 0;
   const btn=document.getElementById('btn-salvar');
   if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .7s linear infinite"></i> Salvando...';}
   try{
@@ -2399,7 +2402,6 @@ async function salvarOrcamento(){
       adaptador_cod:st.adaptDB?.adaptador||null,
       joystick_cod:st.adaptDB?.joystick||null,
       itens,total,
-      acrescimo_geral:ac,saldo_extra:saldoExtra,
       vendedor:g('cli-vendedor')||st.vendedor||st.clienteSel?.vendedor||currentPerfil?.nome||null,
       obs:g('cli-obs'),status:'Em aberto'
     });
@@ -2978,12 +2980,10 @@ function abrirOrcamento(id){
         <span style="font-weight:700">Total</span>
         <span style="font-size:18px;font-weight:700">R$ ${Number(o.total||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
       </div>
-      ${adm&&(saldoTotalAcrescimo>0||Number(o.saldo_extra||0)>0)?`<div style="display:flex;justify-content:space-between;padding:6px 0;background:#FAEEDA;border-radius:var(--radius-sm);margin-top:6px;padding-left:8px;padding-right:8px">
+      ${adm&&saldoTotalAcrescimo>0?`<div style="display:flex;justify-content:space-between;padding:6px 0;background:#FAEEDA;border-radius:var(--radius-sm);margin-top:6px;padding-left:8px;padding-right:8px">
         <span style="font-size:12px;font-weight:700;color:#633806"><i class="ti ti-discount-2"></i> Saldo extra</span>
-        <span style="font-size:13px;font-weight:700;color:#633806">+${fmt(saldoTotalAcrescimo+Number(o.saldo_extra||0))}</span>
-      </div>
-      ${saldoTotalAcrescimo>0&&Number(o.saldo_extra||0)>0?`<div style="font-size:10px;color:var(--text2);margin-top:3px">Inclui acréscimo por item (${fmt(saldoTotalAcrescimo)}) + acréscimo geral (${fmt(Number(o.saldo_extra||0))})</div>`:''}
-      ${Number(o.saldo_extra||0)>0?`<div style="font-size:10px;color:var(--text2);margin-top:3px">Acréscimo geral aplicado no orçamento: ${o.acrescimo_geral||0}%</div>`:''}`:''}
+        <span style="font-size:13px;font-weight:700;color:#633806">+${fmt(saldoTotalAcrescimo)}</span>
+      </div>`:''}
     </div>
 
     ${adm?`<div class="card" style="margin-bottom:1rem">
