@@ -132,6 +132,7 @@ button{font-family:inherit;cursor:pointer;border:none;outline:none}
   </div>
   <div style="display:flex;align-items:center;gap:12px">
     <div style="font-size:11px;color:var(--text2)">Tabela 09/06/2026</div>
+    <button class="btn btn-sm" onclick="location.reload()" title="Atualizar página"><i class="ti ti-refresh"></i> Atualizar</button>
     <button class="btn btn-sm" onclick="fazerLogout()" title="Sair"><i class="ti ti-logout"></i> Sair</button>
   </div>
 </header>
@@ -3563,6 +3564,7 @@ function entrarNoApp(){
   const badge=document.getElementById('header-badge');
   if(badge)badge.innerHTML='<span style="font-size:12px;color:var(--text2)">'+(currentPerfil?.nome||'')+'</span>'
     +'<button class="btn btn-sm" style="margin-left:8px" onclick="abrirTrocarSenha()" title="Trocar senha"><i class="ti ti-key"></i></button>'
+    +'<button class="btn btn-sm" style="margin-left:4px" onclick="location.reload()" title="Atualizar página"><i class="ti ti-refresh"></i></button>'
     +'<button class="btn btn-sm" style="margin-left:4px" onclick="fazerLogout()" title="Sair"><i class="ti ti-logout"></i></button>';
   const navAdmin=document.getElementById('nav-admin');
   if(navAdmin)navAdmin.style.display=isAdmin()?'':'none';
