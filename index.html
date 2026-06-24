@@ -3132,7 +3132,10 @@ function regenarPDFHistorico(id){
   const hoje=new Date(o.criado_em).toLocaleDateString('pt-BR');
 
   // Cabeçalho
-  if(IMGS.hexline){try{doc.addImage(IMGS.hexline,imgFmt(IMGS.hexline),M,10,38,14);}catch(e){}}
+  try{
+    const logoEl=document.querySelector('.app-header img');
+    if(logoEl) doc.addImage(logoEl.src,imgFmt(logoEl.src),M,10,38,14);
+  }catch(e){}
   doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(30);
   doc.text('BANDEIRANTE IND. E COMERCIO DE MAQUINAS LTDA',W/2,14,{align:'center'});
   doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(80);
