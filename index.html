@@ -3120,9 +3120,12 @@ async function excluirOrc(id){
   }catch(e){toast('Erro ao excluir.');}
 }
 
-function regenarPDFHistorico(id){
+async function regenarPDFHistorico(id){
   const o=orcamentos.find(x=>x.id===id);
   if(!o){toast('Orçamento não encontrado.');return;}
+  // Garante que a lista de clientes esteja carregada, para poder enriquecer o PDF
+  // com CPF/CNPJ, IE, endereço, CEP, telefone e e-mail do cliente vinculado.
+  if(!clientes.length){ try{ await loadClientes(true); }catch(e){} }
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   const W=doc.internal.pageSize.getWidth();
@@ -3130,6 +3133,25 @@ function regenarPDFHistorico(id){
   const itens=Array.isArray(o.itens)?o.itens:[];
   const total=Number(o.total||0);
   const hoje=new Date(o.criado_em).toLocaleDateString('pt-BR');
+
+  // Busca os dados completos do cliente (CPF, IE, endereço, CEP, telefone, e-mail)
+  // a partir do cliente_id salvo no orçamento — esses dados não ficam duplicados
+  // na tabela orcamentos, só a referência. Sem isso, o PDF regenerado pelo Histórico
+  // ficava bem mais simples do que o gerado na hora da venda.
+  const cli = o.cliente_id ? clientes.find(c=>c.id===o.cliente_id) : null;
+  const nomeCliente=(o.cliente_nome||cli?.nome||'').toUpperCase();
+  const empresa=cli?.empresa||'';
+  const cpf=cli?.cpfcnpj||'';
+  const ie=cli?.ie||'';
+  const rua=cli?.rua||'';
+  const bairro=cli?.bairro||'';
+  const cidade=cli?.cidade||'';
+  const estadoCli=cli?.estado||'';
+  const cep=cli?.cep||'';
+  const tel=cli?.tel||'';
+  const email=cli?.email||'';
+  const pgto=o.pgto||cli?.pgto||'';
+  const frete=o.frete||cli?.frete||'';
 
   // Cabeçalho
   try{
@@ -3147,11 +3169,35 @@ function regenarPDFHistorico(id){
   doc.text('Orçamento Nº '+o.numero,W/2,36,{align:'center'});
 
   let y=42;
-  // Dados cliente
-  doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(40);
-  doc.text('Cliente: '+(o.cliente_nome||'—'),M,y);
-  doc.text('Data: '+hoje,W-M,y,{align:'right'});y+=5;
-  doc.text('Vendedor: '+(o.vendedor||'—'),M,y);y+=5;
+  // Dados completos do cliente, no mesmo padrão usado no PDF gerado na hora da venda
+  const df=(label,val,x,yw)=>{
+    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(30);
+    doc.text(label+'  ',x,yw);
+    doc.setFont('helvetica','normal');doc.setTextColor(60);
+    doc.text(val||'—',x+doc.getTextWidth(label+'  '),yw);
+  };
+  df('Cliente:',nomeCliente,M,y);
+  df('Nome Fantasia:',empresa||nomeCliente,W/2,y); y+=5;
+  if(cpf||ie){
+    if(cpf) df('CPF/CNPJ:',cpf,M,y);
+    if(ie) df('Insc. Estadual:  ',ie,W/2,y);
+    y+=5;
+  }
+  if(rua){ df('Endereço:',(rua+(bairro?' — '+bairro:'')).toUpperCase(),M,y); y+=5; }
+  if(cidade||cep){
+    df('Cidade:',(cidade+(estadoCli?' / '+estadoCli:'')).toUpperCase(),M,y);
+    if(cep) df('CEP:',cep,W/2,y);
+    y+=5;
+  }
+  if(tel||email){
+    if(tel) df('Telefone:',tel,M,y);
+    if(email) df('E-mail:',email,W/2,y);
+    y+=5;
+  }
+  df('Data:',hoje,M,y);
+  df('Vendedor:',(o.vendedor||'—'),W/2,y); y+=5;
+  if(pgto) { df('Pagamento:',pgto,M,y); y+=5; }
+  if(frete) { df('Frete:',frete,M,y); y+=5; }
   if(o.obs){doc.setFontSize(8);doc.setTextColor(100);doc.text('Obs: '+o.obs,M,y);y+=5;}
   doc.setDrawColor(180);doc.line(M,y,W-M,y);y+=4;
 
