@@ -474,22 +474,52 @@ async function loadProdutos(){
         }
       } else if(p.categoria==='rasthor'){
         const r=RASTHOR.find(x=>x.id===p.id);
-        if(r){r.preco=parseFloat(p.preco);if(p.nome)r.nome=p.nome;if(p.descricao)r.desc=p.descricao;}
+        if(r){
+          r.preco=parseFloat(p.preco);if(p.nome)r.nome=p.nome;if(p.descricao)r.desc=p.descricao;
+          if(p.cod) r.cod=p.cod; if(p.img) r.img=p.img;
+        } else {
+          RASTHOR.push({id:p.id,cod:p.cod||'',nome:p.nome||'Produto sem nome',hastes:null,esp:'',prof:'',desarme:'',finame:'',preco:parseFloat(p.preco)||0,desc:p.descricao||'',img:p.img||null});
+        }
       } else if(p.categoria==='carreta'){
         const c=CARRETAS.find(x=>x.id===p.id);
-        if(c){c.preco=parseFloat(p.preco);if(p.nome)c.nome=p.nome;if(p.descricao)c.desc=p.descricao;}
+        if(c){
+          c.preco=parseFloat(p.preco);if(p.nome)c.nome=p.nome;if(p.descricao)c.desc=p.descricao;
+          if(p.cod) c.cod=p.cod; if(p.img) c.img=p.img;
+        } else {
+          CARRETAS.push({id:p.id,cod:p.cod||'',nome:p.nome||'Produto sem nome',cap:'',eixos:null,preco:parseFloat(p.preco)||0,finame:'',ncm:'',desc:p.descricao||'',img:p.img||null});
+        }
       } else if(p.categoria==='aerador'){
         const a=AERADORES.find(x=>x.id===p.id);
-        if(a){a.preco=parseFloat(p.preco);if(p.nome)a.nome=p.nome;if(p.descricao)a.desc=p.descricao;}
+        if(a){
+          a.preco=parseFloat(p.preco);if(p.nome)a.nome=p.nome;if(p.descricao)a.desc=p.descricao;
+          if(p.cod) a.cod=p.cod; if(p.img) a.img=p.img;
+        } else {
+          AERADORES.push({id:p.id,cod:p.cod||'',nome:p.nome||'Produto sem nome',cv:'',prof:'',entreLinhas:'',preco:parseFloat(p.preco)||0,finame:'',ncm:'',desc:p.descricao||'',img:p.img||null});
+        }
       } else if(p.categoria==='plantadeira'){
         const pl=PLANTADEIRAS.find(x=>x.id===p.id);
-        if(pl){pl.preco=parseFloat(p.preco);if(p.nome)pl.nome=p.nome;if(p.descricao)pl.desc=p.descricao;}
+        if(pl){
+          pl.preco=parseFloat(p.preco);if(p.nome)pl.nome=p.nome;if(p.descricao)pl.desc=p.descricao;
+          if(p.cod) pl.cod=p.cod; if(p.img) pl.img=p.img;
+        } else {
+          PLANTADEIRAS.push({id:p.id,cod:p.cod||'',nome:p.nome||'Produto sem nome',linhas:null,peso:'',cap:'',preco:parseFloat(p.preco)||0,finame:'',ncm:'',desc:p.descricao||'',img:p.img||null});
+        }
       } else if(p.categoria==='virtuos'){
         const v=VIRTUOS.find(x=>x.id===p.id);
-        if(v){v.preco=parseFloat(p.preco);if(p.nome)v.nome=p.nome;if(p.descricao)v.desc=p.descricao;}
+        if(v){
+          v.preco=parseFloat(p.preco);if(p.nome)v.nome=p.nome;if(p.descricao)v.desc=p.descricao;
+          if(p.cod) v.cod=p.cod; if(p.img) v.img=p.img;
+        } else {
+          VIRTUOS.push({id:p.id,cod:p.cod||'',nome:p.nome||'Produto sem nome',cap:'',finame:'',ncm:'',preco:parseFloat(p.preco)||0,desc:p.descricao||'',img:p.img||null});
+        }
       } else if(p.categoria==='mtsb'){
         const m=MTSB.find(x=>x.id===p.id);
-        if(m){m.preco=parseFloat(p.preco);if(p.nome)m.nome=p.nome;if(p.descricao)m.desc=p.descricao;}
+        if(m){
+          m.preco=parseFloat(p.preco);if(p.nome)m.nome=p.nome;if(p.descricao)m.desc=p.descricao;
+          if(p.cod) m.cod=p.cod; if(p.img) m.img=p.img;
+        } else {
+          MTSB.push({id:p.id,cod:p.cod||'',nome:p.nome||'Produto sem nome',chassi:'',caixas:null,motor:'',preco:parseFloat(p.preco)||0,desc:p.descricao||'',img:p.img||null});
+        }
       }
     });
   }catch(e){console.warn('Erro ao carregar produtos:',e);}
@@ -3359,43 +3389,75 @@ async function renderAdmin(){
             <i class="ti ti-device-floppy"></i> Salvar
           </button>
         </div>`).join('')}
-        ${cat==='implemento'?`
-        <div class="card" style="padding:.9rem 1rem;border:1.5px dashed var(--border)">
-          <div style="font-size:12px;font-weight:700;margin-bottom:.5rem">+ Adicionar produto novo nesta categoria</div>
-          <div class="fr2" style="gap:8px">
-            <div class="ig" style="margin:0"><label>Nome *</label><input type="text" id="new-prod-implemento-nome" placeholder="Ex: Concha 2,65m" style="font-size:12px"></div>
-            <div class="ig" style="margin:0"><label>Código</label><input type="text" id="new-prod-implemento-cod" placeholder="Referência" style="font-size:12px"></div>
-          </div>
-          <div class="fr2" style="gap:8px;margin-top:6px">
-            <div class="ig" style="margin:0"><label>Preço (R$) *</label><input type="number" id="new-prod-implemento-preco" step="0.01" placeholder="0,00" style="font-size:12px"></div>
-            <div class="ig" style="margin:0"><label>Grupo (subcategoria)</label><input type="text" id="new-prod-implemento-grupo" placeholder="Ex: Conchas" style="font-size:12px"></div>
-          </div>
-          <div class="ig" style="margin-top:6px;margin-bottom:0"><label>Descrição</label><input type="text" id="new-prod-implemento-desc" placeholder="Descrição curta" style="font-size:12px"></div>
-          <div class="ig" style="margin-top:6px;margin-bottom:0">
-            <label>Estrutura mínima exigida</label>
-            <select id="new-prod-implemento-estrmin" style="font-size:12px">
-              <option value="">Nenhuma (compatível com todas)</option>
-              <option value="1450">1450</option>
-              <option value="1550">1550</option>
-              <option value="1950">1950</option>
-              <option value="2200">2200</option>
-            </select>
-          </div>
-          <div class="ig" style="margin-top:6px;margin-bottom:0">
-            <label>Imagem do produto</label>
-            <input type="file" id="new-prod-implemento-img" accept="image/*" style="font-size:12px">
-          </div>
-          <button class="btn btn-sm btn-primary" style="margin-top:10px" onclick="adicionarProdutoNovo('implemento')">
-            <i class="ti ti-plus"></i> Cadastrar produto
-          </button>
-        </div>`:''}
       </div>
     `).join('')}
+
+    <div class="card" style="padding:1rem;border:1.5px dashed var(--border);margin-bottom:1rem">
+      <div style="font-size:13px;font-weight:700;margin-bottom:.75rem">+ Adicionar produto novo</div>
+      <div class="ig" style="margin:0 0 6px 0">
+        <label>Tipo de Produto *</label>
+        <select id="new-prod-categoria" style="font-size:12px" onchange="atualizarCamposProdutoNovo()">
+          <option value="">— Selecionar —</option>
+          <option value="rasthor">Preparo de Solo (Rasthor)</option>
+          <option value="carreta">Carretas Graneleiras</option>
+          <option value="aerador">Aeradores</option>
+          <option value="plantadeira">Plantadeiras Agile</option>
+          <option value="virtuos">Distribuidor de Fertilizantes</option>
+          <option value="mtsb">Tratadores de Sementes</option>
+          <option value="implemento">Implementos (Carregadores)</option>
+        </select>
+      </div>
+      <div class="fr2" style="gap:8px">
+        <div class="ig" style="margin:0"><label>Nome *</label><input type="text" id="new-prod-nome" placeholder="Ex: Concha 2,65m" style="font-size:12px"></div>
+        <div class="ig" style="margin:0"><label>Código</label><input type="text" id="new-prod-cod" placeholder="Referência" style="font-size:12px"></div>
+      </div>
+      <div class="fr2" style="gap:8px;margin-top:6px">
+        <div class="ig" style="margin:0"><label>Preço (R$) *</label><input type="number" id="new-prod-preco" step="0.01" placeholder="0,00" style="font-size:12px"></div>
+        <div class="ig" style="margin:0"><label>Grupo (subcategoria)</label><input type="text" id="new-prod-grupo" placeholder="Ex: Conchas" style="font-size:12px"></div>
+      </div>
+      <div class="ig" style="margin-top:6px;margin-bottom:0"><label>Descrição</label><input type="text" id="new-prod-desc" placeholder="Descrição curta" style="font-size:12px"></div>
+      <div class="ig" id="new-prod-estrmin-wrap" style="margin-top:6px;margin-bottom:0;display:none">
+        <label>Estrutura mínima exigida</label>
+        <select id="new-prod-estrmin" style="font-size:12px">
+          <option value="">Nenhuma (compatível com todas)</option>
+          <option value="1450">1450</option>
+          <option value="1550">1550</option>
+          <option value="1950">1950</option>
+          <option value="2200">2200</option>
+        </select>
+      </div>
+      <div class="ig" style="margin-top:6px;margin-bottom:0">
+        <label>Imagem do produto</label>
+        <input type="file" id="new-prod-img" accept="image/*" style="font-size:12px">
+      </div>
+      <button class="btn btn-sm btn-primary" style="margin-top:10px" onclick="adicionarProdutoNovoCategoria()">
+        <i class="ti ti-plus"></i> Cadastrar produto
+      </button>
+    </div>
     </div>
 
     <div id="admin-tab-performance" style="display:none"></div>
   </div>`;
 }
+
+// Mostra/esconde o campo de estrutura mínima no formulário de produto novo,
+// já que essa restrição só faz sentido para a categoria de Implementos.
+function atualizarCamposProdutoNovo(){
+  const cat = document.getElementById('new-prod-categoria')?.value;
+  const wrap = document.getElementById('new-prod-estrmin-wrap');
+  if(wrap) wrap.style.display = (cat==='implemento') ? '' : 'none';
+}
+
+async function adicionarProdutoNovoCategoria(){
+  const categoria = document.getElementById('new-prod-categoria')?.value;
+  if(!categoria){ toast('Selecione a categoria do produto.'); return; }
+  await adicionarProdutoNovo(categoria, {
+    nomeId:'new-prod-nome', codId:'new-prod-cod', precoId:'new-prod-preco',
+    grupoId:'new-prod-grupo', descId:'new-prod-desc', estrMinId:'new-prod-estrmin',
+    imgId:'new-prod-img'
+  });
+}
+
 
 function showAdminTab(tab){
   const isPerf = tab==='performance';
@@ -3633,18 +3695,24 @@ function gerarIdProduto(nome){
   return (base||'produto') + '_' + Date.now().toString(36);
 }
 
-async function adicionarProdutoNovo(categoria){
-  const nome=document.getElementById(`new-prod-${categoria}-nome`)?.value?.trim();
-  const preco=parseFloat(document.getElementById(`new-prod-${categoria}-preco`)?.value);
-  const cod=document.getElementById(`new-prod-${categoria}-cod`)?.value?.trim()||'';
-  const grupo=document.getElementById(`new-prod-${categoria}-grupo`)?.value?.trim()||'Outros';
-  const desc=document.getElementById(`new-prod-${categoria}-desc`)?.value?.trim()||'';
-  const estrMinEl=document.getElementById(`new-prod-${categoria}-estrmin`);
+async function adicionarProdutoNovo(categoria, ids){
+  ids = ids || {
+    nomeId:`new-prod-${categoria}-nome`, codId:`new-prod-${categoria}-cod`,
+    precoId:`new-prod-${categoria}-preco`, grupoId:`new-prod-${categoria}-grupo`,
+    descId:`new-prod-${categoria}-desc`, estrMinId:`new-prod-${categoria}-estrmin`,
+    imgId:`new-prod-${categoria}-img`
+  };
+  const nome=document.getElementById(ids.nomeId)?.value?.trim();
+  const preco=parseFloat(document.getElementById(ids.precoId)?.value);
+  const cod=document.getElementById(ids.codId)?.value?.trim()||'';
+  const grupo=document.getElementById(ids.grupoId)?.value?.trim()||'Outros';
+  const desc=document.getElementById(ids.descId)?.value?.trim()||'';
+  const estrMinEl=document.getElementById(ids.estrMinId);
   const estrutura_min=estrMinEl?(estrMinEl.value||null):null;
-  const imgInput=document.getElementById(`new-prod-${categoria}-img`);
+  const imgInput=document.getElementById(ids.imgId);
 
   if(!nome || isNaN(preco)){
-    toast('Preencha pelo menos Nome e Preço.');
+    toast('Preencha pelo menos Categoria, Nome e Preço.');
     return;
   }
 
