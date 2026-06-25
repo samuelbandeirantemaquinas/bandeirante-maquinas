@@ -478,7 +478,7 @@ async function loadProdutos(){
           r.preco=parseFloat(p.preco);if(p.nome)r.nome=p.nome;if(p.descricao)r.desc=p.descricao;
           if(p.cod) r.cod=p.cod; if(p.img) r.img=p.img;
         } else {
-          RASTHOR.push({id:p.id,cod:p.cod||'',nome:p.nome||'Produto sem nome',hastes:null,esp:'',prof:'',desarme:'',finame:'',preco:parseFloat(p.preco)||0,desc:p.descricao||'',img:p.img||null});
+          RASTHOR.push({id:p.id,cod:p.cod||'',nome:p.nome||'Produto sem nome',hastes:'',esp:'',prof:'',desarme:'',finame:'',preco:parseFloat(p.preco)||0,desc:p.descricao||'',img:p.img||null});
         }
       } else if(p.categoria==='carreta'){
         const c=CARRETAS.find(x=>x.id===p.id);
@@ -715,22 +715,23 @@ function renderRasthor(){
   el.innerHTML = RASTHOR.map(r => {
     const qtd = getQtd(r.id);
     const sel = qtd>0;
-    const isHydra = r.cod.includes('HY') || r.cod.startsWith('065') || r.cod === '051486';
+    const cod = r.cod||'';
+    const isHydra = cod.includes('HY') || cod.startsWith('065') || cod === '051486';
     return `<div style="border:${sel?'2px solid #185FA5':'1px solid var(--border)'};border-radius:var(--radius-lg);padding:.9rem 1rem;margin-bottom:10px;background:${sel?'var(--blue-light)':'var(--bg2)'};box-shadow:var(--shadow);transition:all .15s">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
         <div style="flex:1;min-width:0">
-          ${getImgRasthor(r.id)?`<img src="${getImgRasthor(r.id)}" style="width:100%;height:90px;object-fit:contain;border-radius:6px;margin-bottom:8px" alt="">`:''}          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap">
+          ${(getImgRasthor(r.id)||r.img)?`<img src="${getImgRasthor(r.id)||r.img}" style="width:100%;height:90px;object-fit:contain;border-radius:6px;margin-bottom:8px" alt="">`:''}          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap">
             <span style="font-size:14px;font-weight:700;color:var(--text)">${r.nome}</span>
             ${isHydra?`<span style="font-size:10px;font-weight:700;background:#E6F1FB;color:#0C447C;padding:2px 7px;border-radius:20px">HYDRA</span>`:''}
-            <span style="font-size:10px;background:var(--bg);color:var(--text2);padding:2px 7px;border-radius:20px;border:1px solid var(--border);font-family:monospace">${r.cod}</span>
+            ${cod?`<span style="font-size:10px;background:var(--bg);color:var(--text2);padding:2px 7px;border-radius:20px;border:1px solid var(--border);font-family:monospace">${cod}</span>`:''}
           </div>
-          <div style="font-size:12px;color:var(--text2);margin-bottom:4px">${r.desc}</div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:4px">${r.desc||''}</div>
           <div style="display:flex;flex-wrap:wrap;gap:6px">
-            <span style="font-size:11px;background:#EAF3DE;color:#27500A;padding:2px 8px;border-radius:4px;font-weight:600">${r.hastes} hastes</span>
-            <span style="font-size:11px;background:var(--bg);color:var(--text2);padding:2px 8px;border-radius:4px">Esp. ${r.esp}</span>
-            ${r.prof!=='—'?`<span style="font-size:11px;background:var(--bg);color:var(--text2);padding:2px 8px;border-radius:4px">Prof. ${r.prof}</span>`:''}
-            <span style="font-size:11px;background:#FAEEDA;color:#633806;padding:2px 8px;border-radius:4px">Desarme ${r.desarme}</span>
-            <span style="font-size:11px;color:var(--text2)">Finame ${r.finame}</span>
+            ${r.hastes?`<span style="font-size:11px;background:#EAF3DE;color:#27500A;padding:2px 8px;border-radius:4px;font-weight:600">${r.hastes} hastes</span>`:''}
+            ${r.esp?`<span style="font-size:11px;background:var(--bg);color:var(--text2);padding:2px 8px;border-radius:4px">Esp. ${r.esp}</span>`:''}
+            ${(r.prof&&r.prof!=='—')?`<span style="font-size:11px;background:var(--bg);color:var(--text2);padding:2px 8px;border-radius:4px">Prof. ${r.prof}</span>`:''}
+            ${r.desarme?`<span style="font-size:11px;background:#FAEEDA;color:#633806;padding:2px 8px;border-radius:4px">Desarme ${r.desarme}</span>`:''}
+            ${r.finame?`<span style="font-size:11px;color:var(--text2)">Finame ${r.finame}</span>`:''}
           </div>
         </div>
         <div style="text-align:right;flex-shrink:0">
@@ -837,6 +838,9 @@ function gerarOrcRasthor(){
           <button class="btn btn-sm" onclick="document.getElementById('modal-cli-rasthor').style.display='none'"><i class="ti ti-x"></i></button>
         </div>
         <input type="text" id="busca-cli-rasthor" oninput="filtrarCliRasthor()" placeholder="Buscar...">
+        <button class="btn btn-sm" style="width:100%;justify-content:center;margin-top:.6rem" onclick="abrirCadastroRapidoCliente('selecionarCliRasthor')">
+          <i class="ti ti-user-plus"></i> Cadastrar cliente novo
+        </button>
         <div id="lista-cli-rasthor" style="margin-top:.75rem;max-height:50vh;overflow-y:auto"></div>
       </div>
     </div>
@@ -1293,6 +1297,9 @@ function abrirFormProduto(tipo) {
           <button class="btn btn-sm" onclick="document.getElementById('modal-cli-gen').style.display='none'"><i class="ti ti-x"></i></button>
         </div>
         <input type="text" id="busca-cli-gen" oninput="filtrarCliGen()" placeholder="Buscar...">
+        <button class="btn btn-sm" style="width:100%;justify-content:center;margin-top:.6rem" onclick="abrirCadastroRapidoCliente('selecionarCliGen')">
+          <i class="ti ti-user-plus"></i> Cadastrar cliente novo
+        </button>
         <div id="lista-cli-gen" style="margin-top:.75rem;max-height:50vh;overflow-y:auto"></div>
       </div>
     </div>
@@ -2224,6 +2231,9 @@ function s5(){
         <button class="btn btn-icon" onclick="fecharSeletorCliente()"><i class="ti ti-x"></i></button>
       </div>
       <input type="text" id="busca-cli" oninput="filtrarCliModal()" placeholder="Buscar...">
+      <button class="btn btn-sm" style="width:100%;justify-content:center;margin-top:.6rem" onclick="abrirCadastroRapidoCliente('selecionarCliente')">
+        <i class="ti ti-user-plus"></i> Cadastrar cliente novo
+      </button>
       <div id="lista-cli-modal" style="margin-top:.75rem;max-height:50vh;overflow-y:auto"></div>
     </div>
   </div>`;
@@ -2248,6 +2258,90 @@ function filtrarCliModal(){
   </div>`).join('');
 }
 function selecionarCliente(id){st.clienteSel=clientes.find(c=>c.id===id)||null;fecharSeletorCliente();renderStep();}
+
+// ── CADASTRO RÁPIDO DE CLIENTE (dentro do fluxo de orçamento) ──
+// Permite cadastrar um cliente novo sem saIr da tela de orçamento (Carregadores,
+// Rasthor ou genérico), reaproveitando o mesmo modal nos 3 fluxos. Ao salvar, o
+// cliente é criado no banco, adicionado à lista local, e automaticamente selecionado
+// chamando a função de seleção do fluxo de origem (passada em _cadastroRapidoCallback).
+let _cadastroRapidoCallback = null;
+
+function abrirCadastroRapidoCliente(callbackFnName){
+  _cadastroRapidoCallback = callbackFnName;
+  if(!document.getElementById('modal-cli-rapido')){
+    document.body.insertAdjacentHTML('beforeend', `
+    <div id="modal-cli-rapido" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:300;padding:1rem;overflow-y:auto">
+      <div style="background:var(--bg2);border-radius:var(--radius-lg);padding:1.25rem;max-width:480px;margin:60px auto 0">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+          <span style="font-size:14px;font-weight:700">Cadastrar cliente novo</span>
+          <button class="btn btn-sm" onclick="fecharCadastroRapidoCliente()"><i class="ti ti-x"></i></button>
+        </div>
+        <div id="cli-rapido-erro" style="display:none;color:#c0392b;font-size:12px;margin-bottom:.5rem"></div>
+        <div class="ig"><label>Nome *</label><input type="text" id="cr-nome" placeholder="Nome do cliente"></div>
+        <div class="ig"><label>Empresa</label><input type="text" id="cr-empresa" placeholder="Fazenda / Empresa"></div>
+        <div class="fr2">
+          <div class="ig"><label>Telefone</label><input type="text" id="cr-tel" placeholder="(xx) xxxxx-xxxx"></div>
+          <div class="ig"><label>Cidade</label><input type="text" id="cr-cidade" placeholder="Cidade"></div>
+        </div>
+        <div class="fr2">
+          <div class="ig"><label>UF</label><input type="text" id="cr-estado" placeholder="RS" maxlength="2"></div>
+          <div class="ig"><label>CPF/CNPJ</label><input type="text" id="cr-cpfcnpj" placeholder="Opcional"></div>
+        </div>
+        <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:.5rem" onclick="salvarClienteRapido()">
+          <i class="ti ti-device-floppy"></i> Cadastrar e usar neste orçamento
+        </button>
+      </div>
+    </div>`);
+  }
+  const m=document.getElementById('modal-cli-rapido');
+  ['cr-nome','cr-empresa','cr-tel','cr-cidade','cr-estado','cr-cpfcnpj'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const erro=document.getElementById('cli-rapido-erro');if(erro)erro.style.display='none';
+  m.style.display='block';
+  setTimeout(()=>document.getElementById('cr-nome')?.focus(),100);
+}
+
+function fecharCadastroRapidoCliente(){
+  const m=document.getElementById('modal-cli-rapido');
+  if(m) m.style.display='none';
+}
+
+async function salvarClienteRapido(){
+  const nome=(document.getElementById('cr-nome')?.value||'').trim();
+  if(!nome){
+    const erro=document.getElementById('cli-rapido-erro');
+    if(erro){erro.textContent='Nome é obrigatório.';erro.style.display='block';}
+    return;
+  }
+  const body={
+    nome,
+    empresa:document.getElementById('cr-empresa')?.value||'',
+    tel:document.getElementById('cr-tel')?.value||'',
+    cidade:document.getElementById('cr-cidade')?.value||'',
+    estado:(document.getElementById('cr-estado')?.value||'').toUpperCase(),
+    cpfcnpj:document.getElementById('cr-cpfcnpj')?.value||'',
+    vendedor:currentPerfil?.nome||''
+  };
+  try{
+    const novo = await sbReq('POST','clientes','',body);
+    const clienteCriado = Array.isArray(novo) ? novo[0] : novo;
+    if(clienteCriado){
+      clientes.push(clienteCriado);
+      toast('✓ Cliente cadastrado!');
+      fecharCadastroRapidoCliente();
+      if(_cadastroRapidoCallback && typeof window[_cadastroRapidoCallback]==='function'){
+        window[_cadastroRapidoCallback](clienteCriado.id);
+      }
+    } else {
+      toast('Cliente salvo, mas não foi possível selecioná-lo automaticamente. Busque-o na lista.');
+      fecharCadastroRapidoCliente();
+      await loadClientes(true);
+    }
+  }catch(e){
+    console.error('Erro ao cadastrar cliente rápido:', e);
+    toast('Erro ao cadastrar cliente.');
+  }
+}
+
 
 function precoAjustado(id, preco){
   const aj=st.ajustes[id]||0;
