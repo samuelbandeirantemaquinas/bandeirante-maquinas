@@ -3385,9 +3385,14 @@ async function renderAdmin(){
               </select>
             </div>
           </div>`:''}
-          <button class="btn btn-sm btn-primary" style="margin-top:8px" onclick="salvarProduto('${p.id}')">
-            <i class="ti ti-device-floppy"></i> Salvar
-          </button>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn btn-sm btn-primary" onclick="salvarProduto('${p.id}')">
+              <i class="ti ti-device-floppy"></i> Salvar
+            </button>
+            <button class="btn btn-sm" style="color:#c0392b;border-color:#c0392b" onclick="excluirProduto('${p.id}','${(p.nome||'').replace(/'/g,"\\'")}')">
+              <i class="ti ti-trash"></i> Excluir
+            </button>
+          </div>
         </div>`).join('')}
       </div>
     `).join('')}
@@ -3428,7 +3433,7 @@ async function renderAdmin(){
       </div>
       <div class="ig" style="margin-top:6px;margin-bottom:0">
         <label>Imagem do produto</label>
-        <input type="file" id="new-prod-img" accept="image/*" style="font-size:12px">
+        <input type="file" id="new-prod-img" accept="image/*,.jfif,.jpg,.jpeg,.png,.webp" style="font-size:12px">
       </div>
       <button class="btn btn-sm btn-primary" style="margin-top:10px" onclick="adicionarProdutoNovoCategoria()">
         <i class="ti ti-plus"></i> Cadastrar produto
@@ -3673,6 +3678,26 @@ async function salvarProduto(id){
   }catch(e){toast('Erro ao salvar produto.');}
 }
 
+// Remove um produto definitivamente — tanto da tabela 'produtos' no Supabase quanto
+// dos arrays locais (Rasthor, Carretas, Aerador, Plantadeira, Virtuos, MTSB, Implementos),
+// para que ele deixe de aparecer imediatamente nas telas de orçamento.
+async function excluirProduto(id, nome){
+  if(!confirm(`Excluir o produto "${nome}"? Essa ação não pode ser desfeita.`)) return;
+  try{
+    await sbReq('DELETE','produtos','id=eq.'+id);
+    [RASTHOR,CARRETAS,AERADORES,PLANTADEIRAS,VIRTUOS,MTSB,IMPLEMENTOS,CARREGADORES,ADAPTADORES,JOYSTICKS].forEach(arr=>{
+      const idx=arr.findIndex(x=>x.id===id);
+      if(idx>-1) arr.splice(idx,1);
+    });
+    toast('✓ Produto excluído!');
+    await loadProdutos();
+    renderAdmin();
+  }catch(e){
+    console.error('Erro ao excluir produto:', e);
+    toast('Erro ao excluir produto.');
+  }
+}
+
 // Lê um arquivo de imagem do input de upload e retorna a string data:URI em base64,
 // ou null se nenhum arquivo foi selecionado.
 function lerImagemComoBase64(inputEl){
@@ -3716,7 +3741,17 @@ async function adicionarProdutoNovo(categoria, ids){
     return;
   }
 
-  const img = await lerImagemComoBase64(imgInput);
+  let img = null;
+  if(imgInput?.files?.[0]){
+    img = await lerImagemComoBase64(imgInput);
+    if(!img || img.length < 100){
+      // A leitura falhou ou retornou algo inválido — avisa mas continua o cadastro sem imagem,
+      // em vez de travar tudo silenciosamente.
+      console.warn('Falha ao ler a imagem selecionada:', imgInput.files[0].name);
+      toast('⚠️ Produto cadastrado, mas a imagem não pôde ser lida.');
+      img = null;
+    }
+  }
   const id = gerarIdProduto(nome);
 
   try{
@@ -3724,7 +3759,7 @@ async function adicionarProdutoNovo(categoria, ids){
       id, categoria, nome, preco, descricao:desc, cod, grupo,
       img, estrutura_min, ativo:true
     });
-    toast('✓ Produto cadastrado!');
+    if(img !== null || !imgInput?.files?.[0]) toast('✓ Produto cadastrado!');
     await loadProdutos();
     renderAdmin();
   }catch(e){
