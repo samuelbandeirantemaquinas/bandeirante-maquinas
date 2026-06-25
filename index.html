@@ -2909,11 +2909,55 @@ function renderClientes(){
       <div style="font-size:12px;color:var(--text2)" id="cli-count">${clientes.length} cliente${clientes.length!==1?'s':''} cadastrados</div></div>
       <button class="btn btn-primary btn-sm" onclick="showFormCliente(null)"><i class="ti ti-plus"></i> Novo</button>
     </div>
+    ${isAdmin()?`<button class="btn btn-sm" id="btn-buscar-cep" style="width:100%;justify-content:center;margin-bottom:.75rem" onclick="buscarCEPAutomatico()">
+      <i class="ti ti-map-pin-search"></i> Buscar CEP automático dos clientes sem CEP
+    </button>`:''}
     <div class="ig" style="margin-bottom:.75rem">
       <input type="text" id="busca-cli-main" oninput="filtrarCliMain()" placeholder="Buscar por nome, empresa, cidade...">
     </div>
     <div id="lista-cli-main"></div>
   </div>`;
+  filtrarCliMain();
+}
+
+// Busca automaticamente o CEP de clientes que têm endereço (rua/cidade/UF) cadastrado
+// mas ainda não têm CEP preenchido, usando a API gratuita ViaCEP (busca por endereço).
+// Só salva quando a busca retorna exatamente 1 resultado — em caso de ambiguidade
+// (vários resultados parecidos) ou nenhum resultado, o cliente é pulado sem alteração,
+// para não arriscar gravar um CEP errado automaticamente.
+async function buscarCEPAutomatico(){
+  const btn=document.getElementById('btn-buscar-cep');
+  const pendentes = clientes.filter(c=>!c.cep && c.rua && c.cidade && c.estado);
+  if(!pendentes.length){
+    toast('Nenhum cliente pendente (precisa ter rua, cidade e UF, e ainda não ter CEP).');
+    return;
+  }
+  if(btn){btn.disabled=true;}
+  let achados=0, ambiguos=0, semResultado=0, erros=0;
+  for(let i=0;i<pendentes.length;i++){
+    const c=pendentes[i];
+    if(btn) btn.innerHTML=`<i class="ti ti-loader-2" style="animation:spin .7s linear infinite"></i> Buscando ${i+1}/${pendentes.length}...`;
+    try{
+      const uf=encodeURIComponent(c.estado.trim());
+      const cidade=encodeURIComponent(c.cidade.trim());
+      const rua=encodeURIComponent(c.rua.trim().split(',')[0].split(' nº')[0].trim());
+      const url=`https://viacep.com.br/ws/${uf}/${cidade}/${rua}/json/`;
+      const resp=await fetch(url);
+      if(!resp.ok){ erros++; continue; }
+      const data=await resp.json();
+      if(!Array.isArray(data) || data.length===0){ semResultado++; continue; }
+      if(data.length>1){ ambiguos++; continue; }
+      const cepEncontrado=data[0].cep;
+      if(!cepEncontrado){ semResultado++; continue; }
+      await sbReq('PATCH','clientes','id=eq.'+c.id,{cep:cepEncontrado});
+      c.cep=cepEncontrado; // atualiza também o array local, sem precisar recarregar tudo
+      achados++;
+    }catch(e){ erros++; }
+    // Pequena pausa entre chamadas para não sobrecarregar a API gratuita
+    await new Promise(r=>setTimeout(r,300));
+  }
+  if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-map-pin-search"></i> Buscar CEP automático dos clientes sem CEP';}
+  toast(`✓ ${achados} CEP(s) encontrado(s) e salvo(s). ${ambiguos} ambíguo(s), ${semResultado} sem resultado, ${erros} erro(s).`);
   filtrarCliMain();
 }
 
