@@ -2577,6 +2577,8 @@ async function salvarOrcamento(){
       joystick_cod:st.adaptDB?.joystick||null,
       itens,total,
       vendedor:g('cli-vendedor')||st.vendedor||st.clienteSel?.vendedor||currentPerfil?.nome||null,
+      pgto:g('cli-pgto')||st.pgto||null,
+      frete:g('cli-frete')||st.frete||null,
       obs:g('cli-obs'),status:'Em aberto'
     });
     toast('Orçamento salvo! ✓');
