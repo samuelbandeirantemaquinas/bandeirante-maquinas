@@ -802,6 +802,8 @@ function gerarOrcRasthor(){
           <select id="rc-pgto">
             <option value="">— Selecionar —</option>
             <option value="À vista">À vista</option>
+            <option value="7 dias">7 dias (sem juros)</option>
+            <option value="15 dias">15 dias (sem juros)</option>
             <option value="2x">2x mensais (1% a.m.)</option>
             <option value="3x">3x mensais (1% a.m.)</option>
             <option value="4x">4x mensais (1% a.m.)</option>
@@ -925,7 +927,10 @@ function gerarPDFRasthor(){
   const M=14;
   const num='ORC-'+Date.now().toString().slice(-6);
   const hoje=new Date().toLocaleDateString('pt-BR');
-  const nParc=parseInt(gr('rc-pgto'));
+  // Só reconhece o padrão "Nx" (ex: "3x") como parcelamento com juros;
+  // "À vista", "7 dias" e "15 dias" não têm juros.
+  const matchParcR=/^(\d+)x$/.exec(gr('rc-pgto'));
+  const nParc=matchParcR?parseInt(matchParcR[1]):NaN;
   const itensRasthor=sel.map(r=>{
     const qtd=getQtd(r.id);
     const unit=precoAjustado(r.id,r.preco);
@@ -1261,6 +1266,8 @@ function abrirFormProduto(tipo) {
           <select id="gn-pgto">
             <option value="">— Selecionar —</option>
             <option value="À vista">À vista</option>
+            <option value="7 dias">7 dias (sem juros)</option>
+            <option value="15 dias">15 dias (sem juros)</option>
             <option value="2x">2x mensais (1% a.m.)</option>
             <option value="3x">3x mensais (1% a.m.)</option>
             <option value="4x">4x mensais (1% a.m.)</option>
@@ -2183,6 +2190,8 @@ function s5(){
         <select id="cli-pgto" onchange="st.pgto=this.value;calcParcelas()">
           <option value="" ${!st.pgto?'selected':''}>— Selecionar —</option>
           <option value="À vista" ${st.pgto==='À vista'?'selected':''}>À vista (sem juros)</option>
+          <option value="7 dias" ${st.pgto==='7 dias'?'selected':''}>7 dias (sem juros)</option>
+          <option value="15 dias" ${st.pgto==='15 dias'?'selected':''}>15 dias (sem juros)</option>
           <option value="2x" ${st.pgto==='2x'?'selected':''}>2x mensais (1% a.m.)</option>
           <option value="3x" ${st.pgto==='3x'?'selected':''}>3x mensais (1% a.m.)</option>
           <option value="4x" ${st.pgto==='4x'?'selected':''}>4x mensais (1% a.m.)</option>
@@ -2615,8 +2624,10 @@ function gerarPDF(){
   const frete=g('cli-frete')||st.frete||'';
   const obs=g('cli-obs')||st.obs||'';
 
-  // Calcular total com juros
-  const nParc=parseInt(pgto);
+  // Calcular total com juros — só reconhece o padrão "Nx" (ex: "3x") como parcelamento;
+  // opções como "À vista", "7 dias" e "15 dias" não têm juros.
+  const matchParc=/^(\d+)x$/.exec(pgto);
+  const nParc=matchParc?parseInt(matchParc[1]):NaN;
   const totalFinal=(!isNaN(nParc)&&nParc>1)?total*(1+nParc*0.01):total;
 
   // Montar itens
