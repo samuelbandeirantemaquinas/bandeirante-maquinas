@@ -2055,12 +2055,16 @@ function avancarAdapt(){
     const lista=ADAPTADORES.filter(a=>a.estrutura.includes(estr)&&a.id!=='adp_nao');
     if(lista.length>0) st.qtds[lista[0].id]=1;
   }
-  // Desconto automático de 10% no adaptador para John Deere linha 6000 (1550/1950/2200)
-  // Valor negativo reduz o preço de fato (precoAjustado = preco*(1+aj/100)).
-  if(st.descAdaptJD6000){
+  // Desconto automático de 10% no adaptador para John Deere linha 6000 (1550/1950/2200).
+  // Guardamos o valor como "10" (intenção: desconto de 10%) — é a função precoAjustado()
+  // que decide o sinal certo a aplicar conforme o papel de quem está logado (Admin =
+  // desconto reduz o preço; vendedor comum não deveria chegar a este fluxo, mas se
+  // chegar, o valor é tratado como acréscimo, então a regra abaixo só faz sentido
+  // quando aplicada por um Admin).
+  if(st.descAdaptJD6000 && isAdmin()){
     ADAPTADORES.forEach(a=>{
       if(a.id!=='adp_nao' && getQtd(a.id)>0 && !st.ajustes[a.id]){
-        st.ajustes[a.id]=-10;
+        st.ajustes[a.id]=10;
       }
     });
   }
@@ -2353,8 +2357,13 @@ async function salvarClienteRapido(){
 
 
 function precoAjustado(id, preco){
-  const aj=st.ajustes[id]||0;
+  const ajBruto=st.ajustes[id]||0;
   const ac=st.acrescimo||0;
+  // O campo de ajuste tem rótulo diferente conforme o papel de quem está logado:
+  // para Admin é "Desconto %" (deve diminuir o preço), para vendedor é "Acréscimo %"
+  // (deve aumentar). O valor digitado é sempre positivo na tela; aqui invertemos o
+  // sinal para Admin, garantindo que o cálculo reflita corretamente "desconto".
+  const aj = isAdmin() ? -ajBruto : ajBruto;
   // aplica ajuste individual e depois acréscimo/desconto geral (embutido no preço, invisível ao cliente)
   const precoComAj = aj===0 ? preco : preco*(1+aj/100);
   return ac===0 ? precoComAj : precoComAj*(1+ac/100);
@@ -3174,6 +3183,14 @@ function abrirOrcamento(id){
   // "preco" (valor final, com ajuste por item + acréscimo geral já embutidos), capturamos
   // o saldo total — sem precisar de nenhuma coluna nova no banco. Em Rasthor/Genérico,
   // que não têm "preco_base" salvo, usamos o campo "ajuste" por item como antes.
+  // Identifica se o orçamento foi criado por um Admin (cruzando o nome do vendedor
+  // salvo com o cadastro de LOGINS) — necessário porque, para Admin, um "ajuste"
+  // salvo positivo representa um DESCONTO (preço menor), não um acréscimo; já para
+  // vendedor comum, positivo é sempre acréscimo (preço maior). Sem essa distinção,
+  // descontos de Admin apareceriam aqui erroneamente como "saldo de acréscimo".
+  const loginCriador = LOGINS.find(l=>l.nome===o.vendedor);
+  const criadorEraAdmin = loginCriador?.role==='admin';
+
   const itensCalc = itens.map(it=>{
     const qtd = Number(it.qtd||0);
     const ehTotalDireto = it.preco_unit!==undefined;
@@ -3183,9 +3200,10 @@ function abrirOrcamento(id){
       precoBaseTotal = Number(it.preco_base||0)*qtd;
       saldoAcrescimo = Math.max(0, precoTotal-precoBaseTotal);
     } else {
-      const ajuste = Number(it.ajuste||0);
-      precoBaseTotal = ajuste!==0 ? precoTotal/(1+ajuste/100) : precoTotal;
-      saldoAcrescimo = ajuste>0 ? (precoTotal-precoBaseTotal) : 0;
+      const ajusteSalvo = Number(it.ajuste||0);
+      const ajusteReal = criadorEraAdmin ? -ajusteSalvo : ajusteSalvo;
+      precoBaseTotal = ajusteReal!==0 ? precoTotal/(1+ajusteReal/100) : precoTotal;
+      saldoAcrescimo = ajusteReal>0 ? (precoTotal-precoBaseTotal) : 0;
     }
     return {...it, precoTotal, precoBaseTotal, saldoAcrescimo};
   });
@@ -3208,13 +3226,18 @@ function abrirOrcamento(id){
 
     <div class="card" style="margin-bottom:1rem">
       <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:.75rem;letter-spacing:.3px">ITENS</div>
-      ${itensCalc.map(it=>`<div class="orc-row" style="flex-direction:column;align-items:stretch;gap:2px">
+      ${itensCalc.map(it=>{
+        // Para exibição: se quem criou era Admin, um "ajuste" salvo positivo é desconto
+        // (mostra como negativo, ex: -5%); senão é acréscimo, mostra como está salvo.
+        const ajusteExibido = it.preco_base!==undefined ? null : (criadorEraAdmin && it.ajuste ? -it.ajuste : it.ajuste);
+        return `<div class="orc-row" style="flex-direction:column;align-items:stretch;gap:2px">
         <div style="display:flex;justify-content:space-between">
-          <span style="color:var(--text2)">${it.qtd>1?`${it.qtd}× `:''}${it.nome}${it.ajuste?` <span style="font-size:10px;color:${it.ajuste<0?'#c0392b':'#e67e22'}">(${it.ajuste>0?'+':''}${it.ajuste}%)</span>`:''}</span>
+          <span style="color:var(--text2)">${it.qtd>1?`${it.qtd}× `:''}${it.nome}${ajusteExibido?` <span style="font-size:10px;color:${ajusteExibido<0?'#c0392b':'#e67e22'}">(${ajusteExibido>0?'+':''}${ajusteExibido}%)</span>`:''}</span>
           <span style="font-weight:600">${fmt(it.precoTotal)}</span>
         </div>
         ${adm&&it.saldoAcrescimo>0?`<div style="display:flex;justify-content:space-between;font-size:11px;color:#854F0B"><span>Saldo de acréscimo (acima da tabela)</span><span>+${fmt(it.saldoAcrescimo)}</span></div>`:''}
-      </div>`).join('')}
+      </div>`;
+      }).join('')}
       <div style="display:flex;justify-content:space-between;padding:8px 0;border-top:2px solid var(--border);margin-top:4px">
         <span style="font-weight:700">Total</span>
         <span style="font-size:18px;font-weight:700">R$ ${Number(o.total||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
