@@ -3523,38 +3523,22 @@ async function renderAdmin(){
       <div style="font-size:12px;color:var(--text2)">Edite preços, descrições, gerencie vendedores e acompanhe performance</div>
     </div>
 
-    <div style="display:flex;gap:6px;margin-bottom:1.25rem;border-bottom:1px solid var(--border)">
-      <button class="adm-tab-btn active" id="adm-tab-btn-produtos" onclick="showAdminTab('produtos')" style="padding:.6rem 1rem;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid var(--primary);color:var(--primary);cursor:pointer">Produtos &amp; Vendedores</button>
+    <div style="display:flex;gap:6px;margin-bottom:1.25rem;border-bottom:1px solid var(--border);flex-wrap:wrap">
+      <button class="adm-tab-btn active" id="adm-tab-btn-produtos" onclick="showAdminTab('produtos')" style="padding:.6rem 1rem;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid var(--primary);color:var(--primary);cursor:pointer">📦 Produtos</button>
+      <button class="adm-tab-btn" id="adm-tab-btn-vendedores" onclick="showAdminTab('vendedores')" style="padding:.6rem 1rem;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;color:var(--text2);cursor:pointer">👤 Vendedores</button>
       <button class="adm-tab-btn" id="adm-tab-btn-performance" onclick="showAdminTab('performance')" style="padding:.6rem 1rem;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;color:var(--text2);cursor:pointer">📊 Performance</button>
     </div>
 
     <div id="admin-tab-produtos">
-    <div style="margin-bottom:1.5rem">
-      <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.5rem">Vendedores</div>
-      <div id="lista-vendedores">
-        ${vendedores.map(v=>`<div class="card" style="margin-bottom:.5rem;padding:.6rem 1rem;display:flex;justify-content:space-between;align-items:center">
-          <div>
-            <div style="font-size:13px;font-weight:600">${v.nome}</div>
-            <div style="font-size:11px;color:var(--text2)">${v.email}</div>
-          </div>
-          <button class="btn btn-sm" style="color:#c0392b;border-color:#c0392b" onclick="removerVendedor('${v.id}')">
-            <i class="ti ti-trash"></i>
-          </button>
-        </div>`).join('')}
-      </div>
-      <div class="card" style="margin-top:.5rem;padding:.75rem 1rem">
-        <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:.5rem">Adicionar vendedor</div>
-        <div class="fr2" style="gap:8px">
-          <div class="ig" style="margin:0"><label>Nome</label><input type="text" id="new-vend-nome" placeholder="Nome completo"></div>
-          <div class="ig" style="margin:0"><label>E-mail</label><input type="email" id="new-vend-email" placeholder="email@empresa.com"></div>
-        </div>
-        <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="adicionarVendedor()">
-          <i class="ti ti-plus"></i> Adicionar
-        </button>
-      </div>
+    <div class="ig" style="margin-bottom:1.25rem">
+      <label>Filtrar por categoria</label>
+      <select id="filtro-cat-produtos" onchange="filtrarCategoriaAdmin()" style="font-size:13px">
+        <option value="">Todas as categorias</option>
+        ${grupos.map(cat=>`<option value="${cat}">${cats[cat]}</option>`).join('')}
+      </select>
     </div>
     ${grupos.map(cat=>`
-      <div style="margin-bottom:1.5rem">
+      <div id="admin-cat-${cat}" style="margin-bottom:1.5rem">
         <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.5rem">${cats[cat]}</div>
         ${rows.filter(p=>p.categoria===cat).map(p=>`
         <div class="card" style="margin-bottom:.75rem;padding:.75rem 1rem">
@@ -3646,6 +3630,33 @@ async function renderAdmin(){
     </div>
     </div>
 
+    <div id="admin-tab-vendedores" style="display:none">
+      <div style="margin-bottom:1.5rem">
+        <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.5rem">Vendedores</div>
+        <div id="lista-vendedores">
+          ${vendedores.map(v=>`<div class="card" style="margin-bottom:.5rem;padding:.6rem 1rem;display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-size:13px;font-weight:600">${v.nome}</div>
+              <div style="font-size:11px;color:var(--text2)">${v.email}</div>
+            </div>
+            <button class="btn btn-sm" style="color:#c0392b;border-color:#c0392b" onclick="removerVendedor('${v.id}')">
+              <i class="ti ti-trash"></i>
+            </button>
+          </div>`).join('')}
+        </div>
+        <div class="card" style="margin-top:.5rem;padding:.75rem 1rem">
+          <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:.5rem">Adicionar vendedor</div>
+          <div class="fr2" style="gap:8px">
+            <div class="ig" style="margin:0"><label>Nome</label><input type="text" id="new-vend-nome" placeholder="Nome completo"></div>
+            <div class="ig" style="margin:0"><label>E-mail</label><input type="email" id="new-vend-email" placeholder="email@empresa.com"></div>
+          </div>
+          <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="adicionarVendedor()">
+            <i class="ti ti-plus"></i> Adicionar
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div id="admin-tab-performance" style="display:none"></div>
   </div>`;
 }
@@ -3670,15 +3681,27 @@ async function adicionarProdutoNovoCategoria(){
 
 
 function showAdminTab(tab){
-  const isPerf = tab==='performance';
-  document.getElementById('admin-tab-produtos').style.display = isPerf?'none':'';
-  document.getElementById('admin-tab-performance').style.display = isPerf?'':'none';
-  const btnP=document.getElementById('adm-tab-btn-produtos'), btnPerf=document.getElementById('adm-tab-btn-performance');
-  btnP.style.borderBottomColor = isPerf?'transparent':'var(--primary)';
-  btnP.style.color = isPerf?'var(--text2)':'var(--primary)';
-  btnPerf.style.borderBottomColor = isPerf?'var(--primary)':'transparent';
-  btnPerf.style.color = isPerf?'var(--primary)':'var(--text2)';
-  if(isPerf) renderAdminPerformance();
+  const abas=['produtos','vendedores','performance'];
+  abas.forEach(a=>{
+    const div=document.getElementById('admin-tab-'+a);
+    const btn=document.getElementById('adm-tab-btn-'+a);
+    if(div) div.style.display = (a===tab)?'':'none';
+    if(btn){
+      btn.style.borderBottomColor = (a===tab)?'var(--primary)':'transparent';
+      btn.style.color = (a===tab)?'var(--primary)':'var(--text2)';
+    }
+  });
+  if(tab==='performance') renderAdminPerformance();
+}
+
+// Filtra a lista de categorias visíveis na aba Produtos do Admin, conforme a
+// categoria escolhida no seletor — apenas oculta/exibe (não recarrega dados).
+function filtrarCategoriaAdmin(){
+  const cat = document.getElementById('filtro-cat-produtos')?.value;
+  document.querySelectorAll('[id^="admin-cat-"]').forEach(div=>{
+    const catDiv = div.id.replace('admin-cat-','');
+    div.style.display = (!cat || cat===catDiv) ? '' : 'none';
+  });
 }
 
 // ── PAINEL DE PERFORMANCE (Admin) ──
