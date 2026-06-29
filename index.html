@@ -694,8 +694,6 @@ let RASTHOR = [
    desc:'Hastes alinhadas/desencontradas · Disco de corte 20"'},
   {id:'r7hd',   cod:'065264',   nome:'Rasthor 7HD/7H Hydra', hastes:7,  esp:'60cm', prof:'55cm', desarme:'Automático', finame:'03874492', preco:210226.96,
    desc:'Hastes alinhadas/desencontradas · Disco de corte 20"'},
-  {id:'r6hd_hy',cod:'DES0006HY',nome:'Rasthor 6HD Hydra',    hastes:6,  esp:'63cm', prof:'—',    desarme:'Automático', finame:'3874492',  preco:146264.30,
-   desc:'Hastes alinhadas · Disco de corte 20" · Desarme automático Hydra'},
   {id:'r6hd',   cod:'014380',   nome:'Rasthor 6HD Arrasto',  hastes:6,  esp:'63cm', prof:'—',    desarme:'Semi-auto',  finame:'3874492',  preco:106049.10,
    desc:'Disco de corte 20" · Desarme semi automático'},
   {id:'r5hd_hy',cod:'065263',   nome:'Rasthor 5HD/5H Hydra', hastes:5,  esp:'63cm', prof:'55cm', desarme:'Automático', finame:'03874492', preco:157952.46,
@@ -2027,9 +2025,15 @@ function s2(){
   const estr=estruturaAtiva();
   // Se tem adaptador indicado, mostrar só ele + sem adaptador. Senão mostrar todos compatíveis com a estrutura.
   const listaFull=estr?ADAPTADORES.filter(a=>a.estrutura.includes(estr)||a.id==='adp_nao'):ADAPTADORES;
-  const lista=st.adaptDB&&st.adaptDB.adaptador
+  const listaPorCodigo=st.adaptDB&&st.adaptDB.adaptador
     ? listaFull.filter(a=>a.id==='adp_nao'||a.cod===st.adaptDB.adaptador)
     : listaFull;
+  // Se o código indicado pelo trator não corresponde a nenhum produto vendível
+  // cadastrado (ex: código de referência interno diferente do código do produto),
+  // cai de volta para mostrar todos os adaptadores compatíveis com a estrutura —
+  // assim o campo de quantidade e desconto/acréscimo sempre aparece para algum item.
+  const temAdaptadorReal = listaPorCodigo.some(a=>a.id!=='adp_nao');
+  const lista = temAdaptadorReal ? listaPorCodigo : listaFull;
   const m=st.marcaSel?MARCAS.find(x=>x.id===st.marcaSel):null;
   return `<div style="margin-bottom:1rem"><div style="font-size:15px;font-weight:700;margin-bottom:4px">Adaptador</div>
   ${st.adaptDB&&st.adaptDB.adaptador?`<button class="btn btn-sm" style="font-size:11px;color:var(--text2)" onclick="st.adaptDB.adaptador='';renderStep()"><i class="ti ti-refresh"></i> Ver todos os adaptadores</button>`:''}</div>
@@ -4083,7 +4087,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   ['hexline','joystick','adaptador','lamina','concha','bag','garfosilagem','garrafeno','conchagarra','enleirador195','enleirador265','garfotoragarra','garfotora','paleteira'].forEach(k=>{
     const el=document.getElementById('_'+k);if(el)IMGS[k]=el.src;
   });
-  ['r13hy','r11hy','r9hd','r7hd','r6hd_hy','r6hd','r5hd_hy','r5hd','r4hd'].forEach(k=>{
+  ['r13hy','r11hy','r9hd','r7hd','r6hd','r5hd_hy','r5hd','r4hd'].forEach(k=>{
     const el=document.getElementById('_rasthor_'+k);if(el)IMGS['rasthor_'+k]=el.src;
   });
 
