@@ -106,7 +106,7 @@ button{font-family:inherit;cursor:pointer;border:none;outline:none}
 <div id="login-screen" style="position:fixed;inset:0;background:#f8f9fa;z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem">
   <div style="background:#fff;border:1px solid #e2e6ea;border-radius:14px;padding:2rem 1.75rem;width:100%;max-width:380px;box-shadow:0 4px 24px rgba(0,0,0,.08)">
     <div style="text-align:center;margin-bottom:1.75rem">
-      <img id="login-logo" src="" alt="Bandeirante" style="height:48px;object-fit:contain;margin-bottom:1rem">
+      <img id="login-logo" src="" alt="Bandeirante" style="height:48px;object-fit:contain;margin-bottom:1rem" onload="this.style.display=''" onerror="this.style.display='none'">
       <div style="font-size:13px;color:#6c757d">Carregadores Frontais — Vendas</div>
     </div>
     <div style="margin-bottom:1rem">
@@ -4067,6 +4067,10 @@ function fazerLogout(){
   const ma=document.getElementById('main-app');
   if(ma)ma.style.display='none';
   if(ls)ls.style.display='flex';
+  // Preenche o logo da tela de login com a mesma imagem do header
+  const loginLogo=document.getElementById('login-logo');
+  const headerLogo=document.querySelector('.app-header img');
+  if(loginLogo&&headerLogo&&headerLogo.src) loginLogo.src=headerLogo.src;
   const emailInp=document.getElementById('login-email');
   const senhaInp=document.getElementById('login-senha');
   if(emailInp)emailInp.value='';
@@ -4142,6 +4146,11 @@ window.addEventListener('DOMContentLoaded',()=>{
   // Permite ir direto para Entrar pressionando Enter no campo de senha
   const senhaInp=document.getElementById('login-senha');
   if(senhaInp)senhaInp.addEventListener('keydown',e=>{if(e.key==='Enter')fazerLogin();});
+
+  // Logo da tela de login = mesma imagem do header
+  const loginLogo=document.getElementById('login-logo');
+  const headerLogo=document.querySelector('.app-header img');
+  if(loginLogo&&headerLogo&&headerLogo.src) loginLogo.src=headerLogo.src;
 
   // Mantém login salvo entre sessões (mesmo navegador/dispositivo)
   try{
