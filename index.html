@@ -3350,7 +3350,6 @@ async function excluirItemOrc(orcId, itemIdx){
     abrirOrcamento(orcId);
   }catch(e){toast('Erro ao remover item.');}
 }
-}
 
 async function regenarPDFHistorico(id){
   const o=orcamentos.find(x=>x.id===id);
