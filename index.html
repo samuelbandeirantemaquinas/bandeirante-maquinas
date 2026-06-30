@@ -106,7 +106,7 @@ button{font-family:inherit;cursor:pointer;border:none;outline:none}
 <div id="login-screen" style="position:fixed;inset:0;background:#f8f9fa;z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem">
   <div style="background:#fff;border:1px solid #e2e6ea;border-radius:14px;padding:2rem 1.75rem;width:100%;max-width:380px;box-shadow:0 4px 24px rgba(0,0,0,.08)">
     <div style="text-align:center;margin-bottom:1.75rem">
-      <img id="login-logo" src="" alt="Bandeirante" style="height:48px;object-fit:contain;margin-bottom:1rem" onload="this.style.display=''" onerror="this.style.display='none'">
+      <img id="login-logo" style="height:48px;object-fit:contain;margin-bottom:1rem">
       <div style="font-size:13px;color:#6c757d">Carregadores Frontais — Vendas</div>
     </div>
     <div style="margin-bottom:1rem">
@@ -4219,6 +4219,14 @@ function instalarApp(){
     deferredPrompt.userChoice.then(()=>{ deferredPrompt=null; });
   }
 }
+</script>
+<script>
+// Define o logo da tela de login usando a mesma imagem do cabeçalho
+(function(){
+  var loginLogo = document.getElementById('login-logo');
+  var headerLogo = document.querySelector('.app-header img');
+  if(loginLogo && headerLogo) loginLogo.src = headerLogo.src;
+})();
 </script>
 </body>
 </html>
