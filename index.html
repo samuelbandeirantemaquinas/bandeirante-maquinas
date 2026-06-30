@@ -320,19 +320,16 @@ const ADAPTS_DB = [
   {marca:'landini',modelo:'Powerfarm 110 / Landforce 120',estrutura:'1450/1550',adaptador:'068527',joystick:'',obs:''},
 
   // ========= AGRALE =========
-  {marca:'agrale',modelo:'575-4',estrutura:'1550',adaptador:'12307.3000',joystick:'064216',obs:'Pinada'},
+  {marca:'agrale',modelo:'5105',estrutura:'1550',adaptador:'040040',joystick:'066369',obs:'Fast Coupling'},
+  {marca:'agrale',modelo:'5055 / 5065 / 5075 / 5085 / GI / GII',estrutura:'1450',adaptador:'070711',joystick:'066483',obs:'Fast Coupling'},
+  {marca:'agrale',modelo:'575-4',estrutura:'1550',adaptador:'12307.3000',joystick:'066487',obs:'Pinada'},
   {marca:'agrale',modelo:'6060 / 6075 / 8000 / 9200 / 9500S — Plataformado',estrutura:'1450',adaptador:'036873',joystick:'',obs:'Plataformado'},
   {marca:'agrale',modelo:'6060 / 6075 / 8000 / 9200 / 9500S — Cabinado',estrutura:'1450',adaptador:'021662',joystick:'',obs:'Cabinado'},
+  {marca:'agrale',modelo:'BX4110',estrutura:'1950',adaptador:'18317.3000',joystick:'066489',obs:'Pinada'},
+  {marca:'agrale',modelo:'BX6150',estrutura:'1950',adaptador:'18310.3000',joystick:'',obs:'Pinada'},
+  {marca:'agrale',modelo:'BX6110',estrutura:'1950',adaptador:'18309.4000',joystick:'066367',obs:'Fast Coupling'},
   {marca:'ls',modelo:'H 125',estrutura:'1950',adaptador:'012590',joystick:'064216',obs:'Fast Coupling'},
   
-  // ========= YANMAR =========
-  {marca:'yanmar',modelo:'BX4110',estrutura:'1550',adaptador:'040040',joystick:'066369',obs:''},
-  {marca:'yanmar',modelo:'BX6110',estrutura:'1450',adaptador:'070711',joystick:'066483',obs:''},
-  {marca:'yanmar',modelo:'BX6150',estrutura:'1550',adaptador:'12307.3000',joystick:'066487',obs:'Pinada'},
-  {marca:'yanmar',modelo:'7500 / 7505',estrutura:'1450',adaptador:'18317.3000',joystick:'066489',obs:'Pinada'},
-  {marca:'yanmar',modelo:'7500 / 7505 — alternativo',estrutura:'1450',adaptador:'18310.3000',joystick:'',obs:'Pinada'},
-  {marca:'yanmar',modelo:'7500 / 7505 — Fast Coupling',estrutura:'1450',adaptador:'18309.4000',joystick:'066367',obs:''},
-
   // ========= BUDNY =========
   {marca:'budny',modelo:'8540',estrutura:'1550',adaptador:'067572',joystick:'067621',obs:''},
 
@@ -341,8 +338,8 @@ const ADAPTS_DB = [
   {marca:'ls',modelo:'80 / 90 / 100',estrutura:'1450',adaptador:'057067',joystick:'064216',obs:'MWM / Perkins — Centro Fechado'},
 
   // ========= SOLIS =========
-  {marca:'solis',modelo:'Solis 80 / 90 — Cabinado',estrutura:'1450',adaptador:'',joystick:'066400',obs:'Cabinado'},
-  {marca:'solis',modelo:'Solis 80 / 90 — Plataformado',estrutura:'1450',adaptador:'',joystick:'066365',obs:'Plataformado'},
+  {marca:'solis',modelo:'Solis 80 / 90 — Cabinado',estrutura:'1450',adaptador:'015172',joystick:'066400',obs:'Cabinado'},
+  {marca:'solis',modelo:'Solis 80 / 90 — Plataformado',estrutura:'1450',adaptador:'075413',joystick:'066365',obs:'Plataformado'},
 
   // ========= MAHINDRA =========
   {marca:'mahindra',modelo:'Mahindra 4 Cil',estrutura:'1950',adaptador:'060138',joystick:'066357',obs:'4 Cil'},
@@ -3238,7 +3235,7 @@ function abrirOrcamento(id){
         <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
           <span style="color:var(--text2);flex:1;min-width:0">${it.qtd>1?`${it.qtd}× `:''}${it.nome}${ajusteExibido?` <span style="font-size:10px;color:${ajusteExibido<0?'#c0392b':'#e67e22'}">(${ajusteExibido>0?'+':''}${ajusteExibido}%)</span>`:''}</span>
           <span style="font-weight:600;flex-shrink:0">${fmt(it.precoTotal)}</span>
-          ${adm?`<button onclick="excluirItemOrc('${o.id}',${_idx})" title="Remover item" style="background:none;border:none;cursor:pointer;color:#c0392b;padding:2px 4px;flex-shrink:0;font-size:14px"><i class="ti ti-trash"></i></button>`:''}
+          <button onclick="excluirItemOrc('${o.id}',${_idx})" title="Remover item" style="background:none;border:none;cursor:pointer;color:#c0392b;padding:2px 4px;flex-shrink:0;font-size:14px"><i class="ti ti-trash"></i></button>
         </div>
         ${adm&&it.saldoAcrescimo>0?`<div style="display:flex;justify-content:space-between;font-size:11px;color:#854F0B"><span>Saldo de acréscimo (acima da tabela)</span><span>+${fmt(it.saldoAcrescimo)}</span></div>`:''}
       </div>`;
