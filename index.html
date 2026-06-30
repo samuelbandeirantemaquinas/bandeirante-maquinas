@@ -3230,14 +3230,15 @@ function abrirOrcamento(id){
 
     <div class="card" style="margin-bottom:1rem">
       <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:.75rem;letter-spacing:.3px">ITENS</div>
-      ${itensCalc.map(it=>{
+      ${itensCalc.map((it,_idx)=>{
         // Para exibição: se quem criou era Admin, um "ajuste" salvo positivo é desconto
         // (mostra como negativo, ex: -5%); senão é acréscimo, mostra como está salvo.
         const ajusteExibido = it.preco_base!==undefined ? null : (criadorEraAdmin && it.ajuste ? -it.ajuste : it.ajuste);
         return `<div class="orc-row" style="flex-direction:column;align-items:stretch;gap:2px">
-        <div style="display:flex;justify-content:space-between">
-          <span style="color:var(--text2)">${it.qtd>1?`${it.qtd}× `:''}${it.nome}${ajusteExibido?` <span style="font-size:10px;color:${ajusteExibido<0?'#c0392b':'#e67e22'}">(${ajusteExibido>0?'+':''}${ajusteExibido}%)</span>`:''}</span>
-          <span style="font-weight:600">${fmt(it.precoTotal)}</span>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+          <span style="color:var(--text2);flex:1;min-width:0">${it.qtd>1?`${it.qtd}× `:''}${it.nome}${ajusteExibido?` <span style="font-size:10px;color:${ajusteExibido<0?'#c0392b':'#e67e22'}">(${ajusteExibido>0?'+':''}${ajusteExibido}%)</span>`:''}</span>
+          <span style="font-weight:600;flex-shrink:0">${fmt(it.precoTotal)}</span>
+          ${adm?`<button onclick="excluirItemOrc('${o.id}',${_idx})" title="Remover item" style="background:none;border:none;cursor:pointer;color:#c0392b;padding:2px 4px;flex-shrink:0;font-size:14px"><i class="ti ti-trash"></i></button>`:''}
         </div>
         ${adm&&it.saldoAcrescimo>0?`<div style="display:flex;justify-content:space-between;font-size:11px;color:#854F0B"><span>Saldo de acréscimo (acima da tabela)</span><span>+${fmt(it.saldoAcrescimo)}</span></div>`:''}
       </div>`;
@@ -3325,6 +3326,30 @@ async function excluirOrc(id){
     await loadOrcamentos();
     showTab('historico');
   }catch(e){toast('Erro ao excluir.');}
+}
+
+async function excluirItemOrc(orcId, itemIdx){
+  const o=orcamentos.find(x=>x.id===orcId);
+  if(!o)return;
+  const itens=Array.isArray(o.itens)?[...o.itens]:[];
+  if(itens.length<=1){
+    if(!confirm('Este é o único item. Deseja excluir o orçamento inteiro?'))return;
+    return excluirOrc(orcId);
+  }
+  const itemNome=itens[itemIdx]?.nome||'este item';
+  if(!confirm(`Remover "${itemNome}" do orçamento?`))return;
+  itens.splice(itemIdx,1);
+  const novoTotal=itens.reduce((t,it)=>{
+    const preco=it.preco_unit!==undefined?Number(it.preco||0):Number(it.preco||0)*Number(it.qtd||1);
+    return t+preco;
+  },0);
+  try{
+    await sbReq('PATCH','orcamentos','id=eq.'+orcId,{itens,total:novoTotal});
+    toast('Item removido! ✓');
+    await loadOrcamentos();
+    abrirOrcamento(orcId);
+  }catch(e){toast('Erro ao remover item.');}
+}
 }
 
 async function regenarPDFHistorico(id){
