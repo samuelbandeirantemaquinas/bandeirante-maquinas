@@ -1554,11 +1554,17 @@ function gerarPDFGenerico(){
   });
   y=doc.lastAutoTable.finalY;
 
+  // Calcular total com juros — só reconhece o padrão "Nx" (ex: "3x") como parcelamento;
+  // opções como "À vista", "7 dias" e "15 dias" não têm juros.
+  const matchParcGen=/^(\d+)x$/.exec(pgto);
+  const nParcGen=matchParcGen?parseInt(matchParcGen[1]):NaN;
+  const totalFinalGen=(!isNaN(nParcGen)&&nParcGen>1)?subtotalGeral*(1+nParcGen*0.01):subtotalGeral;
+
   // Total
   doc.setFillColor(230,230,230);doc.rect(M,y,W-M*2,7,'F');
   doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(20);
   doc.text('Valor total:',W-M-55,y+5.5);
-  doc.text('R$ '+subtotalGeral.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}),W-M-1,y+5.5,{align:'right'});
+  doc.text('R$ '+totalFinalGen.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}),W-M-1,y+5.5,{align:'right'});
   y+=9;
 
   // Rodapé
@@ -2806,7 +2812,7 @@ function gerarPDF(){
   doc.setTextColor(20);
   const labelTot = 'Valor total:';
   doc.text(labelTot, W-M-50, y+5.5);
-  doc.text('R$ '+total.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}), W-M-1, y+5.5, {align:'right'});
+  doc.text('R$ '+totalFinal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}), W-M-1, y+5.5, {align:'right'});
   if(false){
     doc.setFontSize(7.5);
     doc.setTextColor(100);
