@@ -2541,6 +2541,12 @@ function s6(){
   const acGeral = st.acrescimo||0;
   const totalSemAcGeral = acGeral!==0 ? total/(1+acGeral/100) : total;
   const saldoAcGeral = acGeral>0 ? (total-totalSemAcGeral) : 0;
+  // Acréscimo de juros do parcelamento — só reconhece o padrão "Nx" (ex: "6x");
+  // "À vista", "7 dias" e "15 dias" não têm juros. Mesma regra usada no PDF.
+  const pgtoAtual = g('cli-pgto')||st.pgto||'';
+  const matchParcS6 = /^(\d+)x$/.exec(pgtoAtual);
+  const nParcS6 = matchParcS6 ? parseInt(matchParcS6[1]) : NaN;
+  const totalComJuros = (!isNaN(nParcS6) && nParcS6>1) ? total*(1+nParcS6*0.01) : total;
   return `<div class="card" style="margin-bottom:1rem">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.75rem">
       <div><div style="font-size:9px;color:var(--text2);font-weight:600;letter-spacing:.5px">BANDEIRANTE MÁQUINAS</div>
@@ -2565,8 +2571,9 @@ function s6(){
     <hr class="divider">
     <div style="display:flex;justify-content:space-between;align-items:center">
       <span style="font-size:14px;font-weight:700">Total</span>
-      <span style="font-size:22px;font-weight:700">${fmt(total)}</span>
+      <span style="font-size:22px;font-weight:700">${fmt(totalComJuros)}</span>
     </div>
+    ${(!isNaN(nParcS6)&&nParcS6>1)?`<div style="font-size:10px;color:var(--text2);margin-top:2px">À vista: ${fmt(total)} · ${nParcS6}x com juros (+${nParcS6}%)</div>`:''}
     ${saldoAcGeral>0?`<div style="display:flex;justify-content:space-between;padding:6px 8px;background:#FAEEDA;border-radius:var(--radius-sm);margin-top:6px">
       <span style="font-size:12px;font-weight:700;color:#633806"><i class="ti ti-discount-2"></i> Saldo extra (acréscimo geral ${acGeral}%)</span>
       <span style="font-size:13px;font-weight:700;color:#633806">+${fmt(saldoAcGeral)}</span>
