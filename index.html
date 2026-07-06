@@ -937,7 +937,7 @@ async function salvarOrcamentoRasthor(){
   const sel = getRasthorSel();
   if(!sel.length) return;
   const gr=fid=>(document.getElementById(fid)||{}).value||'';
-  const itens = sel.map(r=>({nome:r.nome,qtd:getQtd(r.id),preco:precoAjustado(r.id,r.preco),ajuste:st.ajustes[r.id]||0}));
+  const itens = sel.map(r=>({cod:r.cod||'',nome:r.nome,desc:r.desc||'',qtd:getQtd(r.id),preco:precoAjustado(r.id,r.preco),preco_base:r.preco,ajuste:st.ajustes[r.id]||0}));
   const total = sel.reduce((t,r)=>t+precoAjustado(r.id,r.preco)*getQtd(r.id),0);
   const btn=document.getElementById('btn-salvar-rasthor');
   if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .7s linear infinite"></i> Salvando...';}
@@ -2584,7 +2584,7 @@ function montarItens(){
     const qtd=getQtd(a.id);
     if(qtd>0){
       const unit=precoAjustado(a.id,a.preco);
-      itens.push({cod:a.cod,nome:a.nome,qtd,preco_unit:unit,preco:unit*qtd,preco_base:a.preco,ajuste:st.ajustes[a.id]||0,img:'adaptador',finame:'',ncm:''});
+      itens.push({cod:a.cod,nome:a.nome,desc:a.desc||'',qtd,preco_unit:unit,preco:unit*qtd,preco_base:a.preco,ajuste:st.ajustes[a.id]||0,img:'adaptador'});
     }
   });
   JOYSTICKS.forEach(j=>{
@@ -2592,14 +2592,14 @@ function montarItens(){
     const qtd=getQtd(j.id);
     if(qtd>0){
       const unit=precoAjustado(j.id,j.preco);
-      itens.push({cod:j.cod,nome:j.nome,qtd,preco_unit:unit,preco:unit*qtd,preco_base:j.preco,ajuste:st.ajustes[j.id]||0,img:'joystick',finame:'',ncm:''});
+      itens.push({cod:j.cod,nome:j.nome,desc:j.desc||'',qtd,preco_unit:unit,preco:unit*qtd,preco_base:j.preco,ajuste:st.ajustes[j.id]||0,img:'joystick'});
     }
   });
   IMPLEMENTOS.forEach(i=>{
     const qtd=getQtd(i.id);
     if(qtd>0){
       const unit=precoAjustado(i.id,i.preco);
-      itens.push({cod:i.cod,nome:i.nome,desc:i.desc||'',qtd,preco_unit:unit,preco:unit*qtd,preco_base:i.preco,ajuste:st.ajustes[i.id]||0,img:i.img||null,finame:'',ncm:''});
+      itens.push({cod:i.cod,nome:i.nome,desc:i.desc||'',qtd,preco_unit:unit,preco:unit*qtd,preco_base:i.preco,ajuste:st.ajustes[i.id]||0,img:i.img||null});
     }
   });
   return itens;
