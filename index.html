@@ -463,7 +463,12 @@ async function loadProdutos(){
     rows.forEach(p=>{
       if(p.categoria==='carregador'){
         const c=CARREGADORES.find(x=>x.id===p.id);
-        if(c){c.preco=parseFloat(p.preco);if(p.nome)c.nome=p.nome;if(p.descricao)c.descricao=p.descricao;if(p.dados&&p.dados.finame)c.finame=p.dados.finame;}
+        if(c){c.preco=parseFloat(p.preco);if(p.nome)c.nome=p.nome;if(p.descricao)c.descricao=p.descricao;
+          const finameVal = p.finame || (p.dados&&p.dados.finame) || '';
+          if(finameVal) c.finame=finameVal;
+          if(p.ncm) c.ncm=p.ncm;
+          if(p.cod) c.cod=p.cod;
+        }
       } else if(p.categoria==='adaptador'){
         const a=ADAPTADORES.find(x=>x.id===p.id);
         if(a){a.preco=parseFloat(p.preco);if(p.nome)a.nome=p.nome;if(p.descricao)a.desc=p.descricao;}
@@ -494,49 +499,49 @@ async function loadProdutos(){
         const r=RASTHOR.find(x=>x.id===p.id);
         if(r){
           r.preco=parseFloat(p.preco);if(p.nome)r.nome=p.nome;if(p.descricao)r.desc=p.descricao;
-          if(p.cod) r.cod=p.cod; if(p.img) r.img=p.img;
+          if(p.cod) r.cod=p.cod; if(p.img) r.img=p.img; if(p.finame) r.finame=p.finame; if(p.ncm) r.ncm=p.ncm;
         } else {
-          RASTHOR.push({id:p.id,cod:p.cod||'',nome:p.nome||'Produto sem nome',hastes:'',esp:'',prof:'',desarme:'',finame:'',preco:parseFloat(p.preco)||0,desc:p.descricao||'',img:p.img||null});
+          RASTHOR.push({id:p.id,cod:p.cod||'',nome:p.nome||'Produto sem nome',hastes:'',esp:'',prof:'',desarme:'',finame:p.finame||'',ncm:p.ncm||'',preco:parseFloat(p.preco)||0,desc:p.descricao||'',img:p.img||null});
         }
       } else if(p.categoria==='carreta'){
         const c=CARRETAS.find(x=>x.id===p.id);
         if(c){
           c.preco=parseFloat(p.preco);if(p.nome)c.nome=p.nome;if(p.descricao)c.desc=p.descricao;
-          if(p.cod) c.cod=p.cod; if(p.img) c.img=p.img;
+          if(p.cod) c.cod=p.cod; if(p.img) c.img=p.img; if(p.finame) c.finame=p.finame; if(p.ncm) c.ncm=p.ncm;
         } else {
-          CARRETAS.push({id:p.id,cod:p.cod||'',nome:p.nome||'Produto sem nome',cap:'',eixos:null,preco:parseFloat(p.preco)||0,finame:'',ncm:'',desc:p.descricao||'',img:p.img||null});
+          CARRETAS.push({id:p.id,cod:p.cod||'',nome:p.nome||'Produto sem nome',cap:'',eixos:null,preco:parseFloat(p.preco)||0,finame:p.finame||'',ncm:p.ncm||'',desc:p.descricao||'',img:p.img||null});
         }
       } else if(p.categoria==='aerador'){
         const a=AERADORES.find(x=>x.id===p.id);
         if(a){
           a.preco=parseFloat(p.preco);if(p.nome)a.nome=p.nome;if(p.descricao)a.desc=p.descricao;
-          if(p.cod) a.cod=p.cod; if(p.img) a.img=p.img;
+          if(p.cod) a.cod=p.cod; if(p.img) a.img=p.img; if(p.finame) a.finame=p.finame; if(p.ncm) a.ncm=p.ncm;
         } else {
-          AERADORES.push({id:p.id,cod:p.cod||'',nome:p.nome||'Produto sem nome',cv:'',prof:'',entreLinhas:'',preco:parseFloat(p.preco)||0,finame:'',ncm:'',desc:p.descricao||'',img:p.img||null});
+          AERADORES.push({id:p.id,cod:p.cod||'',nome:p.nome||'Produto sem nome',cv:'',prof:'',entreLinhas:'',preco:parseFloat(p.preco)||0,finame:p.finame||'',ncm:p.ncm||'',desc:p.descricao||'',img:p.img||null});
         }
       } else if(p.categoria==='plantadeira'){
         const pl=PLANTADEIRAS.find(x=>x.id===p.id);
         if(pl){
           pl.preco=parseFloat(p.preco);if(p.nome)pl.nome=p.nome;if(p.descricao)pl.desc=p.descricao;
-          if(p.cod) pl.cod=p.cod; if(p.img) pl.img=p.img;
+          if(p.cod) pl.cod=p.cod; if(p.img) pl.img=p.img; if(p.finame) pl.finame=p.finame; if(p.ncm) pl.ncm=p.ncm;
         } else {
-          PLANTADEIRAS.push({id:p.id,cod:p.cod||'',nome:p.nome||'Produto sem nome',linhas:null,peso:'',cap:'',preco:parseFloat(p.preco)||0,finame:'',ncm:'',desc:p.descricao||'',img:p.img||null});
+          PLANTADEIRAS.push({id:p.id,cod:p.cod||'',nome:p.nome||'Produto sem nome',linhas:null,peso:'',cap:'',preco:parseFloat(p.preco)||0,finame:p.finame||'',ncm:p.ncm||'',desc:p.descricao||'',img:p.img||null});
         }
       } else if(p.categoria==='virtuos'){
         const v=VIRTUOS.find(x=>x.id===p.id);
         if(v){
           v.preco=parseFloat(p.preco);if(p.nome)v.nome=p.nome;if(p.descricao)v.desc=p.descricao;
-          if(p.cod) v.cod=p.cod; if(p.img) v.img=p.img;
+          if(p.cod) v.cod=p.cod; if(p.img) v.img=p.img; if(p.finame) v.finame=p.finame; if(p.ncm) v.ncm=p.ncm;
         } else {
-          VIRTUOS.push({id:p.id,cod:p.cod||'',nome:p.nome||'Produto sem nome',cap:'',finame:'',ncm:'',preco:parseFloat(p.preco)||0,desc:p.descricao||'',img:p.img||null});
+          VIRTUOS.push({id:p.id,cod:p.cod||'',nome:p.nome||'Produto sem nome',cap:'',finame:p.finame||'',ncm:p.ncm||'',preco:parseFloat(p.preco)||0,desc:p.descricao||'',img:p.img||null});
         }
       } else if(p.categoria==='mtsb'){
         const m=MTSB.find(x=>x.id===p.id);
         if(m){
           m.preco=parseFloat(p.preco);if(p.nome)m.nome=p.nome;if(p.descricao)m.desc=p.descricao;
-          if(p.cod) m.cod=p.cod; if(p.img) m.img=p.img;
+          if(p.cod) m.cod=p.cod; if(p.img) m.img=p.img; if(p.finame) m.finame=p.finame; if(p.ncm) m.ncm=p.ncm;
         } else {
-          MTSB.push({id:p.id,cod:p.cod||'',nome:p.nome||'Produto sem nome',chassi:'',caixas:null,motor:'',preco:parseFloat(p.preco)||0,desc:p.descricao||'',img:p.img||null});
+          MTSB.push({id:p.id,cod:p.cod||'',nome:p.nome||'Produto sem nome',chassi:'',caixas:null,motor:'',preco:parseFloat(p.preco)||0,finame:p.finame||'',ncm:p.ncm||'',desc:p.descricao||'',img:p.img||null});
         }
       } else {
         // Categoria dinâmica criada no Admin — mantém os produtos em bucket próprio
@@ -546,9 +551,9 @@ async function loadProdutos(){
         const ex = arr.find(x=>x.id===p.id);
         if(ex){
           ex.preco=parseFloat(p.preco);if(p.nome)ex.nome=p.nome;if(p.descricao!==undefined)ex.desc=p.descricao;
-          if(p.cod) ex.cod=p.cod; if(p.img) ex.img=p.img;
+          if(p.cod) ex.cod=p.cod; if(p.img) ex.img=p.img; if(p.finame) ex.finame=p.finame; if(p.ncm) ex.ncm=p.ncm;
         } else {
-          arr.push({id:p.id,cod:p.cod||'',nome:p.nome||'Produto sem nome',preco:parseFloat(p.preco)||0,desc:p.descricao||'',img:p.img||null});
+          arr.push({id:p.id,cod:p.cod||'',nome:p.nome||'Produto sem nome',preco:parseFloat(p.preco)||0,desc:p.descricao||'',img:p.img||null,finame:p.finame||'',ncm:p.ncm||''});
         }
       }
     });
@@ -772,7 +777,6 @@ function renderRasthor(){
             ${r.esp?`<span style="font-size:11px;background:var(--bg);color:var(--text2);padding:2px 8px;border-radius:4px">Esp. ${r.esp}</span>`:''}
             ${(r.prof&&r.prof!=='—')?`<span style="font-size:11px;background:var(--bg);color:var(--text2);padding:2px 8px;border-radius:4px">Prof. ${r.prof}</span>`:''}
             ${r.desarme?`<span style="font-size:11px;background:#FAEEDA;color:#633806;padding:2px 8px;border-radius:4px">Desarme ${r.desarme}</span>`:''}
-            ${r.finame?`<span style="font-size:11px;color:var(--text2)">Finame ${r.finame}</span>`:''}
           </div>
         </div>
         <div style="text-align:right;flex-shrink:0">
@@ -1051,7 +1055,7 @@ function gerarPDFRasthor(){
       const r=it.r;
       return [
         '',
-        r.nome.toUpperCase()+'\n'+r.desc+'\nFINAME '+r.finame+' · NCM 84322100\nDiscos 20" · Esp. '+r.esp+(r.prof!=='—'?' · Prof. '+r.prof:'')+' · Desarme '+r.desarme,
+        r.nome.toUpperCase()+'\n'+(r.desc||''),
         String(it.qtd),
         'R$ '+it.subtotal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})
       ];
@@ -1499,7 +1503,7 @@ async function salvarOrcamentoGenerico(){
   const itens = getSelPorTipo(tipo);
   if(!itens.length) return;
   const itensSalvar = itens.map(p=>({
-    cod:p.cod||'', nome:p.nome, desc:p.desc||'', finame:p.finame||'', ncm:p.ncm||'', img:p.img||null,
+    cod:p.cod||'', nome:p.nome, desc:p.desc||'', img:p.img||null,
     qtd:getQtd(p.id), preco:precoAjustado(p.id,p.preco), preco_base:p.preco, ajuste:st.ajustes[p.id]||0
   }));
   const total = itens.reduce((t,p)=>t+precoAjustado(p.id,p.preco)*getQtd(p.id),0);
@@ -1600,9 +1604,7 @@ function gerarPDFGenerico(){
     const unit=precoAjustado(prod.id, prod.preco);
     const subtotal=unit*qtd;
     subtotalGeral+=subtotal;
-    const finame=prod.finame?'FINAME '+prod.finame+' · ':'';
-    const ncm=prod.ncm?'NCM '+prod.ncm:'';
-    const bodyDesc=prod.nome.toUpperCase()+'\n'+prod.desc+'\n'+(finame+ncm).trim();
+    const bodyDesc=prod.nome.toUpperCase()+'\n'+prod.desc;
     return ['', bodyDesc, String(qtd), 'R$ '+subtotal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})];
   });
   doc.autoTable({
@@ -2574,7 +2576,7 @@ function montarItens(){
     const qtd=getQtd(c.id);
     if(qtd>0){
       const unit=precoAjustado(c.id,c.preco);
-      itens.push({cod:c.cod,nome:'Carregador Frontal Bandeirante '+c.nome,qtd,preco_unit:unit,preco:unit*qtd,preco_base:c.preco,ajuste:st.ajustes[c.id]||0,img:'hexline',finame:c.finame||'',ncm:c.ncm||''});
+      itens.push({cod:c.cod,nome:'Carregador Frontal Bandeirante '+c.nome,desc:c.descricao||'',qtd,preco_unit:unit,preco:unit*qtd,preco_base:c.preco,ajuste:st.ajustes[c.id]||0,img:'hexline'});
     }
   });
   ADAPTADORES.forEach(a=>{
@@ -2825,7 +2827,7 @@ function gerarPDF(){
 
   // Itens
   itens.forEach((it, idx) => {
-    const rh = 18;
+    const rh = it.desc ? 24 : 18;
     doc.setDrawColor(200);
     doc.setLineWidth(0.2);
     doc.rect(M, y, W-M*2, rh, 'S');
@@ -2856,10 +2858,7 @@ function gerarPDF(){
     doc.setFontSize(7);
     doc.setTextColor(120);
     let subY = y+6+nomeLines.length*4;
-    const subParts = [];
-    if(it.finame) subParts.push('FINAME '+it.finame);
-    if(it.ncm) subParts.push('NCM '+it.ncm);
-    if(subParts.length) { doc.text(subParts.join(' · '), cx+1, subY); }
+    if(it.desc){ const descLines = doc.splitTextToSize(it.desc, colW.nome-2); doc.text(descLines, cx+1, subY); }
 
     // Qtde e valor
     doc.setFont('helvetica','normal');
@@ -3330,7 +3329,6 @@ function abrirOrcamento(id){
           <button onclick="excluirItemOrc('${o.id}',${_idx})" title="Remover item" style="background:none;border:none;cursor:pointer;color:#c0392b;padding:2px 4px;flex-shrink:0;font-size:14px"><i class="ti ti-trash"></i></button>
         </div>
         ${it.desc?`<div style="font-size:11px;color:var(--text2);padding-right:20px">${it.desc}</div>`:''}
-        ${(it.finame||it.ncm)?`<div style="font-size:10px;color:var(--text3)">${it.finame?'FINAME '+it.finame:''}${it.finame&&it.ncm?' · ':''}${it.ncm?'NCM '+it.ncm:''}</div>`:''}
         ${adm&&it.saldoAcrescimo>0?`<div style="display:flex;justify-content:space-between;font-size:11px;color:#854F0B"><span>Saldo de acréscimo (acima da tabela)</span><span>+${fmt(it.saldoAcrescimo)}</span></div>`:''}
       </div>`;
       }).join('')}
@@ -3537,7 +3535,6 @@ async function regenarPDFHistorico(id){
   y+=hRow;
 
   itens.forEach((it,idx)=>{
-    const finameNcm = [it.finame?'FINAME '+it.finame:'', it.ncm?'NCM '+it.ncm:''].filter(Boolean).join(' · ');
     const rh = it.desc ? 24 : 18;
     doc.setDrawColor(200);doc.setLineWidth(0.2);doc.rect(M,y,W-M*2,rh,'S');
     cx2=M+1;
@@ -3549,8 +3546,7 @@ async function regenarPDFHistorico(id){
     const nl=doc.splitTextToSize((it.nome||'').toUpperCase(),colW2.nome-2);
     doc.text(nl,cx2+1,y+6);
     let yDesc = y+6+nl.length*4;
-    if(it.desc){doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(90);const dl=doc.splitTextToSize(it.desc,colW2.nome-2);doc.text(dl,cx2+1,yDesc);yDesc+=dl.length*3.5;}
-    if(finameNcm){doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(130);doc.text(finameNcm,cx2+1,yDesc);}
+    if(it.desc){doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(90);const dl=doc.splitTextToSize(it.desc,colW2.nome-2);doc.text(dl,cx2+1,yDesc);}
     if(it.ajuste){doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(180,90,0);doc.text((it.ajuste>0?'+':'')+it.ajuste+'%',cx2+1,y+6+nl.length*4);}
     doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(30);
     doc.text(String(it.qtd||1),W-M-26+5,y+8,{align:'center'});
@@ -3676,12 +3672,12 @@ async function renderAdmin(){
             <label>Descrição</label>
             <input type="text" id="adm-desc-${p.id}" value="${(p.descricao||'').replace(/"/g,'&quot;')}" style="font-size:12px">
           </div>
-          ${cat==='implemento'?`
           <div class="fr2" style="gap:8px;margin-top:6px">
             <div class="ig" style="margin:0">
               <label>Código</label>
               <input type="text" id="adm-cod-${p.id}" value="${(p.cod||'').replace(/"/g,'&quot;')}" style="font-size:12px">
             </div>
+            ${cat==='implemento'?`
             <div class="ig" style="margin:0">
               <label>Estrutura mínima exigida</label>
               <select id="adm-estrmin-${p.id}" style="font-size:12px">
@@ -3691,8 +3687,8 @@ async function renderAdmin(){
                 <option value="1950" ${p.estrutura_min==='1950'?'selected':''}>1950</option>
                 <option value="2200" ${p.estrutura_min==='2200'?'selected':''}>2200</option>
               </select>
-            </div>
-          </div>`:''}
+            </div>`:''}
+          </div>
           <div style="display:flex;gap:8px;margin-top:8px">
             <button class="btn btn-sm btn-primary" onclick="salvarProduto('${p.id}')">
               <i class="ti ti-device-floppy"></i> Salvar
