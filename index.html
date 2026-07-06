@@ -2571,7 +2571,8 @@ function s6(){
       <span style="font-size:14px;font-weight:700">Total</span>
       <span style="font-size:22px;font-weight:700">${fmt(totalComJuros)}</span>
     </div>
-    ${(!isNaN(nParcS6)&&nParcS6>1)?`<div style="font-size:10px;color:var(--text2);margin-top:2px">À vista: ${fmt(total)} · ${nParcS6}x com juros (+${nParcS6}%)</div>`:''}
+    <!-- Valor "à vista" omitido propositalmente do resumo do orçamento -->
+    ${false?`<div style="font-size:10px;color:var(--text2);margin-top:2px">À vista: ${fmt(total)} · ${nParcS6}x com juros (+${nParcS6}%)</div>`:''}
     ${saldoAcGeral>0?`<div style="display:flex;justify-content:space-between;padding:6px 8px;background:#FAEEDA;border-radius:var(--radius-sm);margin-top:6px">
       <span style="font-size:12px;font-weight:700;color:#633806"><i class="ti ti-discount-2"></i> Saldo extra (acréscimo geral ${acGeral}%)</span>
       <span style="font-size:13px;font-weight:700;color:#633806">+${fmt(saldoAcGeral)}</span>
