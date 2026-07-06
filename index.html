@@ -184,6 +184,29 @@ const SB_URL = 'https://rakdvggkuomvcvqbizqh.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJha2R2Z2drdW9tdmN2cWJpenFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExMDEyNTQsImV4cCI6MjA5NjY3NzI1NH0.sD6SCtjj1W2ghQjIHodgnZ-zLyghHeclF5OeikeailI';
 const IMGS = {};
 
+// ── CATEGORIAS DINÂMICAS (criadas pelo Admin) ──
+// Cada categoria custom fica em CATEGORIAS_CUSTOM: {id, nome, icone, ativo}
+// Os produtos de cada categoria custom ficam em PRODUTOS_POR_CATEGORIA[id] = [...]
+let CATEGORIAS_CUSTOM = [];
+let PRODUTOS_POR_CATEGORIA = {};
+
+async function loadCategorias(){
+  try{
+    const rows = await sbGet('categorias', 'ativo=eq.true&order=nome.asc');
+    if(Array.isArray(rows)) CATEGORIAS_CUSTOM = rows;
+  }catch(e){
+    // Tabela pode não existir ainda em instalações antigas — não trava o app.
+    console.warn('Erro ao carregar categorias customizadas:', e);
+  }
+}
+
+function gerarIdCategoria(nome){
+  const base = (nome||'categoria').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,30);
+  return (base||'categoria') + '_' + Date.now().toString(36);
+}
+
 async function sbReq(method, table, params, body, extraHeaders) {
   const url = SB_URL + '/rest/v1/' + table + (params ? '?' + params : '');
   const token = localStorage.getItem('sb_token') || SB_KEY;
@@ -515,6 +538,18 @@ async function loadProdutos(){
         } else {
           MTSB.push({id:p.id,cod:p.cod||'',nome:p.nome||'Produto sem nome',chassi:'',caixas:null,motor:'',preco:parseFloat(p.preco)||0,desc:p.descricao||'',img:p.img||null});
         }
+      } else {
+        // Categoria dinâmica criada no Admin — mantém os produtos em bucket próprio
+        // para que a categoria funcione como as demais (tela, lista, orçamento).
+        if(!PRODUTOS_POR_CATEGORIA[p.categoria]) PRODUTOS_POR_CATEGORIA[p.categoria] = [];
+        const arr = PRODUTOS_POR_CATEGORIA[p.categoria];
+        const ex = arr.find(x=>x.id===p.id);
+        if(ex){
+          ex.preco=parseFloat(p.preco);if(p.nome)ex.nome=p.nome;if(p.descricao!==undefined)ex.desc=p.descricao;
+          if(p.cod) ex.cod=p.cod; if(p.img) ex.img=p.img;
+        } else {
+          arr.push({id:p.id,cod:p.cod||'',nome:p.nome||'Produto sem nome',preco:parseFloat(p.preco)||0,desc:p.descricao||'',img:p.img||null});
+        }
       }
     });
   }catch(e){console.warn('Erro ao carregar produtos:',e);}
@@ -642,6 +677,19 @@ function renderHome(){
       </div>
       <i class="ti ti-chevron-right" style="font-size:20px;color:var(--text3)"></i>
     </div>
+
+    <!-- Categorias criadas no Admin (dinâmicas) -->
+    ${CATEGORIAS_CUSTOM.map(c=>{
+      const qtd = (PRODUTOS_POR_CATEGORIA[c.id]||[]).length;
+      return `<div onclick="linhaGenerica('${c.id}')" style="display:flex;align-items:center;gap:16px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.1rem 1.25rem;margin-bottom:12px;cursor:pointer;box-shadow:var(--shadow);transition:all .15s">
+      <div style="width:52px;height:52px;border-radius:var(--radius);background:var(--bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;font-size:24px">${c.icone||'📦'}</div>
+      <div style="flex:1">
+        <div style="font-size:15px;font-weight:700;color:var(--text)">${c.nome}</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:2px">${qtd} modelo${qtd===1?'':'s'}</div>
+      </div>
+      <i class="ti ti-chevron-right" style="font-size:20px;color:var(--text3)"></i>
+    </div>`;
+    }).join('')}
 
     <!-- Stats rápidas -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:1rem">
@@ -1141,7 +1189,8 @@ function arrayPorTipo(tipo){
   if(tipo==='plantadeira') return PLANTADEIRAS;
   if(tipo==='virtuos') return VIRTUOS;
   if(tipo==='mtsb') return MTSB;
-  return [];
+  // Categorias dinâmicas criadas pelo Admin
+  return PRODUTOS_POR_CATEGORIA[tipo] || [];
 }
 function getSelPorTipo(tipo){
   return arrayPorTipo(tipo).filter(p=>getQtd(p.id)>0);
@@ -1153,6 +1202,8 @@ function iconePorTipo(tipo){
   if(tipo==='plantadeira') return '<i class="ti ti-seeding" style="font-size:22px;color:#0C447C"></i>';
   if(tipo==='virtuos') return '<i class="ti ti-spray" style="font-size:22px;color:#633806"></i>';
   if(tipo==='mtsb') return '<i class="ti ti-plant" style="font-size:22px;color:#712B13"></i>';
+  const custom = CATEGORIAS_CUSTOM.find(c=>c.id===tipo);
+  if(custom) return `<span style="font-size:22px">${custom.icone||'📦'}</span>`;
   return '';
 }
 // Re-renderiza a lista genérica do tipo informado, sem precisar repassar array/ícone manualmente.
@@ -1225,7 +1276,8 @@ function abrirFormProduto(tipo) {
   _prodSel = {tipo};
   _cliGenSel = null;
 
-  const titulos = {carreta:'Carretas Graneleiras',aerador:'Aeradores',plantadeira:'Plantadeiras Agile',virtuos:'Distribuidor de Fertilizantes',mtsb:'Tratadores de Sementes'};
+  const titulosCustom = Object.fromEntries(CATEGORIAS_CUSTOM.map(c=>[c.id,c.nome]));
+  const titulos = {carreta:'Carretas Graneleiras',aerador:'Aeradores',plantadeira:'Plantadeiras Agile',virtuos:'Distribuidor de Fertilizantes',mtsb:'Tratadores de Sementes', ...titulosCustom};
   const tituloHdr = sel.length===1 ? sel[0].nome : sel.length+' itens selecionados';
 
   document.getElementById('app-content').innerHTML=`
@@ -1377,6 +1429,31 @@ function voltarLinha(tipo){
   else if(tipo==='plantadeira') linhaPlantadeira();
   else if(tipo==='virtuos') linhaVirtuos();
   else if(tipo==='mtsb') linhaTratador();
+  else linhaGenerica(tipo);
+}
+
+// Tela genérica de listagem/orçamento para qualquer categoria dinâmica criada no Admin.
+// Funciona exatamente como as telas fixas (Carretas, Aeradores etc.), sem precisar
+// codificar uma função nova a cada categoria criada pelo usuário.
+function linhaGenerica(tipo){
+  const cat = CATEGORIAS_CUSTOM.find(c=>c.id===tipo);
+  const nome = cat?.nome || tipo;
+  document.getElementById('app-content').innerHTML=`
+  <div style="display:flex;align-items:center;gap:10px;padding:.75rem 1rem;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:56px;z-index:50">
+    <button class="btn btn-sm" onclick="showTab('home')"><i class="ti ti-arrow-left"></i></button>
+    <div>
+      <div style="font-size:14px;font-weight:700">${nome}</div>
+      <div style="font-size:11px;color:var(--text2)">Bandeirante Máquinas</div>
+    </div>
+  </div>
+  <div class="page-wrap" style="padding-bottom:90px">
+    <div style="margin-bottom:1rem">
+      <div style="font-size:13px;color:var(--text2)">Selecione o(s) modelo(s) e a quantidade para gerar orçamento</div>
+    </div>
+    <div id="lista-${tipo}"></div>
+  </div>
+  <div id="btn-area-${tipo}" style="position:fixed;left:0;right:0;bottom:0;padding:.75rem 1rem;background:var(--bg2);border-top:1px solid var(--border);z-index:60"></div>`;
+  renderListaGenerica(tipo, arrayPorTipo(tipo), iconePorTipo(tipo));
 }
 
 function abrirModalCliGen(){
@@ -1508,7 +1585,7 @@ function gerarPDFGenerico(){
   y+=2; doc.setDrawColor(180);doc.line(M,y,W-M,y);y+=4;
 
   // Categoria
-  const cats={carreta:'CARRETAS GRANELEIRAS',aerador:'AERADORES',plantadeira:'PLANTADEIRAS',virtuos:'DISTRIBUIDOR DE FERTILIZANTES',mtsb:'TRATADORES DE SEMENTES'};
+  const cats={carreta:'CARRETAS GRANELEIRAS',aerador:'AERADORES',plantadeira:'PLANTADEIRAS',virtuos:'DISTRIBUIDOR DE FERTILIZANTES',mtsb:'TRATADORES DE SEMENTES', ...Object.fromEntries(CATEGORIAS_CUSTOM.map(c=>[c.id,(c.nome||'').toUpperCase()]))};
   doc.setFillColor(240,240,240);doc.rect(M,y,W-M*2,7,'F');
   doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(30);
   doc.text(cats[tipo]||'PRODUTO',M+2,y+4.5);y+=8;
@@ -3547,7 +3624,7 @@ async function renderAdmin(){
     try{ rows = await sbGet('produtos','order=categoria.asc,id.asc'); }catch(e){}
   }
 
-  const cats={carregador:'Carregadores',adaptador:'Adaptadores',joystick:'Joysticks',implemento:'Implementos',rasthor:'Rasthor — Preparo de Solo',carreta:'Carretas Graneleiras',aerador:'Aeradores',plantadeira:'Plantadeiras Agile',virtuos:'Distribuidor de Fertilizantes',mtsb:'Tratadores de Sementes'};
+  const cats={carregador:'Carregadores',adaptador:'Adaptadores',joystick:'Joysticks',implemento:'Implementos',rasthor:'Rasthor — Preparo de Solo',carreta:'Carretas Graneleiras',aerador:'Aeradores',plantadeira:'Plantadeiras Agile',virtuos:'Distribuidor de Fertilizantes',mtsb:'Tratadores de Sementes', ...Object.fromEntries(CATEGORIAS_CUSTOM.map(c=>[c.id,c.nome]))};
   const grupos=Object.keys(cats);
   document.getElementById('app-content').innerHTML=`
   <div class="page-wrap">
@@ -3632,7 +3709,19 @@ async function renderAdmin(){
           <option value="virtuos">Distribuidor de Fertilizantes</option>
           <option value="mtsb">Tratadores de Sementes</option>
           <option value="implemento">Implementos (Carregadores)</option>
+          ${CATEGORIAS_CUSTOM.map(c=>`<option value="${c.id}">${c.nome}</option>`).join('')}
+          <option value="__nova__">+ Criar nova categoria...</option>
         </select>
+      </div>
+      <div class="ig" id="new-cat-wrap" style="margin:0 0 6px 0;display:none;background:var(--bg);border-radius:var(--radius-sm);padding:.75rem">
+        <div style="font-size:12px;font-weight:700;margin-bottom:.5rem">Nova categoria</div>
+        <div class="fr2" style="gap:8px">
+          <div class="ig" style="margin:0"><label>Nome da categoria *</label><input type="text" id="new-cat-nome" placeholder="Ex: Roçadeiras" style="font-size:12px"></div>
+          <div class="ig" style="margin:0"><label>Ícone (emoji)</label><input type="text" id="new-cat-icone" placeholder="🌾" maxlength="4" style="font-size:12px"></div>
+        </div>
+        <button class="btn btn-sm btn-primary" style="margin-top:6px" onclick="criarCategoriaNova()">
+          <i class="ti ti-plus"></i> Criar categoria
+        </button>
       </div>
       <div class="fr2" style="gap:8px">
         <div class="ig" style="margin:0"><label>Nome *</label><input type="text" id="new-prod-nome" placeholder="Ex: Concha 2,65m" style="font-size:12px"></div>
@@ -3700,11 +3789,43 @@ function atualizarCamposProdutoNovo(){
   const cat = document.getElementById('new-prod-categoria')?.value;
   const wrap = document.getElementById('new-prod-estrmin-wrap');
   if(wrap) wrap.style.display = (cat==='implemento') ? '' : 'none';
+  const catWrap = document.getElementById('new-cat-wrap');
+  if(catWrap) catWrap.style.display = (cat==='__nova__') ? '' : 'none';
+}
+
+// Cria uma nova categoria (tabela 'categorias' no Supabase) a partir do Admin,
+// deixando-a disponível imediatamente no select de "Tipo de Produto" e como
+// uma nova seção própria na tela de Orçamento — igual às categorias fixas.
+async function criarCategoriaNova(){
+  const nome = document.getElementById('new-cat-nome')?.value?.trim();
+  const icone = document.getElementById('new-cat-icone')?.value?.trim() || '📦';
+  if(!nome){ toast('Digite o nome da nova categoria.'); return; }
+  const id = gerarIdCategoria(nome);
+  try{
+    await sbPost('categorias', {id, nome, icone, ativo:true});
+    CATEGORIAS_CUSTOM.push({id, nome, icone, ativo:true});
+    if(!PRODUTOS_POR_CATEGORIA[id]) PRODUTOS_POR_CATEGORIA[id] = [];
+    toast('✓ Categoria "'+nome+'" criada!');
+    const sel = document.getElementById('new-prod-categoria');
+    if(sel){
+      const opt = document.createElement('option');
+      opt.value = id; opt.textContent = nome;
+      sel.insertBefore(opt, sel.querySelector('option[value="__nova__"]'));
+      sel.value = id;
+    }
+    document.getElementById('new-cat-nome').value='';
+    document.getElementById('new-cat-icone').value='';
+    atualizarCamposProdutoNovo();
+  }catch(e){
+    console.error('Erro ao criar categoria:', e);
+    toast('Erro ao criar categoria. Verifique se a tabela "categorias" existe no Supabase.');
+  }
 }
 
 async function adicionarProdutoNovoCategoria(){
   const categoria = document.getElementById('new-prod-categoria')?.value;
   if(!categoria){ toast('Selecione a categoria do produto.'); return; }
+  if(categoria==='__nova__'){ toast('Clique em "Criar categoria" antes de cadastrar o produto.'); return; }
   await adicionarProdutoNovo(categoria, {
     nomeId:'new-prod-nome', codId:'new-prod-cod', precoId:'new-prod-preco',
     grupoId:'new-prod-grupo', descId:'new-prod-desc', estrMinId:'new-prod-estrmin',
@@ -3946,7 +4067,7 @@ async function excluirProduto(id, nome){
   if(!confirm(`Excluir o produto "${nome}"? Essa ação não pode ser desfeita.`)) return;
   try{
     await sbReq('DELETE','produtos','id=eq.'+id);
-    [RASTHOR,CARRETAS,AERADORES,PLANTADEIRAS,VIRTUOS,MTSB,IMPLEMENTOS,CARREGADORES,ADAPTADORES,JOYSTICKS].forEach(arr=>{
+    [RASTHOR,CARRETAS,AERADORES,PLANTADEIRAS,VIRTUOS,MTSB,IMPLEMENTOS,CARREGADORES,ADAPTADORES,JOYSTICKS,...Object.values(PRODUTOS_POR_CATEGORIA)].forEach(arr=>{
       const idx=arr.findIndex(x=>x.id===id);
       if(idx>-1) arr.splice(idx,1);
     });
@@ -4136,7 +4257,7 @@ function entrarNoApp(){
     +'<button class="btn btn-sm" style="margin-left:4px" onclick="fazerLogout()" title="Sair"><i class="ti ti-logout"></i></button>';
   const navAdmin=document.getElementById('nav-admin');
   if(navAdmin)navAdmin.style.display=isAdmin()?'':'none';
-  Promise.all([loadProdutos(),loadOrcamentos(),loadVendedores()]).then(()=>{
+  Promise.all([loadCategorias(),loadProdutos(),loadOrcamentos(),loadVendedores()]).then(()=>{
     showTab('home');
     loadClientes(true);
   });
