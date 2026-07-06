@@ -1498,7 +1498,10 @@ async function salvarOrcamentoGenerico(){
   const gn=fid=>(document.getElementById(fid)||{}).value||'';
   const itens = getSelPorTipo(tipo);
   if(!itens.length) return;
-  const itensSalvar = itens.map(p=>({nome:p.nome,qtd:getQtd(p.id),preco:precoAjustado(p.id,p.preco),ajuste:st.ajustes[p.id]||0}));
+  const itensSalvar = itens.map(p=>({
+    cod:p.cod||'', nome:p.nome, desc:p.desc||'', finame:p.finame||'', ncm:p.ncm||'', img:p.img||null,
+    qtd:getQtd(p.id), preco:precoAjustado(p.id,p.preco), preco_base:p.preco, ajuste:st.ajustes[p.id]||0
+  }));
   const total = itens.reduce((t,p)=>t+precoAjustado(p.id,p.preco)*getQtd(p.id),0);
   const btn=document.getElementById('btn-salvar-gen');
   if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .7s linear infinite"></i> Salvando...';}
@@ -2571,7 +2574,7 @@ function montarItens(){
     const qtd=getQtd(c.id);
     if(qtd>0){
       const unit=precoAjustado(c.id,c.preco);
-      itens.push({cod:c.cod,nome:'Plaina Agrícola Bandeirante '+c.nome,qtd,preco_unit:unit,preco:unit*qtd,preco_base:c.preco,ajuste:st.ajustes[c.id]||0,img:'hexline',finame:c.finame||'03874492',ncm:'84328000'});
+      itens.push({cod:c.cod,nome:'Carregador Frontal Bandeirante '+c.nome,qtd,preco_unit:unit,preco:unit*qtd,preco_base:c.preco,ajuste:st.ajustes[c.id]||0,img:'hexline',finame:c.finame||'',ncm:c.ncm||''});
     }
   });
   ADAPTADORES.forEach(a=>{
@@ -2594,7 +2597,7 @@ function montarItens(){
     const qtd=getQtd(i.id);
     if(qtd>0){
       const unit=precoAjustado(i.id,i.preco);
-      itens.push({cod:i.cod,nome:i.nome,qtd,preco_unit:unit,preco:unit*qtd,preco_base:i.preco,ajuste:st.ajustes[i.id]||0,img:i.img||null,finame:'',ncm:''});
+      itens.push({cod:i.cod,nome:i.nome,desc:i.desc||'',qtd,preco_unit:unit,preco:unit*qtd,preco_base:i.preco,ajuste:st.ajustes[i.id]||0,img:i.img||null,finame:'',ncm:''});
     }
   });
   return itens;
@@ -3326,6 +3329,8 @@ function abrirOrcamento(id){
           <span style="font-weight:600;flex-shrink:0">${fmt(it.precoTotal)}</span>
           <button onclick="excluirItemOrc('${o.id}',${_idx})" title="Remover item" style="background:none;border:none;cursor:pointer;color:#c0392b;padding:2px 4px;flex-shrink:0;font-size:14px"><i class="ti ti-trash"></i></button>
         </div>
+        ${it.desc?`<div style="font-size:11px;color:var(--text2);padding-right:20px">${it.desc}</div>`:''}
+        ${(it.finame||it.ncm)?`<div style="font-size:10px;color:var(--text3)">${it.finame?'FINAME '+it.finame:''}${it.finame&&it.ncm?' · ':''}${it.ncm?'NCM '+it.ncm:''}</div>`:''}
         ${adm&&it.saldoAcrescimo>0?`<div style="display:flex;justify-content:space-between;font-size:11px;color:#854F0B"><span>Saldo de acréscimo (acima da tabela)</span><span>+${fmt(it.saldoAcrescimo)}</span></div>`:''}
       </div>`;
       }).join('')}
@@ -3532,16 +3537,20 @@ async function regenarPDFHistorico(id){
   y+=hRow;
 
   itens.forEach((it,idx)=>{
-    const rh=18;
+    const finameNcm = [it.finame?'FINAME '+it.finame:'', it.ncm?'NCM '+it.ncm:''].filter(Boolean).join(' · ');
+    const rh = it.desc ? 24 : 18;
     doc.setDrawColor(200);doc.setLineWidth(0.2);doc.rect(M,y,W-M*2,rh,'S');
     cx2=M+1;
     doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(60);
     doc.text(String(idx+1),cx2+2,y+8);cx2+=colW2.num;
-    try{const imgK=it.img||'hexline';if(IMGS[imgK])doc.addImage(IMGS[imgK],imgFmt(IMGS[imgK]),cx2,y+2,12,12);}catch(e){}
+    try{const imgK=it.img;if(imgK&&IMGS[imgK])doc.addImage(IMGS[imgK],imgFmt(IMGS[imgK]),cx2,y+2,12,12);else if(it.img&&it.img.startsWith('data:'))doc.addImage(it.img,imgFmt(it.img),cx2,y+2,12,12);}catch(e){}
     cx2+=colW2.img;
     doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(30);
     const nl=doc.splitTextToSize((it.nome||'').toUpperCase(),colW2.nome-2);
     doc.text(nl,cx2+1,y+6);
+    let yDesc = y+6+nl.length*4;
+    if(it.desc){doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(90);const dl=doc.splitTextToSize(it.desc,colW2.nome-2);doc.text(dl,cx2+1,yDesc);yDesc+=dl.length*3.5;}
+    if(finameNcm){doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(130);doc.text(finameNcm,cx2+1,yDesc);}
     if(it.ajuste){doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(180,90,0);doc.text((it.ajuste>0?'+':'')+it.ajuste+'%',cx2+1,y+6+nl.length*4);}
     doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(30);
     doc.text(String(it.qtd||1),W-M-26+5,y+8,{align:'center'});
