@@ -3823,7 +3823,7 @@ async function criarCategoriaNova(){
     atualizarCamposProdutoNovo();
   }catch(e){
     console.error('Erro ao criar categoria:', e);
-    toast('Erro ao criar categoria. Verifique se a tabela "categorias" existe no Supabase.');
+    toast('Erro ao criar categoria: '+(e.message||'verifique se a tabela "categorias" existe no Supabase.'));
   }
 }
 
