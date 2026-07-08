@@ -687,7 +687,7 @@ function renderHome(){
     ${CATEGORIAS_CUSTOM.map(c=>{
       const qtd = (PRODUTOS_POR_CATEGORIA[c.id]||[]).length;
       return `<div onclick="linhaGenerica('${c.id}')" style="display:flex;align-items:center;gap:16px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.1rem 1.25rem;margin-bottom:12px;cursor:pointer;box-shadow:var(--shadow);transition:all .15s">
-      <div style="width:52px;height:52px;border-radius:var(--radius);background:var(--bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;font-size:24px">${c.icone||'📦'}</div>
+      <div style="width:52px;height:52px;border-radius:var(--radius);background:var(--bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;font-size:24px">${c.imagem?`<img src="${c.imagem}" style="width:100%;height:100%;object-fit:cover">`:(c.icone||'📦')}</div>
       <div style="flex:1">
         <div style="font-size:15px;font-weight:700;color:var(--text)">${c.nome}</div>
         <div style="font-size:12px;color:var(--text2);margin-top:2px">${qtd} modelo${qtd===1?'':'s'}</div>
@@ -1207,7 +1207,9 @@ function iconePorTipo(tipo){
   if(tipo==='virtuos') return '<i class="ti ti-spray" style="font-size:22px;color:#633806"></i>';
   if(tipo==='mtsb') return '<i class="ti ti-plant" style="font-size:22px;color:#712B13"></i>';
   const custom = CATEGORIAS_CUSTOM.find(c=>c.id===tipo);
-  if(custom) return `<span style="font-size:22px">${custom.icone||'📦'}</span>`;
+  if(custom) return custom.imagem
+    ? `<img src="${custom.imagem}" style="width:22px;height:22px;object-fit:cover;border-radius:4px">`
+    : `<span style="font-size:22px">${custom.icone||'📦'}</span>`;
   return '';
 }
 // Re-renderiza a lista genérica do tipo informado, sem precisar repassar array/ícone manualmente.
@@ -3722,7 +3724,11 @@ async function renderAdmin(){
         <div style="font-size:12px;font-weight:700;margin-bottom:.5rem">Nova categoria</div>
         <div class="fr2" style="gap:8px">
           <div class="ig" style="margin:0"><label>Nome da categoria *</label><input type="text" id="new-cat-nome" placeholder="Ex: Roçadeiras" style="font-size:12px"></div>
-          <div class="ig" style="margin:0"><label>Ícone (emoji)</label><input type="text" id="new-cat-icone" placeholder="🌾" maxlength="4" style="font-size:12px"></div>
+          <div class="ig" style="margin:0"><label>Ícone (emoji, se não usar imagem)</label><input type="text" id="new-cat-icone" placeholder="🌾" maxlength="4" style="font-size:12px"></div>
+        </div>
+        <div class="ig" style="margin-top:6px;margin-bottom:0">
+          <label>Imagem da categoria (opcional)</label>
+          <input type="file" id="new-cat-img" accept="image/*,.jfif,.jpg,.jpeg,.png,.webp" style="font-size:12px">
         </div>
         <button class="btn btn-sm btn-primary" style="margin-top:6px" onclick="criarCategoriaNova()">
           <i class="ti ti-plus"></i> Criar categoria
@@ -3804,11 +3810,23 @@ function atualizarCamposProdutoNovo(){
 async function criarCategoriaNova(){
   const nome = document.getElementById('new-cat-nome')?.value?.trim();
   const icone = document.getElementById('new-cat-icone')?.value?.trim() || '📦';
+  const imgInput = document.getElementById('new-cat-img');
   if(!nome){ toast('Digite o nome da nova categoria.'); return; }
   const id = gerarIdCategoria(nome);
+
+  let imagem = null;
+  if(imgInput?.files?.[0]){
+    imagem = await lerImagemComoBase64(imgInput);
+    if(!imagem || imagem.length < 100){
+      console.warn('Falha ao ler a imagem da categoria:', imgInput.files[0].name);
+      toast('⚠️ Categoria criada, mas a imagem não pôde ser lida.');
+      imagem = null;
+    }
+  }
+
   try{
-    await sbPost('categorias', {id, nome, icone, ativo:true});
-    CATEGORIAS_CUSTOM.push({id, nome, icone, ativo:true});
+    await sbPost('categorias', {id, nome, icone, imagem, ativo:true});
+    CATEGORIAS_CUSTOM.push({id, nome, icone, imagem, ativo:true});
     if(!PRODUTOS_POR_CATEGORIA[id]) PRODUTOS_POR_CATEGORIA[id] = [];
     toast('✓ Categoria "'+nome+'" criada!');
     const sel = document.getElementById('new-prod-categoria');
@@ -3820,6 +3838,7 @@ async function criarCategoriaNova(){
     }
     document.getElementById('new-cat-nome').value='';
     document.getElementById('new-cat-icone').value='';
+    if(imgInput) imgInput.value='';
     atualizarCamposProdutoNovo();
   }catch(e){
     console.error('Erro ao criar categoria:', e);
