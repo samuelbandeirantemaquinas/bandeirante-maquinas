@@ -444,6 +444,7 @@ const LOGINS = [
   {email:'agromasvendas@gmail.com',                    senhaPadrao:'bandeirante2026', nome:'Marco Antonio',      role:'vendedor'},
   {email:'forti.representacoes@gmail.com',             senhaPadrao:'bandeirante2026', nome:'Renato Forti',       role:'vendedor'},
   {email:'brenostelzer@gmail.com',                     senhaPadrao:'bandeirante2026', nome:'Breno Eduardo',      role:'vendedor'},
+  {email:'gleycon@pulverizan.com.br',                  senhaPadrao:'bandeirante2026', nome:'Gleycon Wilker',     role:'vendedor'},
 ];
 
 // Retorna a senha "ativa" do login: se o vendedor já trocou a senha
@@ -3663,6 +3664,7 @@ async function renderAdmin(){
       <button class="adm-tab-btn active" id="adm-tab-btn-produtos" onclick="showAdminTab('produtos')" style="padding:.6rem 1rem;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid var(--primary);color:var(--primary);cursor:pointer">📦 Produtos</button>
       <button class="adm-tab-btn" id="adm-tab-btn-vendedores" onclick="showAdminTab('vendedores')" style="padding:.6rem 1rem;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;color:var(--text2);cursor:pointer">👤 Vendedores</button>
       <button class="adm-tab-btn" id="adm-tab-btn-performance" onclick="showAdminTab('performance')" style="padding:.6rem 1rem;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;color:var(--text2);cursor:pointer">📊 Performance</button>
+      <button class="adm-tab-btn" id="adm-tab-btn-backup" onclick="showAdminTab('backup')" style="padding:.6rem 1rem;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;color:var(--text2);cursor:pointer">💾 Backup</button>
     </div>
 
     <div id="admin-tab-produtos">
@@ -3810,6 +3812,29 @@ async function renderAdmin(){
     </div>
 
     <div id="admin-tab-performance" style="display:none"></div>
+
+    <div id="admin-tab-backup" style="display:none">
+      <div style="margin-bottom:1.25rem">
+        <div style="font-size:13px;font-weight:700;margin-bottom:.35rem">Backup completo dos dados</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.5">
+          Baixa um arquivo com uma cópia de tudo que está salvo no banco agora: Clientes, Orçamentos,
+          Vendedores, Produtos e Categorias. Guarde esse arquivo em algum lugar seguro (Google Drive, e-mail para você mesmo, etc.).
+          Recomendado fazer isso periodicamente — por exemplo, uma vez por semana.
+        </div>
+      </div>
+      <button class="btn btn-primary" id="btn-fazer-backup" onclick="fazerBackupCompleto()">
+        <i class="ti ti-download"></i> Baixar backup agora
+      </button>
+      <div id="backup-status" style="margin-top:.75rem;font-size:12px;color:var(--text2)"></div>
+      <div style="margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--border)">
+        <div style="font-size:13px;font-weight:700;margin-bottom:.35rem">Como restaurar um backup</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.5">
+          O arquivo baixado é um .json com todos os dados. Se precisar restaurar, me envie o arquivo
+          (ou peça para alguém técnico importar de volta nas tabelas do Supabase) — não é uma operação
+          para fazer sozinho sem orientação, para evitar duplicar ou sobrescrever dados por engano.
+        </div>
+      </div>
+    </div>
   </div>`;
 }
 
@@ -3878,7 +3903,7 @@ async function adicionarProdutoNovoCategoria(){
 
 
 function showAdminTab(tab){
-  const abas=['produtos','vendedores','performance'];
+  const abas=['produtos','vendedores','performance','backup'];
   abas.forEach(a=>{
     const div=document.getElementById('admin-tab-'+a);
     const btn=document.getElementById('adm-tab-btn-'+a);
@@ -3889,6 +3914,82 @@ function showAdminTab(tab){
     }
   });
   if(tab==='performance') renderAdminPerformance();
+}
+
+// Busca TODAS as linhas de uma tabela do Supabase, paginando de 1000 em 1000
+// (a API do Supabase limita o retorno por padrão, então sem paginação um backup
+// de uma tabela grande — como clientes ou orçamentos — viria incompleto).
+async function sbGetTudo(table, orderBy){
+  const pageSize = 1000;
+  let all = [];
+  let from = 0;
+  let hasMore = true;
+  while(hasMore){
+    const to = from + pageSize - 1;
+    const r = await fetch(SB_URL+'/rest/v1/'+table+'?order='+(orderBy||'id.asc'), {
+      headers:{'apikey':SB_KEY,'Authorization':'Bearer '+(localStorage.getItem('sb_token')||SB_KEY),'Range':from+'-'+to,'Prefer':'count=none'}
+    });
+    if(!r.ok) break;
+    const chunk = await r.json();
+    if(!Array.isArray(chunk) || chunk.length===0) break;
+    all = all.concat(chunk);
+    if(chunk.length < pageSize) break;
+    from += pageSize;
+  }
+  return all;
+}
+
+// Baixa um arquivo .json com uma cópia de todas as tabelas do sistema
+// (clientes, orçamentos, vendedores, produtos, categorias), para o Admin
+// guardar como backup manual em algum lugar seguro fora do Supabase.
+async function fazerBackupCompleto(){
+  const btn = document.getElementById('btn-fazer-backup');
+  const status = document.getElementById('backup-status');
+  if(btn) btn.disabled = true;
+  if(status) status.textContent = 'Buscando dados... isso pode levar alguns segundos.';
+  try{
+    const [clientesBk, orcamentosBk, vendedoresBk, produtosBk, categoriasBk] = await Promise.all([
+      sbGetTudo('clientes','nome.asc'),
+      sbGetTudo('orcamentos','criado_em.desc'),
+      sbGetTudo('vendedores','nome.asc'),
+      sbGetTudo('produtos','categoria.asc'),
+      sbGetTudo('categorias','nome.asc').catch(()=>[])
+    ]);
+
+    const backup = {
+      gerado_em: new Date().toISOString(),
+      sistema: 'Bandeirante Máquinas',
+      totais: {
+        clientes: clientesBk.length, orcamentos: orcamentosBk.length,
+        vendedores: vendedoresBk.length, produtos: produtosBk.length, categorias: categoriasBk.length
+      },
+      clientes: clientesBk,
+      orcamentos: orcamentosBk,
+      vendedores: vendedoresBk,
+      produtos: produtosBk,
+      categorias: categoriasBk
+    };
+
+    const blob = new Blob([JSON.stringify(backup, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const dataStr = new Date().toISOString().slice(0,10);
+    a.href = url;
+    a.download = `backup-bandeirante-${dataStr}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+
+    if(status) status.textContent = `✓ Backup baixado! ${backup.totais.clientes} clientes, ${backup.totais.orcamentos} orçamentos, ${backup.totais.vendedores} vendedores, ${backup.totais.produtos} produtos, ${backup.totais.categorias} categorias.`;
+    toast('✓ Backup baixado com sucesso!');
+  }catch(e){
+    console.error('Erro ao gerar backup:', e);
+    if(status) status.textContent = 'Erro ao gerar backup: '+(e.message||'tente novamente.');
+    toast('Erro ao gerar backup.');
+  }finally{
+    if(btn) btn.disabled = false;
+  }
 }
 
 // Filtra a lista de categorias visíveis na aba Produtos do Admin, conforme a
