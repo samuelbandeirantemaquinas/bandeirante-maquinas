@@ -419,6 +419,7 @@ let st = {step:0,marcaSel:null,modeloSel:null,adaptDB:null,clienteSel:null,acres
 let clientes = [];
 let orcamentos = [];
 let vendedores = [];
+let _orcamentosCarregados = false;
 let currentUser = null;
 let currentPerfil = null;
 
@@ -2999,7 +3000,12 @@ async function loadClientes(silencioso){
       if(chunk.length<pageSize){hasMore=false;}else{from+=pageSize;}
     }
     clientes=all;
-    if(!silencioso) atualizarUIClientes();
+    // A atualização final da UI deve acontecer sempre, mesmo em carregamento
+    // silencioso — senão, se o usuário abrir a aba "Clientes" enquanto o
+    // carregamento inicial (em segundo plano) ainda está em andamento, a tela
+    // fica presa mostrando "0 clientes" para sempre, porque a re-renderização
+    // nunca era disparada quando o carregamento terminava.
+    atualizarUIClientes();
   }catch(e){console.warn('Erro clientes:',e);clientes=[];}
   finally{_clientesCarregando=false;}
 }
@@ -3013,10 +3019,12 @@ function atualizarUIClientes(){
 }
 
 function renderClientes(){
-  // Se ainda não carregou, mostra loading e dispara carga
-  if(clientes.length===0 && !_clientesCarregando){
+  // Se ainda não carregou, mostra loading. Se já existe uma carga em andamento
+  // (ex: o carregamento inicial em segundo plano), não dispara outra —
+  // só aguarda, já que agora a tela é atualizada automaticamente quando ela terminar.
+  if(clientes.length===0){
     document.getElementById('app-content').innerHTML=`<div class="page-wrap"><div class="empty" style="padding:3rem"><i class="ti ti-loader ti-spin" style="font-size:32px;color:var(--primary)"></i><div style="margin-top:.5rem;color:var(--text2)">Carregando clientes...</div></div></div>`;
-    loadClientes(false);
+    if(!_clientesCarregando) loadClientes(false);
     return;
   }
   document.getElementById('app-content').innerHTML=`
@@ -3217,10 +3225,18 @@ async function loadOrcamentos(){
     orcamentos=await sbGet('orcamentos',filter);
     if(!Array.isArray(orcamentos))orcamentos=[];
   }catch(e){orcamentos=[];}
+  _orcamentosCarregados = true;
+  // Se o usuário já estiver com a aba Histórico aberta esperando os dados
+  // (por exemplo, abriu a aba antes do carregamento inicial terminar), atualiza a tela agora.
+  if(currentTab==='historico') renderHistorico();
 }
 
 function renderHistorico(){
   const adm=isAdmin();
+  if(!_orcamentosCarregados){
+    document.getElementById('app-content').innerHTML=`<div class="page-wrap"><div class="empty" style="padding:3rem"><i class="ti ti-loader ti-spin" style="font-size:32px;color:var(--primary)"></i><div style="margin-top:.5rem;color:var(--text2)">Carregando histórico...</div></div></div>`;
+    return;
+  }
   document.getElementById('app-content').innerHTML=`
   <div class="page-wrap">
     <div style="margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center">
@@ -3609,6 +3625,8 @@ async function loadVendedores(){
 async function renderAdmin(){
   if(!isAdmin()){showTab('home');return;}
   document.getElementById('app-content').innerHTML=`<div class="page-wrap"><div style="font-size:16px;font-weight:700;margin-bottom:1rem">Carregando produtos...</div></div>`;
+  // Evita mostrar a aba "Vendedores" vazia caso o carregamento inicial ainda não tenha terminado.
+  if(!vendedores.length){ try{ await loadVendedores(); }catch(e){} }
   let rows=[];
   try{rows=await sbGet('produtos','order=categoria.asc,id.asc');}catch(e){}
 
