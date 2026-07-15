@@ -2598,7 +2598,12 @@ function montarItens(){
     const qtd=getQtd(c.id);
     if(qtd>0){
       const unit=precoAjustado(c.id,c.preco);
-      itens.push({cod:c.cod,nome:'Carregador Frontal Bandeirante '+c.nome,desc:c.descricao||'',qtd,preco_unit:unit,preco:unit*qtd,preco_base:c.preco,ajuste:st.ajustes[c.id]||0,img:'hexline'});
+      let descCarreg = c.descricao||'';
+      if(st.adaptDB && st.adaptDB.obs && /tanque|\btq\b/i.test(st.adaptDB.obs)){
+        const obsTanque = st.adaptDB.obs + (st.adaptDB.adaptador?' · Adaptador '+st.adaptDB.adaptador:'');
+        descCarreg = descCarreg ? descCarreg+' · '+obsTanque : obsTanque;
+      }
+      itens.push({cod:c.cod,nome:'Carregador Frontal Bandeirante '+c.nome,desc:descCarreg,qtd,preco_unit:unit,preco:unit*qtd,preco_base:c.preco,ajuste:st.ajustes[c.id]||0,img:'hexline'});
     }
   });
   ADAPTADORES.forEach(a=>{
@@ -2659,7 +2664,8 @@ function s6(){
     ${m&&st.modeloSel?`<div style="display:flex;align-items:center;gap:8px;background:${m.cor}12;border:1px solid ${m.cor}33;border-radius:var(--radius-sm);padding:.6rem .8rem;margin-bottom:.75rem">
       <div style="width:28px;height:28px;border-radius:50%;background:${m.cor};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:${m.txt}">${m.abbr}</div>
       <div><div style="font-size:12px;font-weight:600">${m.label} · ${(st.modeloSel||'').split(' — ')[0].split(' - ')[0].trim()}</div>
-      ${st.adaptDB?.adaptador?`<div style="font-size:11px;color:var(--text2)">Adapt: <span style="font-family:monospace">${st.adaptDB.adaptador}</span></div>`:''}</div></div>`:''}
+      ${st.adaptDB?.adaptador?`<div style="font-size:11px;color:var(--text2)">Adapt: <span style="font-family:monospace">${st.adaptDB.adaptador}</span></div>`:''}
+      ${st.adaptDB?.obs&&/tanque|\btq\b/i.test(st.adaptDB.obs)?`<div style="font-size:11px;color:#854F0B;font-weight:600">${st.adaptDB.obs}</div>`:''}</div></div>`:''}
     <hr class="divider">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:.75rem;font-size:12px">
       <div><div style="color:var(--text2);font-size:10px">Cliente</div><div style="font-weight:600">${nomeCliente}</div></div>
@@ -2710,6 +2716,7 @@ async function salvarOrcamento(){
       trator_marca:m?.label||null,trator_modelo:st.modeloSel||null,
       estrutura:car?.estrutura||null,
       adaptador_cod:st.adaptDB?.adaptador||null,
+      adapt_obs:st.adaptDB?.obs||null,
       joystick_cod:st.adaptDB?.joystick||null,
       itens,total,
       vendedor:g('cli-vendedor')||st.vendedor||st.clienteSel?.vendedor||currentPerfil?.nome||null,
@@ -2935,7 +2942,11 @@ function gerarPDF(){
   if(frete) infoRows.push({label:'Transportadora / Frete:', val:frete});
   if(m&&st.modeloSel){
     infoRows.push({label:'Marca:', val:m.label});
-    infoRows.push({label:'Modelo:', val:st.modeloSel});
+    let modeloVal = st.modeloSel;
+    if(st.adaptDB && st.adaptDB.obs && /tanque|\btq\b/i.test(st.adaptDB.obs)){
+      modeloVal += ' — ' + st.adaptDB.obs;
+    }
+    infoRows.push({label:'Modelo:', val:modeloVal});
   }
   infoRows.push({label:'Vendedor:', val:vendedor});
   infoRows.push({label:'Data de Emissão:', val:hoje});
@@ -3612,7 +3623,11 @@ async function regenarPDFHistorico(id){
   if(frete) infoRows.push({label:'Transportadora / Frete:',val:frete});
   if(o.trator_marca && o.trator_modelo){
     infoRows.push({label:'Marca:',val:o.trator_marca});
-    infoRows.push({label:'Modelo:',val:o.trator_modelo});
+    let modeloVal = o.trator_modelo;
+    if(o.adapt_obs && /tanque|\btq\b/i.test(o.adapt_obs)){
+      modeloVal += ' — ' + o.adapt_obs;
+    }
+    infoRows.push({label:'Modelo:',val:modeloVal});
   }
   infoRows.push({label:'Vendedor:',val:o.vendedor||'—'});
   infoRows.push({label:'Data de Emissão:',val:hoje});
