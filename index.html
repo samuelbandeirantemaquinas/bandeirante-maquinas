@@ -989,7 +989,7 @@ function gerarPDFRasthor(){
   });
   const subtotalGeral=itensRasthor.reduce((t,it)=>t+it.subtotal,0);
   const qtdTotal=itensRasthor.reduce((t,it)=>t+it.qtd,0);
-  const totalFinal=(!isNaN(nParc)&&nParc>1)?subtotalGeral*(1+nParc*0.01):subtotalGeral;
+  const totalFinal=(!isNaN(nParc)&&nParc>1)?subtotalGeral*(1+nParc*0.016):subtotalGeral;
 
   let y=M;
 
@@ -1647,7 +1647,7 @@ function gerarPDFGenerico(){
   // opções como "À vista", "7 dias" e "15 dias" não têm juros.
   const matchParcGen=/^(\d+)x$/.exec(pgto);
   const nParcGen=matchParcGen?parseInt(matchParcGen[1]):NaN;
-  const totalFinalGen=(!isNaN(nParcGen)&&nParcGen>1)?subtotalGeral*(1+nParcGen*0.01):subtotalGeral;
+  const totalFinalGen=(!isNaN(nParcGen)&&nParcGen>1)?subtotalGeral*(1+nParcGen*0.016):subtotalGeral;
 
   // Total
   doc.setFillColor(230,230,230);doc.rect(M,y,W-M*2,7,'F');
@@ -2653,7 +2653,7 @@ function s6(){
   const pgtoAtual = g('cli-pgto')||st.pgto||'';
   const matchParcS6 = /^(\d+)x$/.exec(pgtoAtual);
   const nParcS6 = matchParcS6 ? parseInt(matchParcS6[1]) : NaN;
-  const totalComJuros = (!isNaN(nParcS6) && nParcS6>1) ? total*(1+nParcS6*0.01) : total;
+  const totalComJuros = (!isNaN(nParcS6) && nParcS6>1) ? total*(1+nParcS6*0.016) : total;
   return `<div class="card" style="margin-bottom:1rem">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.75rem">
       <div><div style="font-size:9px;color:var(--text2);font-weight:600;letter-spacing:.5px">BANDEIRANTE MÁQUINAS</div>
@@ -2682,7 +2682,7 @@ function s6(){
       <span style="font-size:22px;font-weight:700">${fmt(totalComJuros)}</span>
     </div>
     <!-- Valor "à vista" omitido propositalmente do resumo do orçamento -->
-    ${false?`<div style="font-size:10px;color:var(--text2);margin-top:2px">À vista: ${fmt(total)} · ${nParcS6}x com juros (+${nParcS6}%)</div>`:''}
+    ${false?`<div style="font-size:10px;color:var(--text2);margin-top:2px">À vista: ${fmt(total)} · ${nParcS6}x com juros (+${(nParcS6*1.6).toFixed(1)}%)</div>`:''}
     ${podeVerDescontoEspecial()?`<div style="font-size:11px;color:#0C7C4A;margin-top:2px">Desconto especial (${descontoEspecialVendedor()}%) já aplicado ao preço acima</div>`:''}
     ${saldoAcGeral>0?`<div style="display:flex;justify-content:space-between;padding:6px 8px;background:#FAEEDA;border-radius:var(--radius-sm);margin-top:6px">
       <span style="font-size:12px;font-weight:700;color:#633806"><i class="ti ti-discount-2"></i> Saldo extra (acréscimo geral ${acGeral}%)</span>
@@ -2762,7 +2762,7 @@ function gerarPDF(){
   // opções como "À vista", "7 dias" e "15 dias" não têm juros.
   const matchParc=/^(\d+)x$/.exec(pgto);
   const nParc=matchParc?parseInt(matchParc[1]):NaN;
-  const totalFinal=(!isNaN(nParc)&&nParc>1)?total*(1+nParc*0.01):total;
+  const totalFinal=(!isNaN(nParc)&&nParc>1)?total*(1+nParc*0.016):total;
 
   // Montar itens
   const itens=montarItens();
