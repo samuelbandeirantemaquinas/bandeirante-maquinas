@@ -828,6 +828,7 @@ function gerarOrcRasthor(){
         </div>`;
       }).join('')}
       <div style="font-size:16px;font-weight:700;color:var(--text);margin-top:10px;text-align:right">Total: ${fmt(totalGeral)}</div>
+      ${podeVerDescontoEspecial()?`<div style="font-size:11px;color:#0C7C4A;text-align:right;margin-top:2px">Desconto especial (${descontoEspecialVendedor()}%) já aplicado ao preço acima</div>`:''}
     </div>
     <div class="card" style="margin-bottom:1rem">
       <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:.75rem;letter-spacing:.3px">DADOS DO CLIENTE</div>
@@ -1388,7 +1389,8 @@ function renderItensFormGenerico(tipo){
       </div>
       ${campoQtdAjusteForm(p.id, p.preco, tipo)}
     </div>`;
-  }).join('') + `<div style="font-size:16px;font-weight:700;color:var(--text);margin-top:10px;text-align:right" id="gn-total-geral">Total: ${fmt(totalGeral)}</div>`;
+  }).join('') + `<div style="font-size:16px;font-weight:700;color:var(--text);margin-top:10px;text-align:right" id="gn-total-geral">Total: ${fmt(totalGeral)}</div>`
+  + (podeVerDescontoEspecial()?`<div style="font-size:11px;color:#0C7C4A;text-align:right;margin-top:2px">Desconto especial (${descontoEspecialVendedor()}%) já aplicado ao preço acima</div>`:'');
 }
 
 // Variante de campoQtdAjuste que, ao alterar qtd/ajuste, também atualiza o total geral da tela de orçamento genérica
@@ -2450,6 +2452,17 @@ async function salvarClienteRapido(){
 }
 
 
+// Desconto especial embutido, exclusivo de determinado(s) vendedor(es) — combinado
+// à parte com o Admin. Fica invisível no PDF do cliente (o preço final já sai com
+// o desconto aplicado, sem rótulo), e só aparece explicado no resumo em tela para
+// o próprio vendedor e para o Admin.
+function descontoEspecialVendedor(){
+  if(currentPerfil?.nome==='Gleycon Wilker') return 4;
+  return 0;
+}
+function podeVerDescontoEspecial(){
+  return descontoEspecialVendedor()>0 && (isAdmin() || currentPerfil?.nome==='Gleycon Wilker');
+}
 function precoAjustado(id, preco){
   const ajBruto=st.ajustes[id]||0;
   const ac=st.acrescimo||0;
@@ -2460,7 +2473,9 @@ function precoAjustado(id, preco){
   const aj = isAdmin() ? -ajBruto : ajBruto;
   // aplica ajuste individual e depois acréscimo/desconto geral (embutido no preço, invisível ao cliente)
   const precoComAj = aj===0 ? preco : preco*(1+aj/100);
-  return ac===0 ? precoComAj : precoComAj*(1+ac/100);
+  const precoComAc = ac===0 ? precoComAj : precoComAj*(1+ac/100);
+  const de = descontoEspecialVendedor();
+  return de===0 ? precoComAc : precoComAc*(1-de/100);
 }
 function isAdmin(){return currentPerfil?.role==='admin';}
 function campoAjuste(id, label){
@@ -2662,6 +2677,7 @@ function s6(){
     </div>
     <!-- Valor "à vista" omitido propositalmente do resumo do orçamento -->
     ${false?`<div style="font-size:10px;color:var(--text2);margin-top:2px">À vista: ${fmt(total)} · ${nParcS6}x com juros (+${nParcS6}%)</div>`:''}
+    ${podeVerDescontoEspecial()?`<div style="font-size:11px;color:#0C7C4A;margin-top:2px">Desconto especial (${descontoEspecialVendedor()}%) já aplicado ao preço acima</div>`:''}
     ${saldoAcGeral>0?`<div style="display:flex;justify-content:space-between;padding:6px 8px;background:#FAEEDA;border-radius:var(--radius-sm);margin-top:6px">
       <span style="font-size:12px;font-weight:700;color:#633806"><i class="ti ti-discount-2"></i> Saldo extra (acréscimo geral ${acGeral}%)</span>
       <span style="font-size:13px;font-weight:700;color:#633806">+${fmt(saldoAcGeral)}</span>
