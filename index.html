@@ -939,6 +939,25 @@ function selecionarCliRasthor(id){
   document.getElementById('modal-cli-rasthor').style.display='none';
 }
 
+// Mantém no máximo 500 orçamentos salvos por vendedor: sempre que um novo
+// orçamento é salvo, verifica se aquele vendedor passou de 500 e, se sim,
+// apaga os mais antigos (do próprio vendedor) até voltar ao limite.
+const LIMITE_ORCAMENTOS_POR_VENDEDOR = 500;
+async function limparOrcamentosAntigos(vendedorNome){
+  if(!vendedorNome) return;
+  try{
+    const rows = await sbGet('orcamentos','vendedor=eq.'+encodeURIComponent(vendedorNome)+'&select=id&order=criado_em.asc');
+    if(!Array.isArray(rows) || rows.length<=LIMITE_ORCAMENTOS_POR_VENDEDOR) return;
+    const excedentes = rows.slice(0, rows.length-LIMITE_ORCAMENTOS_POR_VENDEDOR);
+    for(const r of excedentes){
+      await sbDelete('orcamentos', r.id);
+    }
+    console.log(`Limpeza automática: ${excedentes.length} orçamento(s) antigo(s) removido(s) de "${vendedorNome}" (limite de ${LIMITE_ORCAMENTOS_POR_VENDEDOR}).`);
+  }catch(e){
+    console.warn('Erro ao limpar orçamentos antigos:', e);
+  }
+}
+
 async function salvarOrcamentoRasthor(){
   const sel = getRasthorSel();
   if(!sel.length) return;
@@ -948,6 +967,7 @@ async function salvarOrcamentoRasthor(){
   const btn=document.getElementById('btn-salvar-rasthor');
   if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .7s linear infinite"></i> Salvando...';}
   try{
+    const vendedorSalvo = gr('rc-vendedor')||document.getElementById('rc-vendedor')?.value||st.vendedor||currentPerfil?.nome||null;
     await sbPost('orcamentos',{
       numero:'ORC-'+Date.now().toString().slice(-6),
       cliente_id:rasthorClienteSel?.id||null,
@@ -955,11 +975,12 @@ async function salvarOrcamentoRasthor(){
       trator_marca:null,trator_modelo:null,estrutura:null,
       adaptador_cod:null,joystick_cod:null,
       itens,total,
-      vendedor:gr('rc-vendedor')||document.getElementById('rc-vendedor')?.value||st.vendedor||currentPerfil?.nome||null,
+      vendedor:vendedorSalvo,
       obs:gr('rc-obs'),status:'Em aberto'
     });
     toast('Orçamento salvo! ✓');
     loadOrcamentos();
+    limparOrcamentosAntigos(vendedorSalvo);
     if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-circle-check"></i> Salvo!';}
   }catch(e){
     console.error('Erro ao salvar orçamento:', e);
@@ -1519,6 +1540,7 @@ async function salvarOrcamentoGenerico(){
   const btn=document.getElementById('btn-salvar-gen');
   if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .7s linear infinite"></i> Salvando...';}
   try{
+    const vendedorSalvo = gn('gn-vendedor')||document.getElementById('gn-vendedor')?.value||st.vendedor||currentPerfil?.nome||null;
     await sbPost('orcamentos',{
       numero:'ORC-'+Date.now().toString().slice(-6),
       cliente_id:_cliGenSel?.id||null,
@@ -1526,11 +1548,12 @@ async function salvarOrcamentoGenerico(){
       trator_marca:null,trator_modelo:null,estrutura:null,
       adaptador_cod:null,joystick_cod:null,
       itens:itensSalvar,total,
-      vendedor:gn('gn-vendedor')||document.getElementById('gn-vendedor')?.value||st.vendedor||currentPerfil?.nome||null,
+      vendedor:vendedorSalvo,
       obs:gn('gn-obs'),status:'Em aberto'
     });
     toast('Orçamento salvo! ✓');
     loadOrcamentos();
+    limparOrcamentosAntigos(vendedorSalvo);
     if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-circle-check"></i> Salvo!';}
   }catch(e){
     console.error('Erro ao salvar orçamento:', e);
@@ -2709,6 +2732,7 @@ async function salvarOrcamento(){
   const btn=document.getElementById('btn-salvar');
   if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .7s linear infinite"></i> Salvando...';}
   try{
+    const vendedorSalvo = g('cli-vendedor')||st.vendedor||st.clienteSel?.vendedor||currentPerfil?.nome||null;
     await sbPost('orcamentos',{
       numero:'ORC-'+Date.now().toString().slice(-6),
       cliente_id:st.clienteSel?.id||null,
@@ -2719,13 +2743,14 @@ async function salvarOrcamento(){
       adapt_obs:st.adaptDB?.obs||null,
       joystick_cod:st.adaptDB?.joystick||null,
       itens,total,
-      vendedor:g('cli-vendedor')||st.vendedor||st.clienteSel?.vendedor||currentPerfil?.nome||null,
+      vendedor:vendedorSalvo,
       pgto:g('cli-pgto')||st.pgto||null,
       frete:g('cli-frete')||st.frete||null,
       obs:g('cli-obs'),status:'Em aberto'
     });
     toast('Orçamento salvo! ✓');
     loadOrcamentos();
+    limparOrcamentosAntigos(vendedorSalvo);
     if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-circle-check"></i> Salvo!';}
   }catch(e){
     console.error('Erro ao salvar orçamento:', e);
@@ -3251,7 +3276,7 @@ async function excluirCliente(id){
 async function loadOrcamentos(){
   try{
     const isAdmin=currentPerfil?.role==='admin';
-    const filter=isAdmin?'order=criado_em.desc&limit=200':'vendedor=eq.'+encodeURIComponent(currentPerfil?.nome||'')+'&order=criado_em.desc&limit=100';
+    const filter=isAdmin?'order=criado_em.desc&limit=500':'vendedor=eq.'+encodeURIComponent(currentPerfil?.nome||'')+'&order=criado_em.desc&limit=500';
     orcamentos=await sbGet('orcamentos',filter);
     if(!Array.isArray(orcamentos))orcamentos=[];
   }catch(e){orcamentos=[];}
