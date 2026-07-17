@@ -1055,14 +1055,15 @@ function gerarPDFRasthor(){
   df('Cliente:',nome,M,y);
   df('Nome Fantasia:',empresa||nome,W/2,y);
   y+=5;
-  if(cpf) { df('CPF/CNPJ:',cpf,M,y); }
-  if(ie) { df('Insc. Estadual:  ',ie,W/2,y); }
-  if(cpf||ie) y+=5;
-  if(rua) { df('Endereço:',(rua+(bairro?' — '+bairro:'')).toUpperCase(),M,y); y+=5; }
-  df('Cidade:',cidade.toUpperCase(),M,y);
-  if(cep) df('CEP:',cep,W/2,y);
+  df('CPF/CNPJ:',cpf,M,y);
+  df('Insc. Estadual:  ',ie,W/2,y);
   y+=5;
-  if(tel) df('Telefone:',tel,M,y);
+  df('Endereço:',rua?(rua+(bairro?' — '+bairro:'')).toUpperCase():'',M,y);
+  y+=5;
+  df('Cidade:',cidade.toUpperCase(),M,y);
+  df('CEP:',cep,W/2,y);
+  y+=5;
+  df('Telefone:',tel,M,y);
   if(email) df('E-mail:',email,W/2,y);
   if(tel||email) y+=3;
   y+=2;
@@ -1612,13 +1613,13 @@ function gerarPDFGenerico(){
   };
   df('Cliente:',nome,M,y);
   df('Nome Fantasia:',empresa||nome,W/2,y); y+=5;
-  if(cpf){df('CPF/CNPJ:',cpf,M,y);}
-  if(ie){df('Insc. Estadual:  ',ie,W/2,y);}
-  if(cpf||ie) y+=5;
-  if(rua){df('Endereço:',(rua+(bairro?' — '+bairro:'')).toUpperCase(),M,y);y+=5;}
+  df('CPF/CNPJ:',cpf,M,y);
+  df('Insc. Estadual:  ',ie,W/2,y);
+  y+=5;
+  df('Endereço:',rua?(rua+(bairro?' — '+bairro:'')).toUpperCase():'',M,y);y+=5;
   df('Cidade:',cidade.toUpperCase(),M,y);
-  if(cep) df('CEP:',cep,W/2,y); y+=5;
-  if(tel) df('Telefone:',tel,M,y);
+  df('CEP:',cep,W/2,y); y+=5;
+  df('Telefone:',tel,M,y);
   if(email) df('E-mail:',email,W/2,y);
   if(tel||email) y+=3;
   y+=2; doc.setDrawColor(180);doc.line(M,y,W-M,y);y+=4;
@@ -2842,16 +2843,17 @@ function gerarPDF(){
   drawField('Cliente:', nomeCliente, M, y);
   drawField('Nome Fantasia:', empresa||nomeCliente, W/2, y);
   y += 5;
-  if(cpf) { drawField('CPF/CNPJ:', cpf, M, y); }
-  if(ie) { drawField('Inscrição Estadual:  ', ie, W/2, y); }
+  drawField('CPF/CNPJ:', cpf, M, y);
+  drawField('Inscrição Estadual:  ', ie, W/2, y);
   y += 5;
-  if(rua) { drawField('Endereço:', rua.toUpperCase(), M, y); y+=5; }
+  drawField('Endereço:', rua?rua.toUpperCase():'', M, y);
+  y += 5;
   const estado = st.clienteSel?.estado||'';
   const cidadeEstado = [cidade, estado].filter(Boolean).join(' / ').toUpperCase();
   drawField('Cidade:', cidadeEstado, M, y);
-  if(cep) drawField('CEP:', cep, W/2, y);
+  drawField('CEP:', cep, W/2, y);
   y += 5;
-  if(tel) drawField('Telefone:', tel, M, y);
+  drawField('Telefone:', tel, M, y);
   y += 3;
 
   // Linha
@@ -3572,22 +3574,16 @@ async function regenarPDFHistorico(id){
   };
   df('Cliente:',nomeCliente,M,y);
   df('Nome Fantasia:',empresa||nomeCliente,W/2,y); y+=5;
-  if(cpf||ie){
-    if(cpf) df('CPF/CNPJ:',cpf,M,y);
-    if(ie) df('Insc. Estadual:  ',ie,W/2,y);
-    y+=5;
-  }
-  if(rua){ df('Endereço:',(rua+(bairro?' — '+bairro:'')).toUpperCase(),M,y); y+=5; }
-  if(cidade||cep){
-    df('Cidade:',(cidade+(estadoCli?' / '+estadoCli:'')).toUpperCase(),M,y);
-    if(cep) df('CEP:',cep,W/2,y);
-    y+=5;
-  }
-  if(tel||email){
-    if(tel) df('Telefone:',tel,M,y);
-    if(email) df('E-mail:',email,W/2,y);
-    y+=5;
-  }
+  df('CPF/CNPJ:',cpf,M,y);
+  df('Insc. Estadual:  ',ie,W/2,y);
+  y+=5;
+  df('Endereço:',rua?(rua+(bairro?' — '+bairro:'')).toUpperCase():'',M,y); y+=5;
+  df('Cidade:',(cidade+(estadoCli?' / '+estadoCli:'')).toUpperCase(),M,y);
+  df('CEP:',cep,W/2,y);
+  y+=5;
+  df('Telefone:',tel,M,y);
+  df('E-mail:',email,W/2,y);
+  y+=5;
   df('Data:',hoje,M,y);
   df('Vendedor:',(o.vendedor||'—'),W/2,y); y+=5;
   if(pgto) { df('Pagamento:',pgto,M,y); y+=5; }
