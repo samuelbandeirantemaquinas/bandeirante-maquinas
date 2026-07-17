@@ -2176,18 +2176,10 @@ function avancarAdapt(){
     if(lista.length>0) st.qtds[lista[0].id]=1;
   }
   // Desconto automático de 10% no adaptador para John Deere linha 6000 (1550/1950/2200).
-  // Guardamos o valor como "10" (intenção: desconto de 10%) — é a função precoAjustado()
-  // que decide o sinal certo a aplicar conforme o papel de quem está logado (Admin =
-  // desconto reduz o preço; vendedor comum não deveria chegar a este fluxo, mas se
-  // chegar, o valor é tratado como acréscimo, então a regra abaixo só faz sentido
-  // quando aplicada por um Admin).
-  if(st.descAdaptJD6000 && isAdmin()){
-    ADAPTADORES.forEach(a=>{
-      if(a.id!=='adp_nao' && getQtd(a.id)>0 && !st.ajustes[a.id]){
-        st.ajustes[a.id]=10;
-      }
-    });
-  }
+  // Vale para qualquer vendedor, não só Admin — o desconto real é aplicado dentro de
+  // precoAjustado(), de forma independente do sinal usado pelo campo de ajuste manual
+  // (que tem significado diferente para Admin x vendedor), evitando que o desconto
+  // vire acréscimo por engano dependendo de quem está logado.
   goStep(3);
 }
 
@@ -2498,8 +2490,12 @@ function precoAjustado(id, preco){
   // aplica ajuste individual e depois acréscimo/desconto geral (embutido no preço, invisível ao cliente)
   const precoComAj = aj===0 ? preco : preco*(1+aj/100);
   const precoComAc = ac===0 ? precoComAj : precoComAj*(1+ac/100);
+  // Desconto automático de 10% no adaptador para John Deere linha 6000 (estruturas
+  // 1550/1950/2200), independente de quem está logado (Admin ou vendedor).
+  const descJD6000 = (st.descAdaptJD6000 && typeof ADAPTADORES!=='undefined' && ADAPTADORES.some(a=>a.id===id)) ? 10 : 0;
+  const precoComDescJD = descJD6000===0 ? precoComAc : precoComAc*(1-descJD6000/100);
   const de = descontoEspecialVendedor();
-  return de===0 ? precoComAc : precoComAc*(1-de/100);
+  return de===0 ? precoComDescJD : precoComDescJD*(1-de/100);
 }
 function isAdmin(){return currentPerfil?.role==='admin';}
 function campoAjuste(id, label){
