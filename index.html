@@ -3394,11 +3394,15 @@ function abrirOrcamento(id){
         // Para exibição: se quem criou era Admin, um "ajuste" salvo positivo é desconto
         // (mostra como negativo, ex: -5%); senão é acréscimo, mostra como está salvo.
         const ajusteExibido = it.preco_base!==undefined ? null : (criadorEraAdmin && it.ajuste ? -it.ajuste : it.ajuste);
-        return `<div class="orc-row" style="flex-direction:column;align-items:stretch;gap:2px">
+        return `<div class="orc-row" style="flex-direction:column;align-items:stretch;gap:4px">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
-          <span style="color:var(--text2);flex:1;min-width:0">${it.qtd>1?`${it.qtd}× `:''}${it.nome}${ajusteExibido?` <span style="font-size:10px;color:${ajusteExibido<0?'#c0392b':'#e67e22'}">(${ajusteExibido>0?'+':''}${ajusteExibido}%)</span>`:''}</span>
+          <span style="color:var(--text2);flex:1;min-width:0">${it.nome}${ajusteExibido?` <span style="font-size:10px;color:${ajusteExibido<0?'#c0392b':'#e67e22'}">(${ajusteExibido>0?'+':''}${ajusteExibido}%)</span>`:''}</span>
           <span style="font-weight:600;flex-shrink:0">${fmt(it.precoTotal)}</span>
           <button onclick="excluirItemOrc('${o.id}',${_idx})" title="Remover item" style="background:none;border:none;cursor:pointer;color:#c0392b;padding:2px 4px;flex-shrink:0;font-size:14px"><i class="ti ti-trash"></i></button>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <label style="font-size:11px;color:var(--text2)">Qtd:</label>
+          <input type="number" min="1" step="1" value="${it.qtd||1}" style="width:64px;padding:3px 6px;font-size:12px" onchange="alterarQtdItemOrc('${o.id}',${_idx},this.value)">
         </div>
         ${it.desc?`<div style="font-size:11px;color:var(--text2);padding-right:20px">${it.desc}</div>`:''}
         ${adm&&it.saldoAcrescimo>0?`<div style="display:flex;justify-content:space-between;font-size:11px;color:#854F0B"><span>Saldo de acréscimo (acima da tabela)</span><span>+${fmt(it.saldoAcrescimo)}</span></div>`:''}
@@ -3510,6 +3514,32 @@ async function excluirItemOrc(orcId, itemIdx){
     await loadOrcamentos();
     abrirOrcamento(orcId);
   }catch(e){toast('Erro ao remover item.');}
+}
+
+async function alterarQtdItemOrc(orcId, itemIdx, novaQtdStr){
+  const o=orcamentos.find(x=>x.id===orcId);
+  if(!o)return;
+  const novaQtd=Math.max(1, parseInt(novaQtdStr)||1);
+  const itens=Array.isArray(o.itens)?[...o.itens]:[];
+  const item=itens[itemIdx];
+  if(!item){ abrirOrcamento(orcId); return; }
+  if(item.preco_unit!==undefined){
+    // Itens do fluxo de Carregadores guardam preco_unit (unitário) e preco (total = unit*qtd)
+    item.preco = Number(item.preco_unit||0)*novaQtd;
+  }
+  // Nos demais fluxos (Rasthor/Genérico), "preco" já é o valor unitário e não muda
+  item.qtd = novaQtd;
+  itens[itemIdx]=item;
+  const novoTotal=itens.reduce((t,it)=>{
+    const preco=it.preco_unit!==undefined?Number(it.preco||0):Number(it.preco||0)*Number(it.qtd||1);
+    return t+preco;
+  },0);
+  try{
+    await sbReq('PATCH','orcamentos','id=eq.'+orcId,{itens,total:novoTotal});
+    toast('Quantidade atualizada! ✓');
+    await loadOrcamentos();
+    abrirOrcamento(orcId);
+  }catch(e){toast('Erro ao alterar quantidade.');}
 }
 
 async function regenarPDFHistorico(id){
