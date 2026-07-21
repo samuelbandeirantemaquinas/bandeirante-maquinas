@@ -3402,7 +3402,7 @@ function abrirOrcamento(id){
         </div>
         <div style="display:flex;align-items:center;gap:6px">
           <label style="font-size:11px;color:var(--text2)">Qtd:</label>
-          <input type="number" min="1" step="1" value="${it.qtd||1}" style="width:64px;padding:3px 6px;font-size:12px" onchange="alterarQtdItemOrc('${o.id}',${_idx},this.value)">
+          <input type="number" min="0" step="1" value="${it.qtd||1}" style="width:64px;padding:3px 6px;font-size:12px" onchange="alterarQtdItemOrc('${o.id}',${_idx},this.value)">
         </div>
         ${it.desc?`<div style="font-size:11px;color:var(--text2);padding-right:20px">${it.desc}</div>`:''}
         ${adm&&it.saldoAcrescimo>0?`<div style="display:flex;justify-content:space-between;font-size:11px;color:#854F0B"><span>Saldo de acréscimo (acima da tabela)</span><span>+${fmt(it.saldoAcrescimo)}</span></div>`:''}
@@ -3519,7 +3519,10 @@ async function excluirItemOrc(orcId, itemIdx){
 async function alterarQtdItemOrc(orcId, itemIdx, novaQtdStr){
   const o=orcamentos.find(x=>x.id===orcId);
   if(!o)return;
-  const novaQtd=Math.max(1, parseInt(novaQtdStr)||1);
+  const novaQtd=parseInt(novaQtdStr)||0;
+  if(novaQtd<=0){
+    return excluirItemOrc(orcId, itemIdx);
+  }
   const itens=Array.isArray(o.itens)?[...o.itens]:[];
   const item=itens[itemIdx];
   if(!item){ abrirOrcamento(orcId); return; }
