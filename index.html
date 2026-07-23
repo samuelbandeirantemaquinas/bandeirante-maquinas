@@ -2965,11 +2965,13 @@ function gerarPDF(){
   if(frete) infoRows.push({label:'Transportadora / Frete:', val:frete});
   if(m&&st.modeloSel){
     infoRows.push({label:'Marca:', val:m.label});
-    let modeloVal = st.modeloSel;
-    if(st.adaptDB && st.adaptDB.obs && /tanque|\btq\b/i.test(st.adaptDB.obs)){
-      modeloVal += ' — ' + st.adaptDB.obs;
+    infoRows.push({label:'Modelo:', val:st.modeloSel});
+    if(st.adaptDB){
+      if(st.adaptDB.estrutura) infoRows.push({label:'Estrutura:', val:st.adaptDB.estrutura});
+      if(st.adaptDB.adaptador) infoRows.push({label:'Adaptador (código):', val:st.adaptDB.adaptador});
+      if(st.adaptDB.joystick) infoRows.push({label:'Joystick (código):', val:st.adaptDB.joystick});
+      if(st.adaptDB.obs) infoRows.push({label:'Observação do trator:', val:st.adaptDB.obs});
     }
-    infoRows.push({label:'Modelo:', val:modeloVal});
   }
   infoRows.push({label:'Vendedor:', val:vendedor});
   infoRows.push({label:'Data de Emissão:', val:hoje});
