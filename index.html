@@ -3439,6 +3439,20 @@ function abrirOrcamento(id){
         </div>
         <div class="ig"><label>Total (R$)</label><input type="number" id="edit-total" value="${o.total||0}" step="0.01"></div>
       </div>
+      <div class="ig"><label>Condição de Pagamento</label>
+        <select id="edit-pgto">
+          <option value="" ${!o.pgto?'selected':''}>— Selecionar —</option>
+          <option value="À vista" ${o.pgto==='À vista'?'selected':''}>À vista (sem juros)</option>
+          <option value="7 dias" ${o.pgto==='7 dias'?'selected':''}>7 dias (sem juros)</option>
+          <option value="15 dias" ${o.pgto==='15 dias'?'selected':''}>15 dias (sem juros)</option>
+          <option value="20% Sinal + Saldo à vista" ${o.pgto==='20% Sinal + Saldo à vista'?'selected':''}>20% Sinal - Saldo à vista</option>
+          <option value="2x" ${o.pgto==='2x'?'selected':''}>2x mensais (1,6% a.m.)</option>
+          <option value="3x" ${o.pgto==='3x'?'selected':''}>3x mensais (1,6% a.m.)</option>
+          <option value="4x" ${o.pgto==='4x'?'selected':''}>4x mensais (1,6% a.m.)</option>
+          <option value="5x" ${o.pgto==='5x'?'selected':''}>5x mensais (1,6% a.m.)</option>
+          <option value="6x" ${o.pgto==='6x'?'selected':''}>6x mensais (1,6% a.m.)</option>
+        </select>
+      </div>
       <div class="ig"><label>Observações</label><textarea id="edit-obs">${o.obs||''}</textarea></div>
       <div style="display:flex;gap:8px;margin-top:.5rem">
         <button class="btn btn-primary btn-sm" onclick="salvarEdicaoOrc('${o.id}')"><i class="ti ti-device-floppy"></i> Salvar alterações</button>
@@ -3478,6 +3492,7 @@ async function salvarEdicaoOrc(id){
     vendedor:document.getElementById('edit-vend')?.value||null,
     status:document.getElementById('edit-status')?.value||'Em aberto',
     total:parseFloat(document.getElementById('edit-total')?.value)||0,
+    pgto:document.getElementById('edit-pgto')?.value||null,
     obs:document.getElementById('edit-obs')?.value||null,
   };
   try{
