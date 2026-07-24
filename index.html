@@ -462,10 +462,11 @@ function senhaAtual(login){
 // ---- CARREGAR PRODUTOS DO SUPABASE ----
 async function loadProdutos(){
   try{
-    const rows=await sbGet('produtos','ativo=eq.true&order=categoria.asc');
+    const rows=await sbGet('produtos','order=categoria.asc');
     if(!Array.isArray(rows)||rows.length===0) return;
+    const ativos=rows.filter(p=>p.ativo!==false);
     // Atualizar preços e descrições dos arrays locais
-    rows.forEach(p=>{
+    ativos.forEach(p=>{
       if(p.categoria==='carregador'){
         const c=CARREGADORES.find(x=>x.id===p.id);
         if(c){c.preco=parseFloat(p.preco);if(p.nome)c.nome=p.nome;if(p.descricao)c.descricao=p.descricao;
@@ -3344,6 +3345,7 @@ function abrirOrcamento(id){
   const o=orcamentos.find(x=>x.id===id);
   if(!o)return;
   const adm=isAdmin();
+  const bloqueadoParaVendedor = !adm && o.status==='Aprovado';
   const itens=Array.isArray(o.itens)?o.itens:[];
 
   // Calcula, por item, o "saldo de acréscimo" — a diferença entre o preço efetivamente
@@ -3403,12 +3405,12 @@ function abrirOrcamento(id){
         <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
           <span style="color:var(--text2);flex:1;min-width:0">${it.nome}${ajusteExibido?` <span style="font-size:10px;color:${ajusteExibido<0?'#c0392b':'#e67e22'}">(${ajusteExibido>0?'+':''}${ajusteExibido}%)</span>`:''}</span>
           <span style="font-weight:600;flex-shrink:0">${fmt(it.precoTotal)}</span>
-          <button onclick="excluirItemOrc('${o.id}',${_idx})" title="Remover item" style="background:none;border:none;cursor:pointer;color:#c0392b;padding:2px 4px;flex-shrink:0;font-size:14px"><i class="ti ti-trash"></i></button>
+          ${bloqueadoParaVendedor?'':`<button onclick="excluirItemOrc('${o.id}',${_idx})" title="Remover item" style="background:none;border:none;cursor:pointer;color:#c0392b;padding:2px 4px;flex-shrink:0;font-size:14px"><i class="ti ti-trash"></i></button>`}
         </div>
-        <div style="display:flex;align-items:center;gap:6px">
+        ${bloqueadoParaVendedor?`<div style="font-size:11px;color:var(--text2)">Qtd: ${it.qtd||1}</div>`:`<div style="display:flex;align-items:center;gap:6px">
           <label style="font-size:11px;color:var(--text2)">Qtd:</label>
           <input type="number" min="0" step="1" value="${it.qtd||1}" style="width:64px;padding:3px 6px;font-size:12px" onchange="alterarQtdItemOrc('${o.id}',${_idx},this.value)">
-        </div>
+        </div>`}
         ${it.desc?`<div style="font-size:11px;color:var(--text2);padding-right:20px">${it.desc}</div>`:''}
         ${adm&&it.saldoAcrescimo>0?`<div style="display:flex;justify-content:space-between;font-size:11px;color:#854F0B"><span>Saldo de acréscimo (acima da tabela)</span><span>+${fmt(it.saldoAcrescimo)}</span></div>`:''}
       </div>`;
@@ -3458,6 +3460,9 @@ function abrirOrcamento(id){
         <button class="btn btn-primary btn-sm" onclick="salvarEdicaoOrc('${o.id}')"><i class="ti ti-device-floppy"></i> Salvar alterações</button>
         <button class="btn btn-sm" style="color:#c0392b;border-color:#c0392b" onclick="excluirOrc('${o.id}')"><i class="ti ti-trash"></i> Excluir</button>
       </div>
+    </div>`:bloqueadoParaVendedor?`<div class="card" style="margin-bottom:1rem;background:#F3F4F6">
+      <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:.5rem;letter-spacing:.3px">STATUS DO PEDIDO</div>
+      <div style="font-size:13px;color:var(--text2)"><i class="ti ti-lock"></i> Este pedido já foi <strong>Aprovado</strong> e não pode mais ser alterado. Fale com o Admin caso precise de algum ajuste.</div>
     </div>`:`<div class="card" style="margin-bottom:1rem">
       <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:.75rem;letter-spacing:.3px">STATUS DO PEDIDO</div>
       <div class="ig"><label>Status</label>
@@ -3477,6 +3482,8 @@ function abrirOrcamento(id){
 }
 
 async function salvarStatusOrc(id){
+  const o=orcamentos.find(x=>x.id===id);
+  if(o && !isAdmin() && o.status==='Aprovado'){toast('Pedido aprovado não pode mais ser alterado.');return;}
   const status=document.getElementById('edit-status-vend')?.value||'Em aberto';
   try{
     await sbReq('PATCH','orcamentos','id=eq.'+id,{status});
@@ -3516,6 +3523,7 @@ async function excluirOrc(id){
 async function excluirItemOrc(orcId, itemIdx){
   const o=orcamentos.find(x=>x.id===orcId);
   if(!o)return;
+  if(!isAdmin() && o.status==='Aprovado'){toast('Pedido aprovado não pode mais ser alterado.');return;}
   const itens=Array.isArray(o.itens)?[...o.itens]:[];
   if(itens.length<=1){
     if(!confirm('Este é o único item. Deseja excluir o orçamento inteiro?'))return;
@@ -3539,6 +3547,7 @@ async function excluirItemOrc(orcId, itemIdx){
 async function alterarQtdItemOrc(orcId, itemIdx, novaQtdStr){
   const o=orcamentos.find(x=>x.id===orcId);
   if(!o)return;
+  if(!isAdmin() && o.status==='Aprovado'){toast('Pedido aprovado não pode mais ser alterado.');abrirOrcamento(orcId);return;}
   const novaQtd=parseInt(novaQtdStr)||0;
   if(novaQtd<=0){
     return excluirItemOrc(orcId, itemIdx);
@@ -4294,7 +4303,7 @@ async function salvarProduto(id){
   const nome=document.getElementById('adm-nome-'+id)?.value||'';
   const preco=parseFloat(document.getElementById('adm-preco-'+id)?.value)||0;
   const descricao=document.getElementById('adm-desc-'+id)?.value||'';
-  const update={nome,preco,descricao,atualizado_em:new Date().toISOString()};
+  const update={nome,preco,descricao,ativo:true,atualizado_em:new Date().toISOString()};
   const codEl=document.getElementById('adm-cod-'+id);
   const estrMinEl=document.getElementById('adm-estrmin-'+id);
   if(codEl) update.cod=codEl.value||'';
