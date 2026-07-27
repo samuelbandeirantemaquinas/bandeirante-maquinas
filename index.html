@@ -3379,6 +3379,8 @@ function abrirOrcamento(id){
     return {...it, precoTotal, precoBaseTotal, saldoAcrescimo};
   });
   const saldoTotalAcrescimo = itensCalc.reduce((t,it)=>t+it.saldoAcrescimo,0);
+  const nParcAtual = parseInt((o.pgto||'').replace('x',''));
+  const baseTotalEdicao = (!isNaN(nParcAtual) && nParcAtual>1 && /^\d+x$/.test(o.pgto||'')) ? Number(o.total||0)/(1+nParcAtual*0.016) : Number(o.total||0);
 
   document.getElementById('app-content').innerHTML=`
   <div class="page-wrap">
@@ -3442,7 +3444,7 @@ function abrirOrcamento(id){
         <div class="ig"><label>Total (R$)</label><input type="number" id="edit-total" value="${o.total||0}" step="0.01"></div>
       </div>
       <div class="ig"><label>Condição de Pagamento</label>
-        <select id="edit-pgto">
+        <select id="edit-pgto" data-base="${baseTotalEdicao}" onchange="atualizarTotalPgtoEdicao(this)">
           <option value="" ${!o.pgto?'selected':''}>— Selecionar —</option>
           <option value="À vista" ${o.pgto==='À vista'?'selected':''}>À vista (sem juros)</option>
           <option value="7 dias" ${o.pgto==='7 dias'?'selected':''}>7 dias (sem juros)</option>
@@ -3454,6 +3456,7 @@ function abrirOrcamento(id){
           <option value="5x" ${o.pgto==='5x'?'selected':''}>5x mensais (1,6% a.m.)</option>
           <option value="6x" ${o.pgto==='6x'?'selected':''}>6x mensais (1,6% a.m.)</option>
         </select>
+        <div style="font-size:11px;color:var(--text2);margin-top:4px">Ao trocar, o total é recalculado automaticamente (parcelado aplica 1,6% a.m.)</div>
       </div>
       <div class="ig"><label>Observações</label><textarea id="edit-obs">${o.obs||''}</textarea></div>
       <div style="display:flex;gap:8px;margin-top:.5rem">
@@ -3479,6 +3482,14 @@ function abrirOrcamento(id){
       <i class="ti ti-file-type-pdf"></i> Baixar PDF
     </button>
   </div>`;
+}
+
+function atualizarTotalPgtoEdicao(sel){
+  const base=parseFloat(sel.dataset.base)||0;
+  const nParc=parseInt((sel.value||'').replace('x',''));
+  const comJuros = (!isNaN(nParc)&&nParc>1&&/^\d+x$/.test(sel.value)) ? base*(1+nParc*0.016) : base;
+  const totalEl=document.getElementById('edit-total');
+  if(totalEl) totalEl.value = comJuros.toFixed(2);
 }
 
 async function salvarStatusOrc(id){
