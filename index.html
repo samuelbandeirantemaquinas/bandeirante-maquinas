@@ -2771,7 +2771,10 @@ async function salvarOrcamento(){
     toast('Orçamento salvo! ✓');
     loadOrcamentos();
     limparOrcamentosAntigos(vendedorSalvo);
+    st.pdfLiberado=true; st._pdfLiberadoTotal=total;
     if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-circle-check"></i> Salvo!';}
+    const btnPdf=document.getElementById('btn-pdf');
+    if(btnPdf){btnPdf.disabled=false;btnPdf.removeAttribute('title');}
   }catch(e){
     console.error('Erro ao salvar orçamento:', e);
     toast('Erro ao salvar: '+(e.message||'falha desconhecida'));
