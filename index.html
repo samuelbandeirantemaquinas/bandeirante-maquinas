@@ -2734,7 +2734,7 @@ function s6(){
       <span style="font-size:13px;font-weight:700;color:#633806">+${fmt(saldoAcGeral)}</span>
     </div>`:''}
     <div style="font-size:10px;color:var(--text2);margin-top:.5rem">Validade: 10 dias · Entrega: 30–60 dias · Sujeito a reajuste</div>
-    ${g('cli-obs')?`<hr style="border:none;border-top:1px solid var(--border);margin:.65rem 0"><div style="font-size:11px;color:var(--text2);font-weight:600;margin-bottom:3px">OBSERVAÇÕES</div><div style="font-size:12px">${g('cli-obs')}</div>`:''}
+    ${(g('cli-obs')||st.obs)?`<hr style="border:none;border-top:1px solid var(--border);margin:.65rem 0"><div style="font-size:11px;color:var(--text2);font-weight:600;margin-bottom:3px">OBSERVAÇÕES</div><div style="font-size:12px">${g('cli-obs')||st.obs}</div>`:''}
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between">
     <button class="btn" onclick="goStep(5)"><i class="ti ti-arrow-left"></i> Voltar</button>
@@ -2769,7 +2769,7 @@ async function salvarOrcamento(){
       vendedor:vendedorSalvo,
       pgto:g('cli-pgto')||st.pgto||null,
       frete:g('cli-frete')||st.frete||null,
-      obs:g('cli-obs'),status:'Em aberto'
+      obs:g('cli-obs')||st.obs||null,status:'Em aberto'
     });
     toast('Orçamento salvo! ✓');
     loadOrcamentos();
