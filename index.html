@@ -3711,7 +3711,6 @@ async function regenarPDFHistorico(id){
     doc.text(nl,cx2+1,y+6);
     let yDesc = y+6+nl.length*4;
     if(it.desc){doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(90);const dl=doc.splitTextToSize(it.desc,colW2.nome-2);doc.text(dl,cx2+1,yDesc);}
-    if(it.ajuste){doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(180,90,0);doc.text((it.ajuste>0?'+':'')+it.ajuste+'%',cx2+1,y+6+nl.length*4);}
     doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(30);
     doc.text(String(it.qtd||1),W-M-26+5,y+8,{align:'center'});
     doc.text('R$ '+it.preco.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}),W-M-1,y+8,{align:'right'});
