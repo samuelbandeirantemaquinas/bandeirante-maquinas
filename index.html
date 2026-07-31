@@ -811,6 +811,7 @@ function gerarOrcRasthor(){
   if(!sel.length) return;
   const tituloHdr = sel.length===1 ? sel[0].nome : sel.length+' itens selecionados';
   const totalGeral = sel.reduce((t,r)=>t+precoAjustado(r.id,r.preco)*getQtd(r.id),0);
+  if(st._rasthorPdfLiberadoTotal!==totalGeral) st.rasthorPdfLiberado=false;
   // Ir para tela de dados do cliente antes de gerar
   document.getElementById('app-content').innerHTML=`
   <div style="display:flex;align-items:center;gap:10px;padding:.75rem 1rem;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:56px;z-index:50">
@@ -885,10 +886,11 @@ function gerarOrcRasthor(){
     </div>
     <div style="display:flex;gap:8px">
       <button class="btn" id="btn-salvar-rasthor" onclick="salvarOrcamentoRasthor()"><i class="ti ti-device-floppy"></i> Salvar</button>
-      <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="gerarPDFRasthor()">
+      <button class="btn btn-primary" id="btn-pdf-rasthor" style="flex:1;justify-content:center" ${st.rasthorPdfLiberado?'':'disabled title="Salve o orçamento antes de baixar o PDF"'} onclick="gerarPDFRasthor()">
         <i class="ti ti-file-type-pdf"></i> Baixar PDF
       </button>
     </div>
+    ${!st.rasthorPdfLiberado?`<div style="font-size:11px;color:var(--text2);margin-top:6px;text-align:right"><i class="ti ti-info-circle"></i> Salve o orçamento primeiro para poder baixar o PDF</div>`:''}
     <div id="modal-cli-rasthor" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;padding:1rem;overflow-y:auto">
       <div style="background:var(--bg2);border-radius:var(--radius-lg);padding:1.25rem;max-width:480px;margin:60px auto 0">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
@@ -986,15 +988,16 @@ async function salvarOrcamentoRasthor(){
     toast('Orçamento salvo! ✓');
     loadOrcamentos();
     limparOrcamentosAntigos(vendedorSalvo);
+    st.rasthorPdfLiberado=true; st._rasthorPdfLiberadoTotal=total;
     if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-circle-check"></i> Salvo!';}
+    const btnPdfR=document.getElementById('btn-pdf-rasthor');
+    if(btnPdfR){btnPdfR.disabled=false;btnPdfR.removeAttribute('title');}
   }catch(e){
     console.error('Erro ao salvar orçamento:', e);
     toast('Erro ao salvar: '+(e.message||'falha desconhecida'));
     if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-device-floppy"></i> Salvar';}
   }
 }
-
-function gerarPDFRasthor(){
   const sel=getRasthorSel();
   if(!sel.length)return;
   const gr=id=>( document.getElementById(id)||{} ).value||'';
@@ -1378,10 +1381,11 @@ function abrirFormProduto(tipo) {
     </div>
     <div style="display:flex;gap:8px">
       <button class="btn" id="btn-salvar-gen" onclick="salvarOrcamentoGenerico()"><i class="ti ti-device-floppy"></i> Salvar</button>
-      <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="gerarPDFGenerico()">
+      <button class="btn btn-primary" id="btn-pdf-generico" style="flex:1;justify-content:center" ${st.genPdfLiberado?'':'disabled title="Salve o orçamento antes de baixar o PDF"'} onclick="gerarPDFGenerico()">
         <i class="ti ti-file-type-pdf"></i> Baixar PDF
       </button>
     </div>
+    ${!st.genPdfLiberado?`<div style="font-size:11px;color:var(--text2);margin-top:6px;text-align:right"><i class="ti ti-info-circle"></i> Salve o orçamento primeiro para poder baixar o PDF</div>`:''}
     <div id="modal-cli-gen" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;padding:1rem;overflow-y:auto">
       <div style="background:var(--bg2);border-radius:var(--radius-lg);padding:1.25rem;max-width:480px;margin:60px auto 0">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
@@ -1404,6 +1408,11 @@ function renderItensFormGenerico(tipo){
   const card = document.getElementById('gn-itens-card');
   if(!card) return;
   const totalGeral = sel.reduce((t,p)=>t+precoAjustado(p.id,p.preco)*getQtd(p.id),0);
+  if(st._genPdfLiberadoTotal!==totalGeral){
+    st.genPdfLiberado=false;
+    const btnPdfG=document.getElementById('btn-pdf-generico');
+    if(btnPdfG){btnPdfG.disabled=true;btnPdfG.title='Salve o orçamento antes de baixar o PDF';}
+  }
   card.innerHTML = sel.map(p=>{
     const qtd=getQtd(p.id);
     const unit=precoAjustado(p.id,p.preco);
@@ -1561,7 +1570,10 @@ async function salvarOrcamentoGenerico(){
     toast('Orçamento salvo! ✓');
     loadOrcamentos();
     limparOrcamentosAntigos(vendedorSalvo);
+    st.genPdfLiberado=true; st._genPdfLiberadoTotal=total;
     if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-circle-check"></i> Salvo!';}
+    const btnPdfG=document.getElementById('btn-pdf-generico');
+    if(btnPdfG){btnPdfG.disabled=false;btnPdfG.removeAttribute('title');}
   }catch(e){
     console.error('Erro ao salvar orçamento:', e);
     toast('Erro ao salvar: '+(e.message||'falha desconhecida'));
@@ -2665,6 +2677,7 @@ function calcTotal(){
 function s6(){
   const itens=montarItens();
   const total=calcTotal();
+  if(st._pdfLiberadoTotal!==total) st.pdfLiberado=false;
   const num=genNum();
   const m=st.marcaSel?MARCAS.find(x=>x.id===st.marcaSel):null;
   const nomeCliente=g('cli-nome')||st.clienteSel?.nome||'—';
@@ -2722,9 +2735,10 @@ function s6(){
     <button class="btn" onclick="goStep(5)"><i class="ti ti-arrow-left"></i> Voltar</button>
     <div style="display:flex;gap:8px">
       <button class="btn" id="btn-salvar" onclick="salvarOrcamento()"><i class="ti ti-device-floppy"></i> Salvar</button>
-      <button class="btn btn-primary" onclick="gerarPDF()"><i class="ti ti-file-type-pdf"></i> Baixar PDF</button>
+      <button class="btn btn-primary" id="btn-pdf" ${st.pdfLiberado?'':'disabled title="Salve o orçamento antes de baixar o PDF"'} onclick="gerarPDF()"><i class="ti ti-file-type-pdf"></i> Baixar PDF</button>
     </div>
   </div>
+  ${!st.pdfLiberado?`<div style="font-size:11px;color:var(--text2);margin-top:6px;text-align:right"><i class="ti ti-info-circle"></i> Salve o orçamento primeiro para poder baixar o PDF (assim a data fica registrada no Histórico)</div>`:''}
   <button class="btn btn-sm" style="margin-top:.75rem;color:var(--text2)" onclick="novoOrcamento()"><i class="ti ti-plus"></i> Novo orçamento</button>`;
 }
 
