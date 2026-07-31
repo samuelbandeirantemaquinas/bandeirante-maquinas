@@ -998,6 +998,8 @@ async function salvarOrcamentoRasthor(){
     if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-device-floppy"></i> Salvar';}
   }
 }
+
+function gerarPDFRasthor(){
   const sel=getRasthorSel();
   if(!sel.length)return;
   const gr=id=>( document.getElementById(id)||{} ).value||'';
