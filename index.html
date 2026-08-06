@@ -191,6 +191,35 @@ const IMGS = {};
 // Cada categoria custom fica em CATEGORIAS_CUSTOM: {id, nome, icone, ativo}
 // Os produtos de cada categoria custom ficam em PRODUTOS_POR_CATEGORIA[id] = [...]
 let CATEGORIAS_CUSTOM = [];
+// Taxa de juros mensal (%) aplicada às condições parceladas (2x, 3x... Nx).
+// Carregada do Supabase (tabela config_sistema) em loadConfigPagamento(); 1.6 é o padrão de fallback.
+let TAXA_JUROS_MENSAL = 1.6;
+// Condições de pagamento extras criadas pelo Admin (além das fixas: À vista, 7/15 dias, 20% Sinal, 2x-6x).
+// Cada item: {id, nome, valor, parcelas} — 'valor' é o que fica salvo no orçamento; 'parcelas' (se >1) faz aplicar juros.
+let CONDICOES_PGTO_EXTRA = [];
+
+async function loadConfigPagamento(){
+  try{
+    const rows = await sbGet('config_sistema', 'chave=eq.taxa_juros_mensal');
+    if(Array.isArray(rows) && rows[0] && rows[0].valor!==undefined && rows[0].valor!==null){
+      const v = parseFloat(rows[0].valor);
+      if(!isNaN(v)) TAXA_JUROS_MENSAL = v;
+    }
+  }catch(e){
+    console.warn('Erro ao carregar taxa de juros (tabela config_sistema pode não existir ainda):', e);
+  }
+  try{
+    const rows = await sbGet('condicoes_pagamento', 'ativo=eq.true&order=nome.asc');
+    if(Array.isArray(rows)) CONDICOES_PGTO_EXTRA = rows;
+  }catch(e){
+    console.warn('Erro ao carregar condições de pagamento extras (tabela condicoes_pagamento pode não existir ainda):', e);
+  }
+}
+
+// Gera as <option> extras (criadas pelo Admin) para acrescentar nos selects de forma de pagamento.
+function optionsCondicoesExtra(valorAtual){
+  return CONDICOES_PGTO_EXTRA.map(c=>`<option value="${c.valor}" ${valorAtual===c.valor?'selected':''}>${c.nome}</option>`).join('');
+}
 let PRODUTOS_POR_CATEGORIA = {};
 
 async function loadCategorias(){
@@ -864,11 +893,12 @@ function gerarOrcRasthor(){
             <option value="7 dias">7 dias (sem juros)</option>
             <option value="15 dias">15 dias (sem juros)</option>
             <option value="20% Sinal + Saldo à vista">20% Sinal - Saldo à vista</option>
-            <option value="2x">2x mensais (1,6% a.m.)</option>
-            <option value="3x">3x mensais (1,6% a.m.)</option>
-            <option value="4x">4x mensais (1,6% a.m.)</option>
-            <option value="5x">5x mensais (1,6% a.m.)</option>
-            <option value="6x">6x mensais (1,6% a.m.)</option>
+            <option value="2x">2x mensais (${TAXA_JUROS_MENSAL}% a.m.)</option>
+            <option value="3x">3x mensais (${TAXA_JUROS_MENSAL}% a.m.)</option>
+            <option value="4x">4x mensais (${TAXA_JUROS_MENSAL}% a.m.)</option>
+            <option value="5x">5x mensais (${TAXA_JUROS_MENSAL}% a.m.)</option>
+            <option value="6x">6x mensais (${TAXA_JUROS_MENSAL}% a.m.)</option>
+          ${optionsCondicoesExtra('')}
           </select>
         </div>
         <div class="ig"><label>Frete</label>
@@ -1023,7 +1053,7 @@ function gerarPDFRasthor(){
   });
   const subtotalGeral=itensRasthor.reduce((t,it)=>t+it.subtotal,0);
   const qtdTotal=itensRasthor.reduce((t,it)=>t+it.qtd,0);
-  const totalFinal=(!isNaN(nParc)&&nParc>1)?subtotalGeral*(1+nParc*0.016):subtotalGeral;
+  const totalFinal=(!isNaN(nParc)&&nParc>1)?subtotalGeral*(1+nParc*(TAXA_JUROS_MENSAL/100)):subtotalGeral;
 
   let y=M;
 
@@ -1361,11 +1391,12 @@ function abrirFormProduto(tipo) {
             <option value="7 dias">7 dias (sem juros)</option>
             <option value="15 dias">15 dias (sem juros)</option>
             <option value="20% Sinal + Saldo à vista">20% Sinal - Saldo à vista</option>
-            <option value="2x">2x mensais (1,6% a.m.)</option>
-            <option value="3x">3x mensais (1,6% a.m.)</option>
-            <option value="4x">4x mensais (1,6% a.m.)</option>
-            <option value="5x">5x mensais (1,6% a.m.)</option>
-            <option value="6x">6x mensais (1,6% a.m.)</option>
+            <option value="2x">2x mensais (${TAXA_JUROS_MENSAL}% a.m.)</option>
+            <option value="3x">3x mensais (${TAXA_JUROS_MENSAL}% a.m.)</option>
+            <option value="4x">4x mensais (${TAXA_JUROS_MENSAL}% a.m.)</option>
+            <option value="5x">5x mensais (${TAXA_JUROS_MENSAL}% a.m.)</option>
+            <option value="6x">6x mensais (${TAXA_JUROS_MENSAL}% a.m.)</option>
+          ${optionsCondicoesExtra('')}
           </select>
         </div>
         <div class="ig"><label>Frete</label>
@@ -1694,7 +1725,7 @@ function gerarPDFGenerico(){
   // opções como "À vista", "7 dias" e "15 dias" não têm juros.
   const matchParcGen=/^(\d+)x$/.exec(pgto);
   const nParcGen=matchParcGen?parseInt(matchParcGen[1]):NaN;
-  const totalFinalGen=(!isNaN(nParcGen)&&nParcGen>1)?subtotalGeral*(1+nParcGen*0.016):subtotalGeral;
+  const totalFinalGen=(!isNaN(nParcGen)&&nParcGen>1)?subtotalGeral*(1+nParcGen*(TAXA_JUROS_MENSAL/100)):subtotalGeral;
 
   // Total
   doc.setFillColor(230,230,230);doc.rect(M,y,W-M*2,7,'F');
@@ -2332,11 +2363,12 @@ function s5(){
           <option value="7 dias" ${st.pgto==='7 dias'?'selected':''}>7 dias (sem juros)</option>
           <option value="15 dias" ${st.pgto==='15 dias'?'selected':''}>15 dias (sem juros)</option>
           <option value="20% Sinal + Saldo à vista" ${st.pgto==='20% Sinal + Saldo à vista'?'selected':''}>20% Sinal - Saldo à vista</option>
-          <option value="2x" ${st.pgto==='2x'?'selected':''}>2x mensais (1,6% a.m.)</option>
-          <option value="3x" ${st.pgto==='3x'?'selected':''}>3x mensais (1,6% a.m.)</option>
-          <option value="4x" ${st.pgto==='4x'?'selected':''}>4x mensais (1,6% a.m.)</option>
-          <option value="5x" ${st.pgto==='5x'?'selected':''}>5x mensais (1,6% a.m.)</option>
-          <option value="6x" ${st.pgto==='6x'?'selected':''}>6x mensais (1,6% a.m.)</option>
+          <option value="2x" ${st.pgto==='2x'?'selected':''}>2x mensais (${TAXA_JUROS_MENSAL}% a.m.)</option>
+          <option value="3x" ${st.pgto==='3x'?'selected':''}>3x mensais (${TAXA_JUROS_MENSAL}% a.m.)</option>
+          <option value="4x" ${st.pgto==='4x'?'selected':''}>4x mensais (${TAXA_JUROS_MENSAL}% a.m.)</option>
+          <option value="5x" ${st.pgto==='5x'?'selected':''}>5x mensais (${TAXA_JUROS_MENSAL}% a.m.)</option>
+          <option value="6x" ${st.pgto==='6x'?'selected':''}>6x mensais (${TAXA_JUROS_MENSAL}% a.m.)</option>
+        ${optionsCondicoesExtra(st.pgto)}
         </select>
         <div id="pgto-calc" style="display:none;margin-top:6px;background:var(--blue-light);border-radius:var(--radius-sm);padding:.6rem .9rem;font-size:12px;color:var(--blue-dark)"></div>
       </div>
@@ -2698,7 +2730,7 @@ function s6(){
   const pgtoAtual = g('cli-pgto')||st.pgto||'';
   const matchParcS6 = /^(\d+)x$/.exec(pgtoAtual);
   const nParcS6 = matchParcS6 ? parseInt(matchParcS6[1]) : NaN;
-  const totalComJuros = (!isNaN(nParcS6) && nParcS6>1) ? total*(1+nParcS6*0.016) : total;
+  const totalComJuros = (!isNaN(nParcS6) && nParcS6>1) ? total*(1+nParcS6*(TAXA_JUROS_MENSAL/100)) : total;
   return `<div class="card" style="margin-bottom:1rem">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.75rem">
       <div><div style="font-size:9px;color:var(--text2);font-weight:600;letter-spacing:.5px">BANDEIRANTE MÁQUINAS</div>
@@ -2813,7 +2845,7 @@ function gerarPDF(){
   // opções como "À vista", "7 dias" e "15 dias" não têm juros.
   const matchParc=/^(\d+)x$/.exec(pgto);
   const nParc=matchParc?parseInt(matchParc[1]):NaN;
-  const totalFinal=(!isNaN(nParc)&&nParc>1)?total*(1+nParc*0.016):total;
+  const totalFinal=(!isNaN(nParc)&&nParc>1)?total*(1+nParc*(TAXA_JUROS_MENSAL/100)):total;
 
   // Montar itens
   const itens=montarItens();
@@ -3407,7 +3439,7 @@ function abrirOrcamento(id){
   const somaItensCalc = itensCalc.reduce((t,it)=>t+it.precoTotal,0);
   const temAcrescimoGeralNoTotal = Math.abs(Number(o.total||0) - somaItensCalc) > 0.01;
   const nParcAtual = parseInt((o.pgto||'').replace('x',''));
-  const baseTotalEdicao = (!isNaN(nParcAtual) && nParcAtual>1 && /^\d+x$/.test(o.pgto||'')) ? Number(o.total||0)/(1+nParcAtual*0.016) : Number(o.total||0);
+  const baseTotalEdicao = (!isNaN(nParcAtual) && nParcAtual>1 && /^\d+x$/.test(o.pgto||'')) ? Number(o.total||0)/(1+nParcAtual*(TAXA_JUROS_MENSAL/100)) : Number(o.total||0);
 
   document.getElementById('app-content').innerHTML=`
   <div class="page-wrap">
@@ -3477,13 +3509,14 @@ function abrirOrcamento(id){
           <option value="7 dias" ${o.pgto==='7 dias'?'selected':''}>7 dias (sem juros)</option>
           <option value="15 dias" ${o.pgto==='15 dias'?'selected':''}>15 dias (sem juros)</option>
           <option value="20% Sinal + Saldo à vista" ${o.pgto==='20% Sinal + Saldo à vista'?'selected':''}>20% Sinal - Saldo à vista</option>
-          <option value="2x" ${o.pgto==='2x'?'selected':''}>2x mensais (1,6% a.m.)</option>
-          <option value="3x" ${o.pgto==='3x'?'selected':''}>3x mensais (1,6% a.m.)</option>
-          <option value="4x" ${o.pgto==='4x'?'selected':''}>4x mensais (1,6% a.m.)</option>
-          <option value="5x" ${o.pgto==='5x'?'selected':''}>5x mensais (1,6% a.m.)</option>
-          <option value="6x" ${o.pgto==='6x'?'selected':''}>6x mensais (1,6% a.m.)</option>
+          <option value="2x" ${o.pgto==='2x'?'selected':''}>2x mensais (${TAXA_JUROS_MENSAL}% a.m.)</option>
+          <option value="3x" ${o.pgto==='3x'?'selected':''}>3x mensais (${TAXA_JUROS_MENSAL}% a.m.)</option>
+          <option value="4x" ${o.pgto==='4x'?'selected':''}>4x mensais (${TAXA_JUROS_MENSAL}% a.m.)</option>
+          <option value="5x" ${o.pgto==='5x'?'selected':''}>5x mensais (${TAXA_JUROS_MENSAL}% a.m.)</option>
+          <option value="6x" ${o.pgto==='6x'?'selected':''}>6x mensais (${TAXA_JUROS_MENSAL}% a.m.)</option>
+        ${optionsCondicoesExtra(o.pgto)}
         </select>
-        <div style="font-size:11px;color:var(--text2);margin-top:4px">Ao trocar, o total é recalculado automaticamente (parcelado aplica 1,6% a.m.)</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:4px">Ao trocar, o total é recalculado automaticamente (parcelado aplica ${TAXA_JUROS_MENSAL}% a.m.)</div>
       </div>
       <div class="ig"><label>Observações</label><textarea id="edit-obs">${o.obs||''}</textarea></div>
       <div style="display:flex;gap:8px;margin-top:.5rem">
@@ -3514,7 +3547,7 @@ function abrirOrcamento(id){
 function atualizarTotalPgtoEdicao(sel){
   const base=parseFloat(sel.dataset.base)||0;
   const nParc=parseInt((sel.value||'').replace('x',''));
-  const comJuros = (!isNaN(nParc)&&nParc>1&&/^\d+x$/.test(sel.value)) ? base*(1+nParc*0.016) : base;
+  const comJuros = (!isNaN(nParc)&&nParc>1&&/^\d+x$/.test(sel.value)) ? base*(1+nParc*(TAXA_JUROS_MENSAL/100)) : base;
   const totalEl=document.getElementById('edit-total');
   if(totalEl) totalEl.value = comJuros.toFixed(2);
 }
@@ -3822,6 +3855,7 @@ async function renderAdmin(){
       <button class="adm-tab-btn active" id="adm-tab-btn-produtos" onclick="showAdminTab('produtos')" style="padding:.6rem 1rem;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid var(--primary);color:var(--primary);cursor:pointer">📦 Produtos</button>
       <button class="adm-tab-btn" id="adm-tab-btn-vendedores" onclick="showAdminTab('vendedores')" style="padding:.6rem 1rem;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;color:var(--text2);cursor:pointer">👤 Vendedores</button>
       <button class="adm-tab-btn" id="adm-tab-btn-performance" onclick="showAdminTab('performance')" style="padding:.6rem 1rem;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;color:var(--text2);cursor:pointer">📊 Performance</button>
+      <button class="adm-tab-btn" id="adm-tab-btn-pagamento" onclick="showAdminTab('pagamento')" style="padding:.6rem 1rem;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;color:var(--text2);cursor:pointer">💰 Pagamento</button>
       <button class="adm-tab-btn" id="adm-tab-btn-backup" onclick="showAdminTab('backup')" style="padding:.6rem 1rem;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;color:var(--text2);cursor:pointer">💾 Backup</button>
     </div>
 
@@ -3942,7 +3976,50 @@ async function renderAdmin(){
     </div>
     </div>
 
-    <div id="admin-tab-vendedores" style="display:none">
+    <div id="admin-tab-pagamento" style="display:none">
+      <div style="margin-bottom:1.5rem">
+        <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.5rem">Taxa de juros do parcelamento</div>
+        <div class="card" style="padding:.75rem 1rem">
+          <div style="font-size:12px;color:var(--text2);margin-bottom:.5rem">Aplicada às condições parceladas (2x a 6x e quaisquer outras "Nx" criadas abaixo). Atual: <strong>${TAXA_JUROS_MENSAL}% a.m.</strong></div>
+          <div class="fr2" style="gap:8px;align-items:flex-end">
+            <div class="ig" style="margin:0"><label>Taxa mensal (%)</label><input type="number" id="adm-taxa-juros" value="${TAXA_JUROS_MENSAL}" step="0.01" style="font-size:12px"></div>
+            <button class="btn btn-primary btn-sm" onclick="salvarTaxaJuros()"><i class="ti ti-device-floppy"></i> Salvar taxa</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:1.5rem">
+        <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.5rem">Condições de pagamento extras</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:.75rem">Além das fixas (À vista, 7 dias, 15 dias, 20% Sinal, 2x a 6x), que aparecem em todas as telas de orçamento.</div>
+        <div id="lista-condicoes-pgto">
+          ${CONDICOES_PGTO_EXTRA.length===0?'<div style="font-size:12px;color:var(--text2)">Nenhuma condição extra cadastrada ainda.</div>':CONDICOES_PGTO_EXTRA.map(c=>`<div class="card" style="margin-bottom:.5rem;padding:.6rem 1rem;display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-size:13px;font-weight:600">${c.nome}</div>
+              <div style="font-size:11px;color:var(--text2)">${c.parcelas>1?`Parcelado em ${c.parcelas}x, com juros`:'Sem juros'}</div>
+            </div>
+            <button class="btn btn-sm" style="color:#c0392b;border-color:#c0392b" onclick="excluirCondicaoPagamento('${c.id}')">
+              <i class="ti ti-trash"></i>
+            </button>
+          </div>`).join('')}
+        </div>
+        <div class="card" style="margin-top:.5rem;padding:.75rem 1rem">
+          <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:.5rem">Adicionar condição nova</div>
+          <div class="ig" style="margin-bottom:6px"><label>Nome (como vai aparecer na lista)</label><input type="text" id="new-cond-nome" placeholder="Ex: 30/60/90 dias ou 10x mensais" style="font-size:12px"></div>
+          <div class="ig" style="margin-bottom:6px">
+            <label>Tipo</label>
+            <select id="new-cond-tipo" style="font-size:12px" onchange="document.getElementById('new-cond-parcelas-wrap').style.display=this.value==='parcelado'?'':'none'">
+              <option value="sem_juros">Sem juros (à vista, dias, entrada, etc.)</option>
+              <option value="parcelado">Parcelado (aplica a taxa de juros mensal acima)</option>
+            </select>
+          </div>
+          <div class="ig" id="new-cond-parcelas-wrap" style="margin-bottom:6px;display:none">
+            <label>Número de parcelas</label>
+            <input type="number" id="new-cond-parcelas" min="2" step="1" placeholder="Ex: 10" style="font-size:12px">
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="criarCondicaoPagamento()"><i class="ti ti-plus"></i> Adicionar condição</button>
+        </div>
+      </div>
+    </div>
       <div style="margin-bottom:1.5rem">
         <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.5rem">Vendedores</div>
         <div id="lista-vendedores">
@@ -4009,6 +4086,57 @@ function atualizarCamposProdutoNovo(){
 // Cria uma nova categoria (tabela 'categorias' no Supabase) a partir do Admin,
 // deixando-a disponível imediatamente no select de "Tipo de Produto" e como
 // uma nova seção própria na tela de Orçamento — igual às categorias fixas.
+async function salvarTaxaJuros(){
+  const val = parseFloat(document.getElementById('adm-taxa-juros')?.value);
+  if(isNaN(val) || val<0){ toast('Digite uma taxa válida.'); return; }
+  try{
+    await sbReq('POST','config_sistema','',{chave:'taxa_juros_mensal',valor:val},{'Prefer':'resolution=merge-duplicates,return=representation'});
+    TAXA_JUROS_MENSAL = val;
+    toast('✓ Taxa de juros atualizada para '+val+'% a.m.!');
+    renderAdmin();
+  }catch(e){
+    console.error('Erro ao salvar taxa de juros:', e);
+    toast('Erro ao salvar: '+(e.message||'verifique se a tabela "config_sistema" (colunas: chave text PK, valor numeric) existe no Supabase.'));
+  }
+}
+
+async function criarCondicaoPagamento(){
+  const nome = document.getElementById('new-cond-nome')?.value?.trim();
+  const tipo = document.getElementById('new-cond-tipo')?.value;
+  if(!nome){ toast('Digite o nome da condição.'); return; }
+  let valor = nome, parcelas = 1;
+  if(tipo==='parcelado'){
+    parcelas = parseInt(document.getElementById('new-cond-parcelas')?.value);
+    if(!parcelas || parcelas<2){ toast('Digite o número de parcelas (2 ou mais).'); return; }
+    valor = parcelas+'x';
+  }
+  const id = 'cond_'+Date.now().toString(36);
+  try{
+    await sbPost('condicoes_pagamento', {id, nome, valor, parcelas, ativo:true});
+    CONDICOES_PGTO_EXTRA.push({id, nome, valor, parcelas, ativo:true});
+    toast('✓ Condição "'+nome+'" criada!');
+    document.getElementById('new-cond-nome').value='';
+    const pInput=document.getElementById('new-cond-parcelas'); if(pInput) pInput.value='';
+    renderAdmin();
+  }catch(e){
+    console.error('Erro ao criar condição de pagamento:', e);
+    toast('Erro ao criar: '+(e.message||'verifique se a tabela "condicoes_pagamento" existe no Supabase.'));
+  }
+}
+
+async function excluirCondicaoPagamento(id){
+  if(!confirm('Excluir esta condição de pagamento?')) return;
+  try{
+    await sbReq('PATCH','condicoes_pagamento','id=eq.'+id,{ativo:false});
+    CONDICOES_PGTO_EXTRA = CONDICOES_PGTO_EXTRA.filter(c=>c.id!==id);
+    toast('Condição excluída.');
+    renderAdmin();
+  }catch(e){
+    console.error('Erro ao excluir condição de pagamento:', e);
+    toast('Erro ao excluir.');
+  }
+}
+
 async function criarCategoriaNova(){
   const nome = document.getElementById('new-cat-nome')?.value?.trim();
   const icone = document.getElementById('new-cat-icone')?.value?.trim() || '📦';
@@ -4061,7 +4189,7 @@ async function adicionarProdutoNovoCategoria(){
 
 
 function showAdminTab(tab){
-  const abas=['produtos','vendedores','performance','backup'];
+  const abas=['produtos','vendedores','performance','backup','pagamento'];
   abas.forEach(a=>{
     const div=document.getElementById('admin-tab-'+a);
     const btn=document.getElementById('adm-tab-btn-'+a);
@@ -4559,7 +4687,7 @@ function entrarNoApp(){
     +'<button class="btn btn-sm" style="margin-left:4px" onclick="fazerLogout()" title="Sair"><i class="ti ti-logout"></i></button>';
   const navAdmin=document.getElementById('nav-admin');
   if(navAdmin)navAdmin.style.display=isAdmin()?'':'none';
-  Promise.all([loadCategorias(),loadProdutos(),loadOrcamentos(),loadVendedores()]).then(()=>{
+  Promise.all([loadCategorias(),loadProdutos(),loadOrcamentos(),loadVendedores(),loadConfigPagamento()]).then(()=>{
     showTab('home');
     loadClientes(true);
   });
