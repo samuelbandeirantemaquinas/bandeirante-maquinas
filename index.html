@@ -411,7 +411,7 @@ let CARREGADORES = [
 ];
 let ADAPTADORES = [
   {id:'adp1450',cod:'9002ADAPT',nome:'Adaptador 1450/1550 Fast Coupling',preco:9377.80,estrutura:['1450','1550'],desc:'Modelos standard Fast Coupling'},
-  {id:'adp1950',cod:'9004ADAPT',nome:'Adaptador 1950 Fast Coupling',preco:10458.93,estrutura:['1950'],desc:'NH 8030/T6 · Case 110A-130A · JD 6000'},
+  {id:'adp1950',cod:'9004ADAPT',nome:'Adaptador 1950 Fast Coupling',preco:10458.93,estrutura:['1950'],desc:'Modelos standard Fast Coupling'},
   {id:'adp2200',cod:'A006',nome:'Adaptador 2200',preco:15011.65,estrutura:['2200'],desc:'Para estrutura Hexline 2200'},
   {id:'adp_nao',cod:'—',nome:'Sem adaptador',preco:0,estrutura:['1450','1550','1950','2200'],desc:'Cliente já possui adaptador'},
 ];
@@ -842,7 +842,12 @@ function gerarOrcRasthor(){
   const sel = getRasthorSel();
   if(!sel.length) return;
   const tituloHdr = sel.length===1 ? sel[0].nome : sel.length+' itens selecionados';
-  const totalGeral = sel.reduce((t,r)=>t+precoAjustado(r.id,r.preco)*getQtd(r.id),0);
+  const totalGeral0 = sel.reduce((t,r)=>t+precoAjustado(r.id,r.preco)*getQtd(r.id),0);
+  const rcPgtoAtual = (document.getElementById('rc-pgto')||{}).value||'';
+  const matchParcRcLib = /^(\d+)x$/.exec(rcPgtoAtual);
+  const nParcRcLib = matchParcRcLib ? parseInt(matchParcRcLib[1]) : NaN;
+  // A comparação usa o total COM juros, pois é esse valor que fica salvo no banco (salvarOrcamentoRasthor).
+  const totalGeral = (!isNaN(nParcRcLib) && nParcRcLib>1) ? totalGeral0*(1+nParcRcLib*(TAXA_JUROS_MENSAL/100)) : totalGeral0;
   if(st._rasthorPdfLiberadoTotal!==totalGeral) st.rasthorPdfLiberado=false;
   // Ir para tela de dados do cliente antes de gerar
   document.getElementById('app-content').innerHTML=`
@@ -1003,7 +1008,11 @@ async function salvarOrcamentoRasthor(){
   if(!sel.length) return;
   const gr=fid=>(document.getElementById(fid)||{}).value||'';
   const itens = sel.map(r=>({cod:r.cod||'',nome:r.nome,desc:r.desc||'',qtd:getQtd(r.id),preco:precoAjustado(r.id,r.preco),preco_base:r.preco,ajuste:st.ajustes[r.id]||0}));
-  const total = sel.reduce((t,r)=>t+precoAjustado(r.id,r.preco)*getQtd(r.id),0);
+  const total0 = sel.reduce((t,r)=>t+precoAjustado(r.id,r.preco)*getQtd(r.id),0);
+  const rcPgtoSalvar = gr('rc-pgto')||'';
+  const matchParcRcSalvar=/^(\d+)x$/.exec(rcPgtoSalvar);
+  const nParcRcSalvar=matchParcRcSalvar?parseInt(matchParcRcSalvar[1]):NaN;
+  const total = (!isNaN(nParcRcSalvar)&&nParcRcSalvar>1) ? total0*(1+nParcRcSalvar*(TAXA_JUROS_MENSAL/100)) : total0;
   const btn=document.getElementById('btn-salvar-rasthor');
   if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .7s linear infinite"></i> Salvando...';}
   try{
@@ -1443,7 +1452,12 @@ function renderItensFormGenerico(tipo){
   const sel = getSelPorTipo(tipo);
   const card = document.getElementById('gn-itens-card');
   if(!card) return;
-  const totalGeral = sel.reduce((t,p)=>t+precoAjustado(p.id,p.preco)*getQtd(p.id),0);
+  const totalGeral0 = sel.reduce((t,p)=>t+precoAjustado(p.id,p.preco)*getQtd(p.id),0);
+  const gnPgtoAtual = (document.getElementById('gn-pgto')||{}).value||'';
+  const matchParcGenLib = /^(\d+)x$/.exec(gnPgtoAtual);
+  const nParcGenLib = matchParcGenLib ? parseInt(matchParcGenLib[1]) : NaN;
+  // A comparação usa o total COM juros, pois é esse valor que fica salvo no banco (salvarOrcamentoGenerico).
+  const totalGeral = (!isNaN(nParcGenLib) && nParcGenLib>1) ? totalGeral0*(1+nParcGenLib*(TAXA_JUROS_MENSAL/100)) : totalGeral0;
   if(st._genPdfLiberadoTotal!==totalGeral){
     st.genPdfLiberado=false;
     const btnPdfG=document.getElementById('btn-pdf-generico');
@@ -1588,7 +1602,11 @@ async function salvarOrcamentoGenerico(){
     cod:p.cod||'', nome:p.nome, desc:p.desc||'', img:p.img||null,
     qtd:getQtd(p.id), preco:precoAjustado(p.id,p.preco), preco_base:p.preco, ajuste:st.ajustes[p.id]||0
   }));
-  const total = itens.reduce((t,p)=>t+precoAjustado(p.id,p.preco)*getQtd(p.id),0);
+  const total0 = itens.reduce((t,p)=>t+precoAjustado(p.id,p.preco)*getQtd(p.id),0);
+  const pgtoSalvo = gn('gn-pgto')||'';
+  const matchParcGenSalvar=/^(\d+)x$/.exec(pgtoSalvo);
+  const nParcGenSalvar=matchParcGenSalvar?parseInt(matchParcGenSalvar[1]):NaN;
+  const total = (!isNaN(nParcGenSalvar)&&nParcGenSalvar>1) ? total0*(1+nParcGenSalvar*(TAXA_JUROS_MENSAL/100)) : total0;
   const btn=document.getElementById('btn-salvar-gen');
   if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .7s linear infinite"></i> Salvando...';}
   try{
@@ -1601,6 +1619,8 @@ async function salvarOrcamentoGenerico(){
       adaptador_cod:null,joystick_cod:null,
       itens:itensSalvar,total,
       vendedor:vendedorSalvo,
+      pgto:pgtoSalvo||null,
+      frete:gn('gn-frete')||null,
       obs:gn('gn-obs'),status:'Em aberto'
     });
     toast('Orçamento salvo! ✓');
@@ -2714,7 +2734,6 @@ function calcTotal(){
 function s6(){
   const itens=montarItens();
   const total=calcTotal();
-  if(st._pdfLiberadoTotal!==total) st.pdfLiberado=false;
   const num=genNum();
   const m=st.marcaSel?MARCAS.find(x=>x.id===st.marcaSel):null;
   const nomeCliente=g('cli-nome')||st.clienteSel?.nome||'—';
@@ -2731,6 +2750,8 @@ function s6(){
   const matchParcS6 = /^(\d+)x$/.exec(pgtoAtual);
   const nParcS6 = matchParcS6 ? parseInt(matchParcS6[1]) : NaN;
   const totalComJuros = (!isNaN(nParcS6) && nParcS6>1) ? total*(1+nParcS6*(TAXA_JUROS_MENSAL/100)) : total;
+  // A comparação usa o total COM juros, pois é esse valor que fica salvo no banco (salvarOrcamento).
+  if(st._pdfLiberadoTotal!==totalComJuros) st.pdfLiberado=false;
   return `<div class="card" style="margin-bottom:1rem">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.75rem">
       <div><div style="font-size:9px;color:var(--text2);font-weight:600;letter-spacing:.5px">BANDEIRANTE MÁQUINAS</div>
@@ -2782,7 +2803,11 @@ function s6(){
 async function salvarOrcamento(){
   const car=getCarregadoresSel()[0];
   const itens=montarItens();
-  const total=calcTotal();
+  const total0=calcTotal();
+  const pgtoAtualSalvar=g('cli-pgto')||st.pgto||'';
+  const matchParcSalvar=/^(\d+)x$/.exec(pgtoAtualSalvar);
+  const nParcSalvar=matchParcSalvar?parseInt(matchParcSalvar[1]):NaN;
+  const total=(!isNaN(nParcSalvar)&&nParcSalvar>1)?total0*(1+nParcSalvar*(TAXA_JUROS_MENSAL/100)):total0;
   const m=st.marcaSel?MARCAS.find(x=>x.id===st.marcaSel):null;
   const btn=document.getElementById('btn-salvar');
   if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .7s linear infinite"></i> Salvando...';}
@@ -4374,6 +4399,19 @@ function renderPerfBody(){
   const vendedoresOrdenados = Object.entries(porVendedor).sort((a,b)=>b[1].total-a[1].total);
   const maxVend = vendedoresOrdenados.length ? vendedoresOrdenados[0][1].total : 0;
 
+  // ── Ranking de tratores mais solicitados ──
+  // Só considera orçamentos do fluxo Carregador, que é o único que salva trator_marca/trator_modelo.
+  const porTrator = {};
+  lista.forEach(o=>{
+    if(!o.trator_modelo) return;
+    const chave = (o.trator_marca?o.trator_marca+' ':'')+o.trator_modelo;
+    if(!porTrator[chave]) porTrator[chave] = {qtd:0,total:0};
+    porTrator[chave].qtd += 1;
+    porTrator[chave].total += Number(o.total||0);
+  });
+  const tratoresOrdenados = Object.entries(porTrator).sort((a,b)=>b[1].qtd-a[1].qtd);
+  const maxTratorQtd = tratoresOrdenados.length ? tratoresOrdenados[0][1].qtd : 0;
+
   const corClasse = {A:'#27500A',B:'#854F0B',C:'#791F1F'};
   const bgClasse = {A:'#EAF3DE',B:'#FAEEDA',C:'#FCEBEB'};
 
@@ -4409,6 +4447,23 @@ function renderPerfBody(){
           </div>
           <div style="background:var(--bg);border-radius:4px;height:8px;overflow:hidden">
             <div style="background:var(--primary);height:100%;width:${pct}%"></div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div style="font-size:13px;font-weight:700;margin-bottom:.75rem">Tratores mais solicitados</div>
+    <div style="margin-bottom:1.75rem">
+      ${tratoresOrdenados.length===0?`<div style="font-size:12px;color:var(--text2)">Nenhum orçamento com trator selecionado no filtro atual (esse dado só é salvo no fluxo de Carregadores).</div>`:
+      tratoresOrdenados.map(([nome,d],i)=>{
+        const pct = maxTratorQtd>0 ? (d.qtd/maxTratorQtd*100) : 0;
+        return `<div style="margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+            <span style="font-weight:600">${i+1}. ${nome}</span>
+            <span style="color:var(--text2)">${d.qtd} orç. · ${fmt(d.total)}</span>
+          </div>
+          <div style="background:var(--bg);border-radius:4px;height:8px;overflow:hidden">
+            <div style="background:#854F0B;height:100%;width:${pct}%"></div>
           </div>
         </div>`;
       }).join('')}
@@ -4687,8 +4742,14 @@ function entrarNoApp(){
     +'<button class="btn btn-sm" style="margin-left:4px" onclick="fazerLogout()" title="Sair"><i class="ti ti-logout"></i></button>';
   const navAdmin=document.getElementById('nav-admin');
   if(navAdmin)navAdmin.style.display=isAdmin()?'':'none';
-  Promise.all([loadCategorias(),loadProdutos(),loadOrcamentos(),loadVendedores(),loadConfigPagamento()]).then(()=>{
+  // Só espera o essencial pra já mostrar a tela (categorias e preços dos produtos).
+  // Orçamentos (pode ter até 500 linhas), vendedores, config de pagamento e clientes
+  // carregam em segundo plano sem travar a entrada no app.
+  Promise.all([loadCategorias(),loadProdutos()]).then(()=>{
     showTab('home');
+    loadOrcamentos();
+    loadVendedores();
+    loadConfigPagamento();
     loadClientes(true);
   });
 }
