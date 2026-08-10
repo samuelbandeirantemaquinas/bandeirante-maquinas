@@ -1779,16 +1779,18 @@ function gerarPDFGenerico(){
       if(st.adaptDB.estrutura) rodapeGen.push({label:'Estrutura:',val:st.adaptDB.estrutura});
       if(st.adaptDB.adaptador) rodapeGen.push({label:'Adaptador (código):',val:st.adaptDB.adaptador});
       if(st.adaptDB.joystick) rodapeGen.push({label:'Joystick (código):',val:st.adaptDB.joystick});
-      if(st.adaptDB.obs) rodapeGen.push({label:'Observação do trator:',val:st.adaptDB.obs});
+      if(st.adaptDB.obs) rodapeGen.push({label:'Observação do trator:',val:filtrarObsJoystick(st.adaptDB.obs,haJoystickSelecionado())});
     }
   }
   rodapeGen.push({label:'Vendedor:',val:vendedor},{label:'Data de Emissão:',val:hoje});
   rodapeGen.forEach(row=>{
-    doc.setFillColor(248,248,248);doc.rect(M,y,W-M*2,6,'FD');
+    const valLines=doc.splitTextToSize(row.val,W-M*2-55);
+    const rh=Math.max(6,valLines.length*4+2);
+    doc.setFillColor(248,248,248);doc.rect(M,y,W-M*2,rh,'FD');
     doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(40);
     doc.text(row.label,M+2,y+4.2);
     doc.setFont('helvetica','normal');doc.setTextColor(60);
-    doc.text(row.val,M+55,y+4.2);y+=6;
+    doc.text(valLines,M+55,y+4.2);y+=rh;
   });
   if(obs){
     const obsLines=doc.splitTextToSize('Informações Adicionais:\n'+obs,W-M*2-6);
@@ -2763,6 +2765,19 @@ function montarItens(){
   });
   return itens;
 }
+// Remove a menção ao tipo de joystick (ex: "Joystick Centro Fechado") da observação
+// fixa do trator quando nenhum joystick foi de fato incluído no orçamento — evita
+// confundir o cliente com uma informação que não faz parte do pedido.
+function filtrarObsJoystick(obsRaw, temJoystick){
+  if(!obsRaw) return obsRaw;
+  if(temJoystick) return obsRaw;
+  const partes = obsRaw.split(/\s*—\s*|\s*·\s*/).map(p=>p.trim()).filter(p=>p && !/joystick/i.test(p));
+  return partes.join(' — ');
+}
+function haJoystickSelecionado(){
+  return JOYSTICKS.some(j=>j.id!=='joy_nao' && getQtd(j.id)>0);
+}
+
 function calcTotal(){
   return montarItens().reduce((t,it)=>t+it.preco,0);
 }
@@ -3094,23 +3109,25 @@ function gerarPDF(){
       if(st.adaptDB.estrutura) infoRows.push({label:'Estrutura:', val:st.adaptDB.estrutura});
       if(st.adaptDB.adaptador) infoRows.push({label:'Adaptador (código):', val:st.adaptDB.adaptador});
       if(st.adaptDB.joystick) infoRows.push({label:'Joystick (código):', val:st.adaptDB.joystick});
-      if(st.adaptDB.obs) infoRows.push({label:'Observação do trator:', val:st.adaptDB.obs});
+      if(st.adaptDB.obs) infoRows.push({label:'Observação do trator:', val:filtrarObsJoystick(st.adaptDB.obs,haJoystickSelecionado())});
     }
   }
   infoRows.push({label:'Vendedor:', val:vendedor});
   infoRows.push({label:'Data de Emissão:', val:hoje});
 
   infoRows.forEach(row => {
+    const valLines=doc.splitTextToSize(row.val,W-M*2-55);
+    const rh=Math.max(6,valLines.length*4+2);
     doc.setFillColor(248,248,248);
-    doc.rect(M, y, W-M*2, 6, 'FD');
+    doc.rect(M, y, W-M*2, rh, 'FD');
     doc.setFont('helvetica','bold');
     doc.setFontSize(8);
     doc.setTextColor(40);
     doc.text(row.label, M+2, y+4.2);
     doc.setFont('helvetica','normal');
     doc.setTextColor(60);
-    doc.text(row.val, M+55, y+4.2);
-    y+=6;
+    doc.text(valLines, M+55, y+4.2);
+    y+=rh;
   });
 
   // Observações
@@ -3848,17 +3865,22 @@ async function regenarPDFHistorico(id){
     if(o.estrutura) infoRows.push({label:'Estrutura:',val:o.estrutura});
     if(o.adaptador_cod) infoRows.push({label:'Adaptador (código):',val:o.adaptador_cod});
     if(o.joystick_cod) infoRows.push({label:'Joystick (código):',val:o.joystick_cod});
-    if(o.adapt_obs) infoRows.push({label:'Observação do trator:',val:o.adapt_obs});
+    if(o.adapt_obs){
+      const temJoystickHist = itens.some(it=>/joystick/i.test(it.nome||''));
+      infoRows.push({label:'Observação do trator:',val:filtrarObsJoystick(o.adapt_obs,temJoystickHist)});
+    }
   }
   infoRows.push({label:'Vendedor:',val:o.vendedor||'—'});
   infoRows.push({label:'Data de Emissão:',val:hoje});
   infoRows.forEach(row=>{
-    doc.setFillColor(248,248,248);doc.rect(M,y,W-M*2,6,'FD');
+    const valLines=doc.splitTextToSize(row.val,W-M*2-55);
+    const rh=Math.max(6,valLines.length*4+2);
+    doc.setFillColor(248,248,248);doc.rect(M,y,W-M*2,rh,'FD');
     doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(40);
     doc.text(row.label,M+2,y+4.2);
     doc.setFont('helvetica','normal');doc.setTextColor(60);
-    doc.text(row.val,M+55,y+4.2);
-    y+=6;
+    doc.text(valLines,M+55,y+4.2);
+    y+=rh;
   });
   y+=4;
   doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(100);
