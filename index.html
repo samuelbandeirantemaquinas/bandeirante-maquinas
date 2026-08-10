@@ -1624,12 +1624,14 @@ async function salvarOrcamentoGenerico(){
   if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .7s linear infinite"></i> Salvando...';}
   try{
     const vendedorSalvo = gn('gn-vendedor')||document.getElementById('gn-vendedor')?.value||st.vendedor||currentPerfil?.nome||null;
+    const mGen = st.marcaSel?MARCAS.find(x=>x.id===st.marcaSel):null;
     await sbPost('orcamentos',{
       numero:'ORC-'+Date.now().toString().slice(-6),
       cliente_id:_cliGenSel?.id||null,
       cliente_nome:gn('gn-nome')||_cliGenSel?.nome||null,
-      trator_marca:null,trator_modelo:null,estrutura:null,
-      adaptador_cod:null,joystick_cod:null,
+      trator_marca:mGen?.label||null,trator_modelo:st.modeloSel||null,estrutura:st.adaptDB?.estrutura||null,
+      adaptador_cod:st.adaptDB?.adaptador||null,joystick_cod:st.adaptDB?.joystick||null,
+      adapt_obs:st.adaptDB?.obs||null,
       itens:itensSalvar,total,
       vendedor:vendedorSalvo,
       pgto:pgtoSalvo||null,
@@ -1768,7 +1770,20 @@ function gerarPDFGenerico(){
   y+=9;
 
   // Rodapé
-  [{label:'Condição de Pagamento:',val:pgto||'—'},{label:'Transportadora / Frete:',val:frete||'—'},{label:'Vendedor:',val:vendedor},{label:'Data de Emissão:',val:hoje}].forEach(row=>{
+  const mGenPdf = st.marcaSel?MARCAS.find(x=>x.id===st.marcaSel):null;
+  const rodapeGen = [{label:'Condição de Pagamento:',val:pgto||'—'},{label:'Transportadora / Frete:',val:frete||'—'}];
+  if(mGenPdf && st.modeloSel){
+    rodapeGen.push({label:'Marca:',val:mGenPdf.label});
+    rodapeGen.push({label:'Modelo:',val:st.modeloSel});
+    if(st.adaptDB){
+      if(st.adaptDB.estrutura) rodapeGen.push({label:'Estrutura:',val:st.adaptDB.estrutura});
+      if(st.adaptDB.adaptador) rodapeGen.push({label:'Adaptador (código):',val:st.adaptDB.adaptador});
+      if(st.adaptDB.joystick) rodapeGen.push({label:'Joystick (código):',val:st.adaptDB.joystick});
+      if(st.adaptDB.obs) rodapeGen.push({label:'Observação do trator:',val:st.adaptDB.obs});
+    }
+  }
+  rodapeGen.push({label:'Vendedor:',val:vendedor},{label:'Data de Emissão:',val:hoje});
+  rodapeGen.forEach(row=>{
     doc.setFillColor(248,248,248);doc.rect(M,y,W-M*2,6,'FD');
     doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(40);
     doc.text(row.label,M+2,y+4.2);
@@ -3829,11 +3844,11 @@ async function regenarPDFHistorico(id){
   if(frete) infoRows.push({label:'Transportadora / Frete:',val:frete});
   if(o.trator_marca && o.trator_modelo){
     infoRows.push({label:'Marca:',val:o.trator_marca});
-    let modeloVal = o.trator_modelo;
-    if(o.adapt_obs && /tanque|\btq\b/i.test(o.adapt_obs)){
-      modeloVal += ' — ' + o.adapt_obs;
-    }
-    infoRows.push({label:'Modelo:',val:modeloVal});
+    infoRows.push({label:'Modelo:',val:o.trator_modelo});
+    if(o.estrutura) infoRows.push({label:'Estrutura:',val:o.estrutura});
+    if(o.adaptador_cod) infoRows.push({label:'Adaptador (código):',val:o.adaptador_cod});
+    if(o.joystick_cod) infoRows.push({label:'Joystick (código):',val:o.joystick_cod});
+    if(o.adapt_obs) infoRows.push({label:'Observação do trator:',val:o.adapt_obs});
   }
   infoRows.push({label:'Vendedor:',val:o.vendedor||'—'});
   infoRows.push({label:'Data de Emissão:',val:hoje});
