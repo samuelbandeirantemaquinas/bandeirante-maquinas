@@ -3921,9 +3921,9 @@ async function renderAdmin(){
   const existentes = new Set(rows.map(r=>r.id));
   const faltantes = seedDefs.filter(s=>!existentes.has(s.id));
   if(faltantes.length>0){
-    for(const item of faltantes){
-      try{ await sbPost('produtos', item); }catch(e){ console.warn('Erro ao semear produto', item.id, e); }
-    }
+    await Promise.all(faltantes.map(item =>
+      sbPost('produtos', item).catch(e=>console.warn('Erro ao semear produto', item.id, e))
+    ));
     try{ rows = await sbGet('produtos','order=categoria.asc,id.asc'); }catch(e){}
   }
 
