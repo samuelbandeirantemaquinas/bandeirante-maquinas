@@ -3905,36 +3905,54 @@ async function renderAdmin(){
   // Evita mostrar a aba "Vendedores" vazia caso o carregamento inicial ainda não tenha terminado.
   if(!vendedores.length){ try{ await loadVendedores(); }catch(e){} }
   let rows=[];
-  try{rows=await sbGet('produtos','order=categoria.asc,id.asc');}catch(e){}
+  let loadError=null;
+  try{rows=await sbGet('produtos','order=categoria.asc,id.asc');}catch(e){loadError=e;}
 
-  // Auto-seed: garante que os produtos das categorias novas (carreta, aerador,
-  // plantadeira, virtuos, mtsb) existam na tabela 'produtos' do Supabase, para que
-  // apareçam editáveis aqui no Admin. Insere apenas os que ainda não existem.
-  const seedDefs = [
-    ...CARRETAS.map(p=>({id:p.id,categoria:'carreta',nome:p.nome,preco:p.preco,descricao:p.desc||'',ativo:true})),
-    ...AERADORES.map(p=>({id:p.id,categoria:'aerador',nome:p.nome,preco:p.preco,descricao:p.desc||'',ativo:true})),
-    ...PLANTADEIRAS.map(p=>({id:p.id,categoria:'plantadeira',nome:p.nome,preco:p.preco,descricao:p.desc||'',ativo:true})),
-    ...VIRTUOS.map(p=>({id:p.id,categoria:'virtuos',nome:p.nome,preco:p.preco,descricao:p.desc||'',ativo:true})),
-    ...MTSB.map(p=>({id:p.id,categoria:'mtsb',nome:p.nome,preco:p.preco,descricao:p.desc||'',ativo:true})),
-    ...IMPLEMENTOS.map(p=>({id:p.id,categoria:'implemento',nome:p.nome,preco:p.preco,descricao:p.desc||'',cod:p.cod||'',grupo:p.grupo||'Outros',img:p.img||null,estrutura_min:p.estruturaMin||null,ativo:true})),
-  ];
-  const existentes = new Set(rows.map(r=>r.id));
-  // Guarda no navegador quais produtos já tiveram tentativa de inserção, pra nunca
-  // tentar de novo (mesmo que a tentativa anterior tenha falhado por algum motivo) —
-  // evita que o Admin fique lento toda vez que é aberto refazendo essa checagem.
-  let seedTentados = [];
-  try{ seedTentados = JSON.parse(localStorage.getItem('bandeirante_seed_tentados')||'[]'); }catch(e){}
-  const jaTentados = new Set(seedTentados);
-  const faltantes = seedDefs.filter(s=>!existentes.has(s.id) && !jaTentados.has(s.id));
-  if(faltantes.length>0){
-    await Promise.all(faltantes.map(item =>
-      sbPost('produtos', item).catch(e=>console.warn('Erro ao semear produto', item.id, e))
-    ));
-    try{
-      const todosIds=[...seedTentados, ...faltantes.map(f=>f.id)];
-      localStorage.setItem('bandeirante_seed_tentados', JSON.stringify(todosIds));
-    }catch(e){}
-    try{ rows = await sbGet('produtos','order=categoria.asc,id.asc'); }catch(e){}
+  // Só tenta o auto-seed (criar produtos novos no banco) se o carregamento inicial
+  // deu certo — se o banco estiver fora do ar, tentar semear só geraria mais erros.
+  if(!loadError){
+    // Auto-seed: garante que os produtos das categorias novas (carreta, aerador,
+    // plantadeira, virtuos, mtsb) existam na tabela 'produtos' do Supabase, para que
+    // apareçam editáveis aqui no Admin. Insere apenas os que ainda não existem.
+    const seedDefs = [
+      ...CARRETAS.map(p=>({id:p.id,categoria:'carreta',nome:p.nome,preco:p.preco,descricao:p.desc||'',ativo:true})),
+      ...AERADORES.map(p=>({id:p.id,categoria:'aerador',nome:p.nome,preco:p.preco,descricao:p.desc||'',ativo:true})),
+      ...PLANTADEIRAS.map(p=>({id:p.id,categoria:'plantadeira',nome:p.nome,preco:p.preco,descricao:p.desc||'',ativo:true})),
+      ...VIRTUOS.map(p=>({id:p.id,categoria:'virtuos',nome:p.nome,preco:p.preco,descricao:p.desc||'',ativo:true})),
+      ...MTSB.map(p=>({id:p.id,categoria:'mtsb',nome:p.nome,preco:p.preco,descricao:p.desc||'',ativo:true})),
+      ...IMPLEMENTOS.map(p=>({id:p.id,categoria:'implemento',nome:p.nome,preco:p.preco,descricao:p.desc||'',cod:p.cod||'',grupo:p.grupo||'Outros',img:p.img||null,estrutura_min:p.estruturaMin||null,ativo:true})),
+    ];
+    const existentes = new Set(rows.map(r=>r.id));
+    // Guarda no navegador quais produtos já tiveram tentativa de inserção, pra nunca
+    // tentar de novo (mesmo que a tentativa anterior tenha falhado por algum motivo) —
+    // evita que o Admin fique lento toda vez que é aberto refazendo essa checagem.
+    let seedTentados = [];
+    try{ seedTentados = JSON.parse(localStorage.getItem('bandeirante_seed_tentados')||'[]'); }catch(e){}
+    const jaTentados = new Set(seedTentados);
+    const faltantes = seedDefs.filter(s=>!existentes.has(s.id) && !jaTentados.has(s.id));
+    if(faltantes.length>0){
+      await Promise.all(faltantes.map(item =>
+        sbPost('produtos', item).catch(e=>console.warn('Erro ao semear produto', item.id, e))
+      ));
+      try{
+        const todosIds=[...seedTentados, ...faltantes.map(f=>f.id)];
+        localStorage.setItem('bandeirante_seed_tentados', JSON.stringify(todosIds));
+      }catch(e){}
+      try{ rows = await sbGet('produtos','order=categoria.asc,id.asc'); }catch(e){}
+    }
+  }
+
+  if(loadError){
+    document.getElementById('app-content').innerHTML=`
+    <div class="page-wrap">
+      <div style="font-size:16px;font-weight:700;margin-bottom:1rem">⚙️ Painel Admin</div>
+      <div class="card" style="padding:1.25rem;border:1px solid var(--danger,#e53e3e);background:rgba(229,62,62,.06)">
+        <div style="font-size:14px;font-weight:700;color:var(--danger,#e53e3e);margin-bottom:6px">⚠️ Não foi possível carregar os produtos</div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:12px">O banco de dados não respondeu (${(loadError.message||'erro desconhecido').replace(/</g,'&lt;')}). Isso costuma ser uma instabilidade temporária do Supabase — verifique sua internet ou tente novamente em alguns segundos.</div>
+        <button class="btn btn-primary" onclick="renderAdmin()">🔄 Tentar novamente</button>
+      </div>
+    </div>`;
+    return;
   }
 
   const cats={carregador:'Carregadores',adaptador:'Adaptadores',joystick:'Joysticks',implemento:'Implementos',rasthor:'Rasthor — Preparo de Solo',carreta:'Carretas Graneleiras',aerador:'Aeradores',plantadeira:'Plantadeiras',virtuos:'Distribuidor de Fertilizantes',mtsb:'Tratadores de Sementes', ...Object.fromEntries(CATEGORIAS_CUSTOM.map(c=>[c.id,c.nome]))};
