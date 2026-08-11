@@ -3919,11 +3919,21 @@ async function renderAdmin(){
     ...IMPLEMENTOS.map(p=>({id:p.id,categoria:'implemento',nome:p.nome,preco:p.preco,descricao:p.desc||'',cod:p.cod||'',grupo:p.grupo||'Outros',img:p.img||null,estrutura_min:p.estruturaMin||null,ativo:true})),
   ];
   const existentes = new Set(rows.map(r=>r.id));
-  const faltantes = seedDefs.filter(s=>!existentes.has(s.id));
+  // Guarda no navegador quais produtos já tiveram tentativa de inserção, pra nunca
+  // tentar de novo (mesmo que a tentativa anterior tenha falhado por algum motivo) —
+  // evita que o Admin fique lento toda vez que é aberto refazendo essa checagem.
+  let seedTentados = [];
+  try{ seedTentados = JSON.parse(localStorage.getItem('bandeirante_seed_tentados')||'[]'); }catch(e){}
+  const jaTentados = new Set(seedTentados);
+  const faltantes = seedDefs.filter(s=>!existentes.has(s.id) && !jaTentados.has(s.id));
   if(faltantes.length>0){
     await Promise.all(faltantes.map(item =>
       sbPost('produtos', item).catch(e=>console.warn('Erro ao semear produto', item.id, e))
     ));
+    try{
+      const todosIds=[...seedTentados, ...faltantes.map(f=>f.id)];
+      localStorage.setItem('bandeirante_seed_tentados', JSON.stringify(todosIds));
+    }catch(e){}
     try{ rows = await sbGet('produtos','order=categoria.asc,id.asc'); }catch(e){}
   }
 
