@@ -404,7 +404,7 @@ const ADAPTS_DB = [
   {marca:'landini',modelo:'Globalfarm 100',estrutura:'1450',adaptador:'12801.4000',joystick:'066357',obs:''},
 ];
 let CARREGADORES = [
-  {id:'hex1450',cod:'001450',nome:'Hexline 1450',cv:'60–110cv',cap:'1100kg',preco:20118.07,estrutura:'1450',cor:'#EAF3DE',corT:'#27500A'},
+  {id:'hex1450',cod:'001450',nome:'Hexline 1450',cv:'60–110cv',cap:'1100kg',preco:20367,estrutura:'1450',cor:'#EAF3DE',corT:'#27500A'},
   {id:'hex1550',cod:'001550',nome:'Hexline 1550',cv:'70–125cv',cap:'1550kg',preco:22518.66,estrutura:'1550',cor:'#E6F1FB',corT:'#0C447C'},
   {id:'hex1950',cod:'001850/1950',nome:'Hexline 1850/1950',cv:'125–180cv',cap:'1950kg',preco:24310.60,estrutura:'1950',cor:'#FAEEDA',corT:'#633806'},
   {id:'hex2200',cod:'002200',nome:'Hexline 2200',cv:'180cv+',cap:'2200kg',preco:33222.49,estrutura:'2200',cor:'#FAECE7',corT:'#712B13'},
@@ -598,7 +598,7 @@ async function loadProdutos(){
         }
       }
     });
-  }catch(e){console.warn('Erro ao carregar produtos:',e);}
+  }catch(e){console.warn('Erro ao carregar produtos:',e); window.__erroCarregarProdutos = e;}
 }
 
 function fmt(v){return v===0?'—':'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
@@ -4860,6 +4860,9 @@ function entrarNoApp(){
     loadVendedores();
     loadConfigPagamento();
     loadClientes(true);
+    if(window.__erroCarregarProdutos){
+      toast('⚠️ Não foi possível sincronizar os preços agora — valores podem estar desatualizados.', 5000);
+    }
   });
 }
 
@@ -4900,8 +4903,10 @@ window.addEventListener('DOMContentLoaded',()=>{
 // ── PWA Service Worker Registration ──
 if('serviceWorker' in navigator){
   const swCode = `
-const CACHE = 'bandeirante-v1';
-const ASSETS = ['./', './index.html'];
+// Sobe a versão sempre que o comportamento do cache mudar — isso força
+// os navegadores que já tinham o SW antigo instalado a descartar o cache velho.
+const CACHE = 'bandeirante-v2';
+const ASSETS = [];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).catch(()=>{}));
   self.skipWaiting();
@@ -4912,6 +4917,18 @@ self.addEventListener('activate', e => {
 });
 self.addEventListener('fetch', e => {
   if(e.request.method !== 'GET') return;
+  const url = new URL(e.request.url);
+  // O documento principal (index.html / '/') NUNCA é servido do cache: sempre
+  // busca a versão mais nova publicada. Isso evita o app ficar "preso" numa
+  // versão antiga depois de um novo deploy.
+  const isDocumento = e.request.mode === 'navigate' || url.pathname === '/' || url.pathname.endsWith('/index.html');
+  // Chamadas à API do Supabase (dados de produtos, preços, etc.) também nunca
+  // são cacheadas — precisam sempre vir frescas do banco.
+  const isApiExterna = url.origin !== self.location.origin;
+  if(isDocumento || isApiExterna){
+    e.respondWith(fetch(e.request, {cache:'no-store'}));
+    return;
+  }
   e.respondWith(
     fetch(e.request).then(r => {
       const rc = r.clone();
@@ -4923,10 +4940,24 @@ self.addEventListener('fetch', e => {
   `;
   const blob = new Blob([swCode], {type:'application/javascript'});
   const swUrl = URL.createObjectURL(blob);
-  navigator.serviceWorker.register(swUrl).then(()=>{
+  navigator.serviceWorker.register(swUrl).then(reg=>{
     console.log('SW registrado');
+    // Se já existia um Service Worker antigo controlando a página, força a
+    // atualização imediata em vez de esperar o usuário fechar todas as abas.
+    if(reg.waiting) reg.waiting.postMessage('skipWaiting');
+    reg.addEventListener('updatefound', () => {
+      const novo = reg.installing;
+      if(novo){
+        novo.addEventListener('statechange', () => {
+          if(novo.state === 'activated'){
+            console.log('SW atualizado — recarregando para usar a versão mais nova.');
+          }
+        });
+      }
+    });
   }).catch(e => console.log('SW erro:', e));
 }
+
 
 // ── Prompt de instalação ──
 let deferredPrompt;
