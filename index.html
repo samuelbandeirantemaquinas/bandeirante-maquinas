@@ -931,11 +931,11 @@ function gerarOrcRasthor(){
     </div>
     <div style="display:flex;gap:8px">
       <button class="btn" id="btn-salvar-rasthor" onclick="salvarOrcamentoRasthor()"><i class="ti ti-device-floppy"></i> Salvar</button>
-      <button class="btn btn-primary" id="btn-pdf-rasthor" style="flex:1;justify-content:center" ${st.rasthorPdfLiberado?'':'disabled title="Salve o orçamento antes de baixar o PDF"'} onclick="gerarPDFRasthor()">
+      <button class="btn btn-primary" id="btn-pdf-rasthor" style="flex:1;justify-content:center" onclick="gerarPDFRasthor()">
         <i class="ti ti-file-type-pdf"></i> Baixar PDF
       </button>
     </div>
-    ${!st.rasthorPdfLiberado?`<div style="font-size:11px;color:var(--text2);margin-top:6px;text-align:right"><i class="ti ti-info-circle"></i> Salve o orçamento primeiro para poder baixar o PDF</div>`:''}
+    ${!st.rasthorPdfLiberado?`<div style="font-size:11px;color:var(--text2);margin-top:6px;text-align:right"><i class="ti ti-info-circle"></i> O PDF pode ser gerado a qualquer momento. Clique em "Salvar" para registrar no Histórico.</div>`:''}
     <div id="modal-cli-rasthor" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;padding:1rem;overflow-y:auto">
       <div style="background:var(--bg2);border-radius:var(--radius-lg);padding:1.25rem;max-width:480px;margin:60px auto 0">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
@@ -1043,7 +1043,7 @@ async function salvarOrcamentoRasthor(){
     if(btnPdfR){btnPdfR.disabled=false;btnPdfR.removeAttribute('title');}
   }catch(e){
     console.error('Erro ao salvar orçamento:', e);
-    toast('Erro ao salvar: '+(e.message||'falha desconhecida'));
+    toast('⚠️ Não deu pra salvar no Histórico agora (banco fora do ar). O PDF já pode ser gerado normalmente — tente Salvar de novo depois.', 6000);
     if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-device-floppy"></i> Salvar';}
   }
 }
@@ -1441,11 +1441,11 @@ function abrirFormProduto(tipo) {
     </div>
     <div style="display:flex;gap:8px">
       <button class="btn" id="btn-salvar-gen" onclick="salvarOrcamentoGenerico()"><i class="ti ti-device-floppy"></i> Salvar</button>
-      <button class="btn btn-primary" id="btn-pdf-generico" style="flex:1;justify-content:center" ${st.genPdfLiberado?'':'disabled title="Salve o orçamento antes de baixar o PDF"'} onclick="gerarPDFGenerico()">
+      <button class="btn btn-primary" id="btn-pdf-generico" style="flex:1;justify-content:center" onclick="gerarPDFGenerico()">
         <i class="ti ti-file-type-pdf"></i> Baixar PDF
       </button>
     </div>
-    ${!st.genPdfLiberado?`<div style="font-size:11px;color:var(--text2);margin-top:6px;text-align:right"><i class="ti ti-info-circle"></i> Salve o orçamento primeiro para poder baixar o PDF</div>`:''}
+    ${!st.genPdfLiberado?`<div style="font-size:11px;color:var(--text2);margin-top:6px;text-align:right"><i class="ti ti-info-circle"></i> O PDF pode ser gerado a qualquer momento. Clique em "Salvar" para registrar no Histórico.</div>`:''}
     <div id="modal-cli-gen" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;padding:1rem;overflow-y:auto">
       <div style="background:var(--bg2);border-radius:var(--radius-lg);padding:1.25rem;max-width:480px;margin:60px auto 0">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
@@ -1654,7 +1654,7 @@ async function salvarOrcamentoGenerico(){
     if(btnPdfG){btnPdfG.disabled=false;btnPdfG.removeAttribute('title');}
   }catch(e){
     console.error('Erro ao salvar orçamento:', e);
-    toast('Erro ao salvar: '+(e.message||'falha desconhecida'));
+    toast('⚠️ Não deu pra salvar no Histórico agora (banco fora do ar). O PDF já pode ser gerado normalmente — tente Salvar de novo depois.', 6000);
     if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-device-floppy"></i> Salvar';}
   }
 }
@@ -2851,10 +2851,10 @@ function s6(){
     <button class="btn" onclick="goStep(5)"><i class="ti ti-arrow-left"></i> Voltar</button>
     <div style="display:flex;gap:8px">
       <button class="btn" id="btn-salvar" onclick="salvarOrcamento()"><i class="ti ti-device-floppy"></i> Salvar</button>
-      <button class="btn btn-primary" id="btn-pdf" ${st.pdfLiberado?'':'disabled title="Salve o orçamento antes de baixar o PDF"'} onclick="gerarPDF()"><i class="ti ti-file-type-pdf"></i> Baixar PDF</button>
+      <button class="btn btn-primary" id="btn-pdf" onclick="gerarPDF()"><i class="ti ti-file-type-pdf"></i> Baixar PDF</button>
     </div>
   </div>
-  ${!st.pdfLiberado?`<div style="font-size:11px;color:var(--text2);margin-top:6px;text-align:right"><i class="ti ti-info-circle"></i> Salve o orçamento primeiro para poder baixar o PDF (assim a data fica registrada no Histórico)</div>`:''}
+  ${!st.pdfLiberado?`<div style="font-size:11px;color:var(--text2);margin-top:6px;text-align:right"><i class="ti ti-info-circle"></i> O PDF pode ser gerado a qualquer momento. Clique em "Salvar" para o orçamento também ficar registrado no Histórico.</div>`:''}
   <button class="btn btn-sm" style="margin-top:.75rem;color:var(--text2)" onclick="novoOrcamento()"><i class="ti ti-plus"></i> Novo orçamento</button>`;
 }
 
@@ -2895,7 +2895,7 @@ async function salvarOrcamento(){
     if(btnPdf){btnPdf.disabled=false;btnPdf.removeAttribute('title');}
   }catch(e){
     console.error('Erro ao salvar orçamento:', e);
-    toast('Erro ao salvar: '+(e.message||'falha desconhecida'));
+    toast('⚠️ Não deu pra salvar no Histórico agora (banco fora do ar). O PDF já pode ser gerado normalmente — tente Salvar de novo depois.', 6000);
     if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-device-floppy"></i> Salvar';}
   }
 }
