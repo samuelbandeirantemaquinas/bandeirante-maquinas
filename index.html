@@ -430,6 +430,7 @@ let CARREGADORES = [
   {id:'hex1550',cod:'001550',nome:'Hexline 1550',cv:'70–125cv',cap:'1550kg',preco:22518.66,estrutura:'1550',cor:'#E6F1FB',corT:'#0C447C'},
   {id:'hex1950',cod:'001850/1950',nome:'Hexline 1850/1950',cv:'125–180cv',cap:'1950kg',preco:24310.60,estrutura:'1950',cor:'#FAEEDA',corT:'#633806'},
   {id:'hex2200',cod:'002200',nome:'Hexline 2200',cv:'180cv+',cap:'2200kg',preco:33222.49,estrutura:'2200',cor:'#FAECE7',corT:'#712B13'},
+  {id:'hx1450auto',cod:'001450AUTO',nome:'Plaina Agrícola Bandeirante HX 1450 Autonivelante',cv:'60–75cv',cap:'1000kg · Alt. 3,0m',preco:17500.00,estrutura:'hx1450auto',desc:'Plaina Agrícola Bandeirante HX 1450 Autonivelante — Altura 3,0m',cor:'#F1E9FA',corT:'#4B2E83'},
 ];
 let ADAPTADORES = [
   {id:'adp1450',cod:'9002ADAPT',nome:'Adaptador 1450/1550 Fast Coupling',preco:9377.80,estrutura:['1450','1550'],desc:'Modelos standard Fast Coupling'},
@@ -2242,11 +2243,17 @@ function selEstruturaAvulsa(estrutura){
 
 function s1(){
   const rec=st.adaptDB?st.adaptDB.estrutura:null;
+  // Lista de estruturas recomendadas para o trator (pode ter mais de uma,
+  // separadas por "/"). Comparação é sempre por igualdade exata contra essa
+  // lista — nunca por "contém" (isso causava falso positivo: 'hx1450auto'
+  // contém a substring '1450', então a Hexline 1450 comum aparecia
+  // recomendada junto com a HX 1450 Autonivelante por engano).
+  const recArr=rec?rec.split('/'):[];
   return `<div style="margin-bottom:1rem"><div style="font-size:15px;font-weight:700;margin-bottom:4px">Carregador Frontal</div>
   <div style="font-size:12px;color:var(--text2)">${rec?`Estrutura recomendada para ${st.modeloSel}: <strong>${rec}</strong>`:'Escolha o modelo Hexline'}</div>
   ${rec?`<button class="btn btn-sm" style="margin-top:6px;font-size:11px;color:var(--text2)" onclick="st.adaptDB=null;renderStep()"><i class="ti ti-refresh"></i> Ver todos os modelos</button>`:''}</div>
-  <div class="car-grid" style="margin-bottom:1rem">${(rec?CARREGADORES.filter(c=>rec.includes(c.estrutura)):CARREGADORES).map(c=>{
-    const isRec=rec&&rec.includes(c.estrutura),sel=getQtd(c.id)>0;
+  <div class="car-grid" style="margin-bottom:1rem">${(rec?CARREGADORES.filter(c=>recArr.includes(c.estrutura)):CARREGADORES).map(c=>{
+    const isRec=recArr.includes(c.estrutura),sel=getQtd(c.id)>0;
     return `<div class="car-card${sel?' sel':''}" onclick="if(getQtd('${c.id}')===0){incQtd('${c.id}',1);}" style="${sel?`border-color:${c.corT};background:${c.cor}`:isRec?`border-color:${c.corT}88;background:${c.cor}55`:''}">
       ${IMGS.hexline?`<img src="${IMGS.hexline}" style="width:100%;height:70px;object-fit:contain;border-radius:6px;background:var(--bg);padding:4px;margin-bottom:6px" alt="">`:''}
       ${isRec?`<div class="badge badge-green" style="margin-bottom:4px">✓ Recomendado</div><br>`:''}
@@ -2364,7 +2371,7 @@ function avancarJoy(){
 
 // Ordem das estruturas, da menor para a maior, usada para checar compatibilidade
 // de implementos que exigem uma estrutura mínima (ex: itens de 2,65m exigem 1950+).
-const ORDEM_ESTRUTURAS = ['1450','1550','1950','2200'];
+const ORDEM_ESTRUTURAS = ['1450','1550','1950','hx1450auto','2200'];
 function estruturaAtendeMinimo(estrutura, minimo){
   if(!minimo) return true;
   const iAtual = ORDEM_ESTRUTURAS.indexOf(estrutura);
@@ -3943,6 +3950,10 @@ async function renderAdmin(){
     // plantadeira, virtuos, mtsb) existam na tabela 'produtos' do Supabase, para que
     // apareçam editáveis aqui no Admin. Insere apenas os que ainda não existem.
     const seedDefs = [
+      // Só a HX 1450 Autonivelante é semeada aqui (não os outros Hexline, que já
+      // são gerenciados manualmente no banco) — evita sobrescrever dados que você
+      // já ajustou nos demais carregadores.
+      ...CARREGADORES.filter(p=>p.id==='hx1450auto').map(p=>({id:p.id,categoria:'carregador',nome:p.nome,preco:p.preco,descricao:p.desc||'',cod:p.cod||'',ativo:true})),
       ...CARRETAS.map(p=>({id:p.id,categoria:'carreta',nome:p.nome,preco:p.preco,descricao:p.desc||'',ativo:true})),
       ...AERADORES.map(p=>({id:p.id,categoria:'aerador',nome:p.nome,preco:p.preco,descricao:p.desc||'',ativo:true})),
       ...PLANTADEIRAS.map(p=>({id:p.id,categoria:'plantadeira',nome:p.nome,preco:p.preco,descricao:p.desc||'',ativo:true})),
