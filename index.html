@@ -436,6 +436,7 @@ let ADAPTADORES = [
   {id:'adp1450',cod:'9002ADAPT',nome:'Adaptador 1450/1550 Fast Coupling',preco:9377.80,estrutura:['1450','1550'],desc:'Modelos standard Fast Coupling'},
   {id:'adp1950',cod:'9004ADAPT',nome:'Adaptador 1950 Fast Coupling',preco:10458.93,estrutura:['1950'],desc:'Modelos standard Fast Coupling'},
   {id:'adp2200',cod:'A006',nome:'Adaptador 2200',preco:15011.65,estrutura:['2200'],desc:'Para estrutura Hexline 2200'},
+  {id:'adp_hx1450auto',cod:'ADPHX1450AUTO',nome:'Adaptador HX 1450 Autonivelante',preco:6370.00,estrutura:['hx1450auto'],desc:'Modelo específico para HX 1450 Autonivelante'},
   {id:'adp_nao',cod:'—',nome:'Sem adaptador',preco:0,estrutura:['1450','1550','1950','2200'],desc:'Cliente já possui adaptador'},
 ];
 let JOYSTICKS = [
@@ -2371,7 +2372,7 @@ function avancarJoy(){
 
 // Ordem das estruturas, da menor para a maior, usada para checar compatibilidade
 // de implementos que exigem uma estrutura mínima (ex: itens de 2,65m exigem 1950+).
-const ORDEM_ESTRUTURAS = ['1450','1550','1950','hx1450auto','2200'];
+const ORDEM_ESTRUTURAS = ['1450','1550','1950','2200'];
 function estruturaAtendeMinimo(estrutura, minimo){
   if(!minimo) return true;
   const iAtual = ORDEM_ESTRUTURAS.indexOf(estrutura);
@@ -2379,19 +2380,28 @@ function estruturaAtendeMinimo(estrutura, minimo){
   if(iAtual===-1 || iMin===-1) return true; // estrutura desconhecida: não bloqueia
   return iAtual>=iMin;
 }
+// Implementos com largura acima de 1,95m — ficam indisponíveis especificamente para a
+// HX 1450 Autonivelante (estrutura 'hx1450auto'), sem alterar o comportamento dos
+// demais carregadores (Lâmina/Concha 2,20m continuam liberadas para eles normalmente).
+const IMPLEMENTOS_ACIMA_195M = ['lam220','lam265','concha220','concha265','enleirador265'];
+function implementoCompativel(estrutura, item){
+  if(!estruturaAtendeMinimo(estrutura, item.estruturaMin)) return false;
+  if(estrutura==='hx1450auto' && IMPLEMENTOS_ACIMA_195M.includes(item.id)) return false;
+  return true;
+}
 
 function s4(){
   const estrAtiva=estruturaAtiva();
   // Se algum implemento já selecionado deixou de ser compatível com a estrutura atual
   // (ex: vendedor trocou de trator depois de escolher um item 2,65m), remove a seleção.
   IMPLEMENTOS.forEach(i=>{
-    if(getQtd(i.id)>0 && !estruturaAtendeMinimo(estrAtiva,i.estruturaMin)){
+    if(getQtd(i.id)>0 && !implementoCompativel(estrAtiva,i)){
       delete st.qtds[i.id];
       delete st.ajustes[i.id];
     }
   });
   const total=calcTotal();
-  const implementosCompat=IMPLEMENTOS.filter(i=>estruturaAtendeMinimo(estrAtiva,i.estruturaMin));
+  const implementosCompat=IMPLEMENTOS.filter(i=>implementoCompativel(estrAtiva,i));
   const grupos=[...new Set(implementosCompat.map(i=>i.grupo||'Outros'))];
   return `<div style="margin-bottom:1rem"><div style="font-size:15px;font-weight:700;margin-bottom:4px">Implementos opcionais</div><div style="font-size:12px;color:var(--text2)">Selecione um ou mais</div></div>
   ${grupos.map(grupo=>{
