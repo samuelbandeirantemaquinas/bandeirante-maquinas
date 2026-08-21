@@ -2381,13 +2381,19 @@ function estruturaAtendeMinimo(estrutura, minimo){
   if(iAtual===-1 || iMin===-1) return true; // estrutura desconhecida: não bloqueia
   return iAtual>=iMin;
 }
-// Implementos com largura acima de 1,95m — ficam indisponíveis especificamente para a
-// HX 1450 Autonivelante (estrutura 'hx1450auto'), sem alterar o comportamento dos
-// demais carregadores (Lâmina/Concha 2,20m continuam liberadas para eles normalmente).
-const IMPLEMENTOS_ACIMA_195M = ['lam220','lam265','concha220','concha265','enleirador265'];
+// Exclusões pontuais de implementos por estrutura específica, além da regra geral
+// de estruturaMin — para casos em que um item precisa ficar de fora de uma
+// estrutura sem mexer no comportamento das demais.
+const IMPLEMENTOS_EXCLUIDOS_POR_ESTRUTURA = {
+  // Itens acima de 1,95m de largura, além do Garfo Tora, não ficam disponíveis
+  // para a HX 1450 Autonivelante (a Hexline 1450 comum continua sem restrição
+  // no Garfo Tora).
+  'hx1450auto': ['lam220','lam265','concha220','concha265','enleirador265','garfotora'],
+};
 function implementoCompativel(estrutura, item){
   if(!estruturaAtendeMinimo(estrutura, item.estruturaMin)) return false;
-  if(estrutura==='hx1450auto' && IMPLEMENTOS_ACIMA_195M.includes(item.id)) return false;
+  const excluidos = IMPLEMENTOS_EXCLUIDOS_POR_ESTRUTURA[estrutura];
+  if(excluidos && excluidos.includes(item.id)) return false;
   return true;
 }
 
