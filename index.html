@@ -3945,21 +3945,14 @@ async function loadVendedores(){
 }
 
 // ---- PAINEL ADMIN ----
-async function renderAdmin(){
-  if(!isAdmin()){showTab('home');return;}
-  document.getElementById('app-content').innerHTML=`<div class="page-wrap"><div style="font-size:16px;font-weight:700;margin-bottom:1rem">Carregando produtos...</div></div>`;
-  // Evita mostrar a aba "Vendedores" vazia caso o carregamento inicial ainda não tenha terminado.
-  if(!vendedores.length){ try{ await loadVendedores(); }catch(e){} }
-  let rows=[];
-  let loadError=null;
-  try{rows=await sbGet('produtos','order=categoria.asc,id.asc');}catch(e){loadError=e;}
-
-  // Só tenta o auto-seed (criar produtos novos no banco) se o carregamento inicial
-  // deu certo — se o banco estiver fora do ar, tentar semear só geraria mais erros.
-  if(!loadError){
-    // Auto-seed: garante que os produtos das categorias novas (carreta, aerador,
-    // plantadeira, virtuos, mtsb) existam na tabela 'produtos' do Supabase, para que
-    // apareçam editáveis aqui no Admin. Insere apenas os que ainda não existem.
+// Cadastra em segundo plano os produtos "novos" (HX 1450 Autonivelante, Aeradores,
+// Plantadeiras etc.) que ainda não existem no banco, sem travar a tela do Admin
+// esperando essa checagem terminar. Se algo for criado, atualiza a lista sozinha.
+let _seedEmAndamento=false;
+async function rodarSeedProdutosEmSegundoPlano(rowsAtuais){
+  if(_seedEmAndamento) return;
+  _seedEmAndamento=true;
+  try{
     const seedDefs = [
       // Só a HX 1450 Autonivelante é semeada aqui (não os outros Hexline, que já
       // são gerenciados manualmente no banco) — evita sobrescrever dados que você
@@ -3972,7 +3965,7 @@ async function renderAdmin(){
       ...MTSB.map(p=>({id:p.id,categoria:'mtsb',nome:p.nome,preco:p.preco,descricao:p.desc||'',ativo:true})),
       ...IMPLEMENTOS.map(p=>({id:p.id,categoria:'implemento',nome:p.nome,preco:p.preco,descricao:p.desc||'',cod:p.cod||'',grupo:p.grupo||'Outros',img:p.img||null,estrutura_min:p.estruturaMin||null,ativo:true})),
     ];
-    const existentes = new Set(rows.map(r=>r.id));
+    const existentes = new Set(rowsAtuais.map(r=>r.id));
     // Guarda no navegador quais produtos já tiveram tentativa de inserção, pra nunca
     // tentar de novo (mesmo que a tentativa anterior tenha falhado por algum motivo) —
     // evita que o Admin fique lento toda vez que é aberto refazendo essa checagem.
@@ -3980,16 +3973,43 @@ async function renderAdmin(){
     try{ seedTentados = JSON.parse(localStorage.getItem('bandeirante_seed_tentados')||'[]'); }catch(e){}
     const jaTentados = new Set(seedTentados);
     const faltantes = seedDefs.filter(s=>!existentes.has(s.id) && !jaTentados.has(s.id));
-    if(faltantes.length>0){
-      await Promise.all(faltantes.map(item =>
-        sbPost('produtos', item).catch(e=>console.warn('Erro ao semear produto', item.id, e))
-      ));
-      try{
-        const todosIds=[...seedTentados, ...faltantes.map(f=>f.id)];
-        localStorage.setItem('bandeirante_seed_tentados', JSON.stringify(todosIds));
-      }catch(e){}
-      try{ rows = await sbGet('produtos','order=categoria.asc,id.asc'); }catch(e){}
+    if(faltantes.length===0) return;
+    await Promise.all(faltantes.map(item =>
+      sbPost('produtos', item).catch(e=>console.warn('Erro ao semear produto', item.id, e))
+    ));
+    try{
+      const todosIds=[...seedTentados, ...faltantes.map(f=>f.id)];
+      localStorage.setItem('bandeirante_seed_tentados', JSON.stringify(todosIds));
+    }catch(e){}
+    // Só re-renderiza o Admin se o usuário ainda estiver na aba Admin quando o
+    // cadastro em segundo plano terminar (evita "puxar o tapete" se ele já navegou
+    // pra outro lugar nesse meio tempo).
+    if(currentTab==='admin'){
+      toast(`✅ ${faltantes.length} produto(s) novo(s) cadastrado(s) no Admin.`, 3000);
+      renderAdmin();
     }
+  }finally{
+    _seedEmAndamento=false;
+  }
+}
+
+async function renderAdmin(){
+  if(!isAdmin()){showTab('home');return;}
+  document.getElementById('app-content').innerHTML=`<div class="page-wrap"><div style="font-size:16px;font-weight:700;margin-bottom:1rem">Carregando produtos...</div></div>`;
+  // Evita mostrar a aba "Vendedores" vazia caso o carregamento inicial ainda não tenha terminado.
+  if(!vendedores.length){ try{ await loadVendedores(); }catch(e){} }
+  let rows=[];
+  let loadError=null;
+  try{rows=await sbGet('produtos','order=categoria.asc,id.asc');}catch(e){loadError=e;}
+
+  // Só tenta o auto-seed (criar produtos novos no banco) se o carregamento inicial
+  // deu certo — se o banco estiver fora do ar, tentar semear só geraria mais erros.
+  // IMPORTANTE: o seeding roda em segundo plano (não é aguardado aqui) para a tela
+  // do Admin aparecer imediatamente com os dados já carregados, em vez de travar
+  // esperando 2-3 idas e vindas extras ao banco (isso deixava o Admin bem lento,
+  // principalmente no compute NANO do Supabase).
+  if(!loadError){
+    rodarSeedProdutosEmSegundoPlano(rows);
   }
 
   if(loadError){
