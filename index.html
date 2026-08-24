@@ -3633,7 +3633,19 @@ function abrirOrcamento(id){
             <option value="Cancelado" ${o.status==='Cancelado'?'selected':''}>Cancelado</option>
           </select>
         </div>
-        <div class="ig"><label>Total (R$)</label><input type="number" id="edit-total" value="${o.total||0}" step="0.01"></div>
+        <div class="ig"><label>Total (R$)</label><input type="number" id="edit-total" data-base="${(o.total||0)-(o.acrescimo_valor||0)}" value="${o.total||0}" step="0.01"></div>
+      </div>
+      <div class="fr2">
+        <div class="ig"><label>Frete</label>
+          <select id="edit-frete">
+            <option value="" ${!o.frete?'selected':''}>— Selecionar —</option>
+            <option value="FOB — Por conta do comprador" ${o.frete==='FOB — Por conta do comprador'?'selected':''}>FOB — Por conta do comprador</option>
+            <option value="CIF — Por conta da Bandeirante" ${o.frete==='CIF — Por conta da Bandeirante'?'selected':''}>CIF — Por conta da Bandeirante</option>
+          </select>
+        </div>
+        <div class="ig"><label>Acréscimo/Desconto (R$) <span style="font-size:10px;color:var(--text2)">(soma ao Total acima)</span></label>
+          <input type="number" id="edit-acrescimo" value="${o.acrescimo_valor||0}" step="0.01" oninput="atualizarTotalComAcrescimoEdicao()">
+        </div>
       </div>
       <div class="ig"><label>Condição de Pagamento</label>
         <select id="edit-pgto" data-base="${baseTotalEdicao}" onchange="atualizarTotalPgtoEdicao(this)">
@@ -3682,7 +3694,23 @@ function atualizarTotalPgtoEdicao(sel){
   const nParc=parseInt((sel.value||'').replace('x',''));
   const comJuros = (!isNaN(nParc)&&nParc>1&&/^\d+x$/.test(sel.value)) ? base*(1+nParc*(TAXA_JUROS_MENSAL/100)) : base;
   const totalEl=document.getElementById('edit-total');
-  if(totalEl) totalEl.value = comJuros.toFixed(2);
+  if(totalEl){
+    totalEl.value = comJuros.toFixed(2);
+    totalEl.dataset.base = comJuros.toFixed(2); // novo "base" para o acréscimo somar em cima
+  }
+  const acEl=document.getElementById('edit-acrescimo');
+  if(acEl) acEl.value='0'; // troca de condição de pagamento zera o acréscimo manual, pra não somar duas vezes
+}
+
+// Soma o valor de Acréscimo/Desconto (R$) por cima do total-base (guardado em
+// data-base no campo Total), refletindo ao vivo enquanto o Admin digita.
+function atualizarTotalComAcrescimoEdicao(){
+  const totalEl=document.getElementById('edit-total');
+  const acEl=document.getElementById('edit-acrescimo');
+  if(!totalEl||!acEl) return;
+  const base=parseFloat(totalEl.dataset.base)||parseFloat(totalEl.value)||0;
+  const ac=parseFloat(acEl.value)||0;
+  totalEl.value=(base+ac).toFixed(2);
 }
 
 async function salvarStatusOrc(id){
@@ -3704,6 +3732,8 @@ async function salvarEdicaoOrc(id){
     status:document.getElementById('edit-status')?.value||'Em aberto',
     total:parseFloat(document.getElementById('edit-total')?.value)||0,
     pgto:document.getElementById('edit-pgto')?.value||null,
+    frete:document.getElementById('edit-frete')?.value||null,
+    acrescimo_valor:parseFloat(document.getElementById('edit-acrescimo')?.value)||0,
     obs:document.getElementById('edit-obs')?.value||null,
   };
   try{
