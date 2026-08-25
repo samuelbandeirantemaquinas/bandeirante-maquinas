@@ -476,7 +476,7 @@ let IMPLEMENTOS = [
 ];
 
 let currentTab = 'orcamento';
-let st = {step:0,marcaSel:null,modeloSel:null,adaptDB:null,clienteSel:null,acrescimo:0,ajustes:{},pgto:'',frete:'',obs:'',vendedor:'',semEstrutura:false,estruturaAvulsa:null,mostrarEstruturaAvulsa:false,qtds:{},descAdaptJD6000:false};
+let st = {step:0,marcaSel:null,modeloSel:null,adaptDB:null,clienteSel:null,acrescimo:0,ajustes:{},ajustesTipo:{},pgto:'',frete:'',obs:'',vendedor:'',semEstrutura:false,estruturaAvulsa:null,mostrarEstruturaAvulsa:false,qtds:{},descAdaptJD6000:false};
 let clientes = [];
 let orcamentos = [];
 let vendedores = [];
@@ -1525,8 +1525,9 @@ function campoQtdAjusteForm(id, preco, tipo){
   const qtd=getQtd(id);
   const aj=st.ajustes[id]||'';
   const isAdm=isAdmin();
-  const cor=isAdm?'#c0392b':'#e67e22';
-  const tipoLbl=isAdm?'Desconto':'Acréscimo';
+  const tipoAtual = isAdm ? (st.ajustesTipo[id]||'desconto') : 'acrescimo';
+  const cor=tipoAtual==='desconto'?'#c0392b':'#e67e22';
+  const tipoLbl=tipoAtual==='desconto'?'Desconto':'Acréscimo';
   return `<div style="margin-top:6px;padding:6px 8px;background:var(--bg);border-radius:var(--radius-sm);border:1px dashed var(--border)" onclick="event.stopPropagation()">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:${qtd>0?'6px':'0'}">
       <span style="font-size:11px;color:var(--text2);white-space:nowrap">Qtd.</span>
@@ -1537,13 +1538,17 @@ function campoQtdAjusteForm(id, preco, tipo){
         oninput="event.stopPropagation();setQtd('${id}',parseInt(this.value)||0);atualizarItemFormGenerico('${id}',${preco},'${tipo}')">
       <button class="btn btn-sm" style="padding:2px 8px" onclick="event.stopPropagation();incQtd('${id}',1);atualizarItemFormGenerico('${id}',${preco},'${tipo}')">+</button>
     </div>
-    ${qtd>0?`<div style="display:flex;align-items:center;gap:6px">
-      <span style="font-size:11px;color:${cor};font-weight:600;white-space:nowrap">${tipoLbl} %</span>
+    ${qtd>0?`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+      ${isAdm?`<div style="display:flex;border:1px solid var(--border);border-radius:4px;overflow:hidden">
+        <button type="button" onclick="event.stopPropagation();st.ajustesTipo['${id}']='desconto';atualizarItemFormGenerico('${id}',${preco},'${tipo}')" style="border:none;padding:3px 6px;font-size:10px;font-weight:600;cursor:pointer;background:${tipoAtual==='desconto'?'#c0392b':'var(--bg2)'};color:${tipoAtual==='desconto'?'#fff':'var(--text2)'}">Desconto</button>
+        <button type="button" onclick="event.stopPropagation();st.ajustesTipo['${id}']='acrescimo';atualizarItemFormGenerico('${id}',${preco},'${tipo}')" style="border:none;padding:3px 6px;font-size:10px;font-weight:600;cursor:pointer;background:${tipoAtual==='acrescimo'?'#e67e22':'var(--bg2)'};color:${tipoAtual==='acrescimo'?'#fff':'var(--text2)'}">Acréscimo</button>
+      </div>`:`<span style="font-size:11px;color:${cor};font-weight:600;white-space:nowrap">${tipoLbl}</span>`}
       <input type="number" min="0" max="100" step="0.1" placeholder="0,0"
         value="${aj}"
         style="width:60px;border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:12px;background:var(--bg2)"
         onclick="event.stopPropagation()"
         oninput="event.stopPropagation();st.ajustes['${id}']=parseFloat(this.value)||0;atualizarItemFormGenerico('${id}',${preco},'${tipo}')">
+      <span style="font-size:11px;color:var(--text2);white-space:nowrap">%</span>
     </div>`:''}
   </div>`;
 }
@@ -2176,7 +2181,7 @@ function renderOrcamento(){
   renderProg(); renderStep();
 }
 function novoOrcamento(){
-  st={step:0,marcaSel:null,modeloSel:null,adaptDB:null,clienteSel:null,acrescimo:0,ajustes:{},pgto:'',frete:'',obs:'',vendedor:'',semEstrutura:false,estruturaAvulsa:null,mostrarEstruturaAvulsa:false,qtds:{},descAdaptJD6000:false};
+  st={step:0,marcaSel:null,modeloSel:null,adaptDB:null,clienteSel:null,acrescimo:0,ajustes:{},ajustesTipo:{},pgto:'',frete:'',obs:'',vendedor:'',semEstrutura:false,estruturaAvulsa:null,mostrarEstruturaAvulsa:false,qtds:{},descAdaptJD6000:false};
   showTab('orcamento');
 }
 function renderProg(){
@@ -2649,11 +2654,12 @@ function podeVerDescontoEspecial(){
 function precoAjustado(id, preco){
   const ajBruto=st.ajustes[id]||0;
   const ac=st.acrescimo||0;
-  // O campo de ajuste tem rótulo diferente conforme o papel de quem está logado:
-  // para Admin é "Desconto %" (deve diminuir o preço), para vendedor é "Acréscimo %"
-  // (deve aumentar). O valor digitado é sempre positivo na tela; aqui invertemos o
-  // sinal para Admin, garantindo que o cálculo reflita corretamente "desconto".
-  const aj = isAdmin() ? -ajBruto : ajBruto;
+  // O tipo de ajuste (Desconto ou Acréscimo) agora é escolhido por item, guardado em
+  // st.ajustesTipo[id]. Padrão: Admin começa em "desconto" (comportamento antigo),
+  // vendedor sempre "acrescimo" (nunca pode dar desconto). O valor digitado na tela
+  // é sempre positivo; aqui aplicamos o sinal certo conforme o tipo escolhido.
+  const tipoAj = isAdmin() ? (st.ajustesTipo[id]||'desconto') : 'acrescimo';
+  const aj = tipoAj==='desconto' ? -ajBruto : ajBruto;
   // aplica ajuste individual e depois acréscimo/desconto geral (embutido no preço, invisível ao cliente)
   const precoComAj = aj===0 ? preco : preco*(1+aj/100);
   const precoComAc = ac===0 ? precoComAj : precoComAj*(1+ac/100);
@@ -2668,32 +2674,42 @@ function isAdmin(){return currentPerfil?.role==='admin';}
 function campoAjuste(id, label){
   const aj=st.ajustes[id]||'';
   const isAdm=isAdmin();
-  const cor=isAdm?'#c0392b':'#e67e22';
-  const tipo=isAdm?'Desconto':'Acréscimo';
-  return `<div style="display:flex;align-items:center;gap:6px;margin-top:6px;padding:6px 8px;background:var(--bg);border-radius:var(--radius-sm);border:1px dashed var(--border)">
-    <span style="font-size:11px;color:${cor};font-weight:600;white-space:nowrap">${tipo} %</span>
+  const tipoAtual = isAdm ? (st.ajustesTipo[id]||'desconto') : 'acrescimo';
+  const cor=tipoAtual==='desconto'?'#c0392b':'#e67e22';
+  const tipo=tipoAtual==='desconto'?'Desconto':'Acréscimo';
+  return `<div style="display:flex;align-items:center;gap:6px;margin-top:6px;padding:6px 8px;background:var(--bg);border-radius:var(--radius-sm);border:1px dashed var(--border);flex-wrap:wrap">
+    ${isAdm?`<div style="display:flex;border:1px solid var(--border);border-radius:4px;overflow:hidden">
+      <button type="button" onclick="event.stopPropagation();st.ajustesTipo['${id}']='desconto';renderStep();" style="border:none;padding:3px 6px;font-size:10px;font-weight:600;cursor:pointer;background:${tipoAtual==='desconto'?'#c0392b':'var(--bg2)'};color:${tipoAtual==='desconto'?'#fff':'var(--text2)'}">Desconto</button>
+      <button type="button" onclick="event.stopPropagation();st.ajustesTipo['${id}']='acrescimo';renderStep();" style="border:none;padding:3px 6px;font-size:10px;font-weight:600;cursor:pointer;background:${tipoAtual==='acrescimo'?'#e67e22':'var(--bg2)'};color:${tipoAtual==='acrescimo'?'#fff':'var(--text2)'}">Acréscimo</button>
+    </div>`:`<span style="font-size:11px;color:${cor};font-weight:600;white-space:nowrap">${tipo}</span>`}
     <input type="number" min="0" max="100" step="0.1" placeholder="0,0"
       value="${aj}"
       style="width:70px;border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:12px;background:var(--bg2)"
       onclick="event.stopPropagation()"
       oninput="event.stopPropagation();st.ajustes['${id}']=parseFloat(this.value)||0;document.getElementById('preco-${id}')&&(document.getElementById('preco-${id}').textContent=fmt(precoAjustado('${id}',${0})))">
+    <span style="font-size:11px;color:var(--text2)">%</span>
     <span style="font-size:11px;color:var(--text2)">${label}</span>
   </div>`;
 }
 function campoAjusteComPreco(id, preco, extraElId){
   const aj=st.ajustes[id]||'';
   const isAdm=isAdmin();
-  const cor=isAdm?'#c0392b':'#e67e22';
-  const tipo=isAdm?'Desconto':'Acréscimo';
+  const tipoAtual = isAdm ? (st.ajustesTipo[id]||'desconto') : 'acrescimo';
+  const cor=tipoAtual==='desconto'?'#c0392b':'#e67e22';
+  const tipo=tipoAtual==='desconto'?'Desconto':'Acréscimo';
   const precoFinal=precoAjustado(id, preco);
   const extraUpd=extraElId?`const el2=document.getElementById('${extraElId}');if(el2)el2.textContent=fmt(precoAjustado('${id}',${preco}));`:'';
-  return `<div style="display:flex;align-items:center;gap:6px;margin-top:6px;padding:6px 8px;background:var(--bg);border-radius:var(--radius-sm);border:1px dashed var(--border)">
-    <span style="font-size:11px;color:${cor};font-weight:600;white-space:nowrap">${tipo} %</span>
+  return `<div style="display:flex;align-items:center;gap:6px;margin-top:6px;padding:6px 8px;background:var(--bg);border-radius:var(--radius-sm);border:1px dashed var(--border);flex-wrap:wrap">
+    ${isAdm?`<div style="display:flex;border:1px solid var(--border);border-radius:4px;overflow:hidden">
+      <button type="button" onclick="event.stopPropagation();st.ajustesTipo['${id}']='desconto';renderStep();" style="border:none;padding:3px 6px;font-size:10px;font-weight:600;cursor:pointer;background:${tipoAtual==='desconto'?'#c0392b':'var(--bg2)'};color:${tipoAtual==='desconto'?'#fff':'var(--text2)'}">Desconto</button>
+      <button type="button" onclick="event.stopPropagation();st.ajustesTipo['${id}']='acrescimo';renderStep();" style="border:none;padding:3px 6px;font-size:10px;font-weight:600;cursor:pointer;background:${tipoAtual==='acrescimo'?'#e67e22':'var(--bg2)'};color:${tipoAtual==='acrescimo'?'#fff':'var(--text2)'}">Acréscimo</button>
+    </div>`:`<span style="font-size:11px;color:${cor};font-weight:600;white-space:nowrap">${tipo}</span>`}
     <input type="number" min="0" max="100" step="0.1" placeholder="0,0"
       value="${aj}"
       style="width:70px;border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:12px;background:var(--bg2)"
       onclick="event.stopPropagation()"
       oninput="event.stopPropagation();st.ajustes['${id}']=parseFloat(this.value)||0;const el=document.getElementById('preco-aj-${id}');if(el)el.textContent=fmt(precoAjustado('${id}',${preco}));${extraUpd}">
+    <span style="font-size:11px;color:var(--text2)">%</span>
     <span style="font-size:11px;color:var(--text2)" id="preco-aj-${id}">${fmt(precoFinal)}</span>
   </div>`;
 }
@@ -2716,8 +2732,9 @@ function campoQtdAjuste(id, preco){
   const qtd=getQtd(id);
   const aj=st.ajustes[id]||'';
   const isAdm=isAdmin();
-  const cor=isAdm?'#c0392b':'#e67e22';
-  const tipo=isAdm?'Desconto':'Acréscimo';
+  const tipoAtual = isAdm ? (st.ajustesTipo[id]||'desconto') : 'acrescimo';
+  const cor=tipoAtual==='desconto'?'#c0392b':'#e67e22';
+  const tipo=tipoAtual==='desconto'?'Desconto':'Acréscimo';
   const unit=precoAjustado(id, preco);
   const subtotal=unit*qtd;
   return `<div style="margin-top:6px;padding:6px 8px;background:var(--bg);border-radius:var(--radius-sm);border:1px dashed var(--border)" onclick="event.stopPropagation()">
@@ -2730,13 +2747,17 @@ function campoQtdAjuste(id, preco){
         oninput="event.stopPropagation();setQtd('${id}',parseInt(this.value)||0)">
       <button class="btn btn-sm" style="padding:2px 8px" onclick="event.stopPropagation();incQtd('${id}',1)">+</button>
     </div>
-    ${qtd>0?`<div style="display:flex;align-items:center;gap:6px">
-      <span style="font-size:11px;color:${cor};font-weight:600;white-space:nowrap">${tipo} %</span>
+    ${qtd>0?`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+      ${isAdm?`<div style="display:flex;border:1px solid var(--border);border-radius:4px;overflow:hidden">
+        <button type="button" onclick="event.stopPropagation();st.ajustesTipo['${id}']='desconto';renderStep();" style="border:none;padding:3px 6px;font-size:10px;font-weight:600;cursor:pointer;background:${tipoAtual==='desconto'?'#c0392b':'var(--bg2)'};color:${tipoAtual==='desconto'?'#fff':'var(--text2)'}">Desconto</button>
+        <button type="button" onclick="event.stopPropagation();st.ajustesTipo['${id}']='acrescimo';renderStep();" style="border:none;padding:3px 6px;font-size:10px;font-weight:600;cursor:pointer;background:${tipoAtual==='acrescimo'?'#e67e22':'var(--bg2)'};color:${tipoAtual==='acrescimo'?'#fff':'var(--text2)'}">Acréscimo</button>
+      </div>`:`<span style="font-size:11px;color:${cor};font-weight:600;white-space:nowrap">${tipo}</span>`}
       <input type="number" min="0" max="100" step="0.1" placeholder="0,0"
         value="${aj}"
         style="width:60px;border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:12px;background:var(--bg2)"
         onclick="event.stopPropagation()"
         oninput="event.stopPropagation();st.ajustes['${id}']=parseFloat(this.value)||0;const el=document.getElementById('sub-${id}');if(el)el.textContent=fmt(precoAjustado('${id}',${preco})*getQtd('${id}'));">
+      <span style="font-size:11px;color:var(--text2);white-space:nowrap">%</span>
       <span style="font-size:11px;color:var(--text2);margin-left:auto" id="sub-${id}">${fmt(subtotal)}</span>
     </div>`:''}
   </div>`;
@@ -2752,8 +2773,9 @@ function campoQtdAjusteLista(id, preco, renderCall){
   const qtd=getQtd(id);
   const aj=st.ajustes[id]||'';
   const isAdm=isAdmin();
-  const cor=isAdm?'#c0392b':'#e67e22';
-  const tipo=isAdm?'Desconto':'Acréscimo';
+  const tipoAtual = isAdm ? (st.ajustesTipo[id]||'desconto') : 'acrescimo';
+  const cor=tipoAtual==='desconto'?'#c0392b':'#e67e22';
+  const tipo=tipoAtual==='desconto'?'Desconto':'Acréscimo';
   const unit=precoAjustado(id, preco);
   const subtotal=unit*qtd;
   return `<div style="margin-top:6px;padding:6px 8px;background:var(--bg);border-radius:var(--radius-sm);border:1px dashed var(--border)" onclick="event.stopPropagation()">
@@ -2766,13 +2788,17 @@ function campoQtdAjusteLista(id, preco, renderCall){
         oninput="event.stopPropagation();setQtd('${id}',parseInt(this.value)||0);${renderCall}">
       <button class="btn btn-sm" style="padding:2px 8px" onclick="event.stopPropagation();incQtd('${id}',1);${renderCall}">+</button>
     </div>
-    ${qtd>0?`<div style="display:flex;align-items:center;gap:6px">
-      <span style="font-size:11px;color:${cor};font-weight:600;white-space:nowrap">${tipo} %</span>
+    ${qtd>0?`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+      ${isAdm?`<div style="display:flex;border:1px solid var(--border);border-radius:4px;overflow:hidden">
+        <button type="button" onclick="event.stopPropagation();st.ajustesTipo['${id}']='desconto';${renderCall}" style="border:none;padding:3px 6px;font-size:10px;font-weight:600;cursor:pointer;background:${tipoAtual==='desconto'?'#c0392b':'var(--bg2)'};color:${tipoAtual==='desconto'?'#fff':'var(--text2)'}">Desconto</button>
+        <button type="button" onclick="event.stopPropagation();st.ajustesTipo['${id}']='acrescimo';${renderCall}" style="border:none;padding:3px 6px;font-size:10px;font-weight:600;cursor:pointer;background:${tipoAtual==='acrescimo'?'#e67e22':'var(--bg2)'};color:${tipoAtual==='acrescimo'?'#fff':'var(--text2)'}">Acréscimo</button>
+      </div>`:`<span style="font-size:11px;color:${cor};font-weight:600;white-space:nowrap">${tipo}</span>`}
       <input type="number" min="0" max="100" step="0.1" placeholder="0,0"
         value="${aj}"
         style="width:60px;border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-size:12px;background:var(--bg2)"
         onclick="event.stopPropagation()"
         oninput="event.stopPropagation();st.ajustes['${id}']=parseFloat(this.value)||0;const el=document.getElementById('sub-${id}');if(el)el.textContent=fmt(precoAjustado('${id}',${preco})*getQtd('${id}'));">
+      <span style="font-size:11px;color:var(--text2);white-space:nowrap">%</span>
       <span style="font-size:11px;color:var(--text2);margin-left:auto" id="sub-${id}">${fmt(subtotal)}</span>
     </div>`:''}
   </div>`;
