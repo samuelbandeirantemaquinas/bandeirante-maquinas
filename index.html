@@ -521,13 +521,14 @@ function senhaAtual(login){
 }
 
 // ---- CARREGAR PRODUTOS DO SUPABASE ----
-async function loadProdutos(){
-  try{
-    const rows=await sbGet('produtos','order=categoria.asc');
-    if(!Array.isArray(rows)||rows.length===0) return;
-    const ativos=rows.filter(p=>p.ativo!==false);
-    // Atualizar preços e descrições dos arrays locais
-    ativos.forEach(p=>{
+// Aplica os dados de produtos (vindos do Supabase OU do cache local salvo no
+// navegador) nos arrays em memória usados pelo restante do app. Extraído da
+// loadProdutos original para poder ser reaproveitado tanto no caminho normal
+// (dados ao vivo) quanto no caminho de contingência (cache local).
+function aplicarProdutosNosArrays(rows){
+  if(!Array.isArray(rows)||rows.length===0) return;
+  const ativos=rows.filter(p=>p.ativo!==false);
+  ativos.forEach(p=>{
       if(p.categoria==='carregador'){
         const c=CARREGADORES.find(x=>x.id===p.id);
         if(c){c.preco=parseFloat(p.preco);if(p.nome)c.nome=p.nome;if(p.descricao)c.descricao=p.descricao;
@@ -623,14 +624,46 @@ async function loadProdutos(){
           arr.push({id:p.id,cod:p.cod||'',nome:p.nome||'Produto sem nome',preco:parseFloat(p.preco)||0,desc:p.descricao||'',img:p.img||null,finame:p.finame||'',ncm:p.ncm||''});
         }
       }
-    });
+  });
+}
+
+async function loadProdutos(){
+  try{
+    const rows=await sbGet('produtos','order=categoria.asc');
+    if(!Array.isArray(rows)||rows.length===0) return;
+    aplicarProdutosNosArrays(rows);
     // Marca com sucesso o horário da última sincronização de preços vinda do banco.
     // Isso alimenta o aviso "Preços sincronizados às HH:MM" no rodapé, para
     // qualquer vendedor confirmar rapidamente que os valores estão atualizados
     // antes de gerar um orçamento.
     window.__precosSincronizadosEm = new Date();
     window.__erroCarregarProdutos = null;
-  }catch(e){console.warn('Erro ao carregar produtos:',e); window.__erroCarregarProdutos = e;}
+    window.__usandoCacheLocal = false;
+    // Salva no navegador os dados que acabaram de sincronizar com sucesso — isso
+    // vira o respaldo automático caso o Supabase fique fora do ar depois, em vez
+    // de depender de um valor "de fábrica" fixo no código (que podia ficar
+    // desatualizado sempre que um preço mudava só no banco).
+    try{
+      localStorage.setItem('bandeirante_produtos_cache', JSON.stringify(rows));
+      localStorage.setItem('bandeirante_produtos_cache_em', new Date().toISOString());
+    }catch(e){}
+  }catch(e){
+    console.warn('Erro ao carregar produtos:',e);
+    window.__erroCarregarProdutos = e;
+    // Banco fora do ar: usa o último preço sincronizado com sucesso NESTE
+    // navegador (guardado em localStorage), que é sempre mais confiável que o
+    // valor "de fábrica" fixo no código. Só cai no valor do código se este
+    // navegador nunca sincronizou com sucesso antes (ex: primeiro acesso).
+    try{
+      const cacheStr = localStorage.getItem('bandeirante_produtos_cache');
+      if(cacheStr){
+        aplicarProdutosNosArrays(JSON.parse(cacheStr));
+        const cacheEm = localStorage.getItem('bandeirante_produtos_cache_em');
+        window.__precosCacheEm = cacheEm ? new Date(cacheEm) : null;
+        window.__usandoCacheLocal = true;
+      }
+    }catch(e2){console.warn('Erro ao aplicar cache local de produtos:', e2);}
+  }
 }
 
 function fmt(v){return v===0?'—':'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
@@ -5026,7 +5059,15 @@ function entrarNoApp(){
   function atualizarIndicadorSync(){
     const el = document.getElementById('sync-indicator');
     if(!el) return;
-    if(window.__erroCarregarProdutos){
+    if(window.__erroCarregarProdutos && window.__usandoCacheLocal && window.__precosCacheEm){
+      // Banco fora do ar, mas o navegador tem um preço salvo de uma sincronização
+      // anterior bem-sucedida — mais confiável que travar tudo ou usar um valor
+      // fixo no código que pode estar desatualizado.
+      const hhmm = window.__precosCacheEm.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+      const dataStr = window.__precosCacheEm.toLocaleDateString('pt-BR');
+      const hoje = new Date().toLocaleDateString('pt-BR')===dataStr;
+      el.innerHTML = '🟡 <span style="color:#b7791f">Sem conexão — usando preços salvos '+(hoje?'às '+hhmm:'de '+dataStr)+'</span>';
+    } else if(window.__erroCarregarProdutos){
       el.innerHTML = '⚠️ <span style="color:var(--danger,#e53e3e)">Preços NÃO sincronizados</span>';
     } else if(window.__precosSincronizadosEm){
       const hhmm = window.__precosSincronizadosEm.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
