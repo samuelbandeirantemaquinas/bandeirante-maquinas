@@ -3692,7 +3692,7 @@ function abrirOrcamento(id){
             <option value="Cancelado" ${o.status==='Cancelado'?'selected':''}>Cancelado</option>
           </select>
         </div>
-        <div class="ig"><label>Total (R$)</label><input type="number" id="edit-total" data-base="${(o.total||0)-(o.acrescimo_valor||0)}" value="${o.total||0}" step="0.01"></div>
+        <div class="ig"><label>Total (R$)</label><input type="number" id="edit-total" data-base="${(o.acrescimo_valor?(o.total||0)/(1+o.acrescimo_valor/100):(o.total||0))}" value="${o.total||0}" step="0.01"></div>
       </div>
       <div class="fr2">
         <div class="ig"><label>Frete</label>
@@ -3702,8 +3702,8 @@ function abrirOrcamento(id){
             <option value="CIF — Por conta da Bandeirante" ${o.frete==='CIF — Por conta da Bandeirante'?'selected':''}>CIF — Por conta da Bandeirante</option>
           </select>
         </div>
-        <div class="ig"><label>Acréscimo/Desconto (R$) <span style="font-size:10px;color:var(--text2)">(soma ao Total acima)</span></label>
-          <input type="number" id="edit-acrescimo" value="${o.acrescimo_valor||0}" step="0.01" oninput="atualizarTotalComAcrescimoEdicao()">
+        <div class="ig"><label>Acréscimo/Desconto (%) <span style="font-size:10px;color:var(--text2)">(negativo = desconto)</span></label>
+          <input type="number" id="edit-acrescimo" value="${o.acrescimo_valor||0}" step="0.1" oninput="atualizarTotalComAcrescimoEdicao()">
         </div>
       </div>
       <div class="ig"><label>Condição de Pagamento</label>
@@ -3747,9 +3747,13 @@ function abrirOrcamento(id){
             <option value="CIF — Por conta da Bandeirante" ${o.frete==='CIF — Por conta da Bandeirante'?'selected':''}>CIF — Por conta da Bandeirante</option>
           </select>
         </div>
-        <div class="ig"><label>Acréscimo/Desconto (R$) <span style="font-size:10px;color:var(--text2)">(soma ao total)</span></label>
-          <input type="number" id="edit-acrescimo-vend" data-base="${(o.total||0)-(o.acrescimo_valor||0)}" value="${o.acrescimo_valor||0}" step="0.01">
+        <div class="ig"><label>Acréscimo/Desconto (%) <span style="font-size:10px;color:var(--text2)">(negativo = desconto)</span></label>
+          <input type="number" id="edit-acrescimo-vend" data-base="${(o.acrescimo_valor?(o.total||0)/(1+o.acrescimo_valor/100):(o.total||0))}" value="${o.acrescimo_valor||0}" step="0.1" oninput="atualizarPreviewTotalVend('${o.id}')">
         </div>
+      </div>
+      <div id="preview-total-vend" style="display:flex;align-items:center;gap:10px;margin-bottom:.5rem;font-size:12px;color:var(--text2)">
+        <span id="preview-total-texto-vend">Total com ajuste: <strong>${fmt(o.total||0)}</strong></span>
+        <button class="btn btn-primary btn-sm" onclick="salvarStatusOrc('${o.id}')"><i class="ti ti-device-floppy"></i> Salvar</button>
       </div>
       <button class="btn btn-primary btn-sm" style="margin-top:.5rem" onclick="salvarStatusOrc('${o.id}')"><i class="ti ti-device-floppy"></i> Atualizar status</button>
     </div>`}
@@ -3767,21 +3771,34 @@ function atualizarTotalPgtoEdicao(sel){
   const totalEl=document.getElementById('edit-total');
   if(totalEl){
     totalEl.value = comJuros.toFixed(2);
-    totalEl.dataset.base = comJuros.toFixed(2); // novo "base" para o acréscimo somar em cima
+    totalEl.dataset.base = comJuros.toFixed(2); // novo "base" para o acréscimo % aplicar em cima
   }
   const acEl=document.getElementById('edit-acrescimo');
-  if(acEl) acEl.value='0'; // troca de condição de pagamento zera o acréscimo manual, pra não somar duas vezes
+  if(acEl) acEl.value='0'; // troca de condição de pagamento zera o acréscimo manual, pra não aplicar duas vezes
 }
 
-// Soma o valor de Acréscimo/Desconto (R$) por cima do total-base (guardado em
-// data-base no campo Total), refletindo ao vivo enquanto o Admin digita.
+// Aplica o Acréscimo/Desconto (%) por cima do total-base (guardado em data-base
+// no campo Total), refletindo ao vivo enquanto o Admin digita. Negativo = desconto.
 function atualizarTotalComAcrescimoEdicao(){
   const totalEl=document.getElementById('edit-total');
   const acEl=document.getElementById('edit-acrescimo');
   if(!totalEl||!acEl) return;
   const base=parseFloat(totalEl.dataset.base)||parseFloat(totalEl.value)||0;
-  const ac=parseFloat(acEl.value)||0;
-  totalEl.value=(base+ac).toFixed(2);
+  const pct=parseFloat(acEl.value)||0;
+  totalEl.value=(base*(1+pct/100)).toFixed(2);
+}
+
+// Mesma ideia da função acima, mas para a tela simplificada do vendedor (que não
+// tem um campo Total editável visível — mostra uma prévia textual em vez disso).
+function atualizarPreviewTotalVend(id){
+  const o=orcamentos.find(x=>x.id===id);
+  const acEl=document.getElementById('edit-acrescimo-vend');
+  const previewEl=document.getElementById('preview-total-texto-vend');
+  if(!acEl||!previewEl) return;
+  const base=parseFloat(acEl.dataset.base)||(o?.total||0);
+  const pct=parseFloat(acEl.value)||0;
+  const novoTotal=base*(1+pct/100);
+  previewEl.innerHTML='Total com ajuste: <strong>'+fmt(novoTotal)+'</strong>';
 }
 
 async function salvarStatusOrc(id){
@@ -3793,10 +3810,10 @@ async function salvarStatusOrc(id){
   const body={status};
   if(freteEl) body.frete=freteEl.value||null;
   if(acEl){
-    const acrescimo_valor=parseFloat(acEl.value)||0;
-    const base=parseFloat(acEl.dataset.base)||((o?.total||0)-(o?.acrescimo_valor||0));
-    body.acrescimo_valor=acrescimo_valor;
-    body.total=base+acrescimo_valor;
+    const pct=parseFloat(acEl.value)||0;
+    const base=parseFloat(acEl.dataset.base)||(o?.total||0);
+    body.acrescimo_valor=pct;
+    body.total=base*(1+pct/100);
   }
   try{
     await sbReq('PATCH','orcamentos','id=eq.'+id,body);
