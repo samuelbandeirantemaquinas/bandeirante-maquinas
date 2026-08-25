@@ -3680,6 +3680,18 @@ function abrirOrcamento(id){
           <option value="Cancelado" ${o.status==='Cancelado'?'selected':''}>Cancelado</option>
         </select>
       </div>
+      <div class="fr2">
+        <div class="ig"><label>Frete</label>
+          <select id="edit-frete-vend">
+            <option value="" ${!o.frete?'selected':''}>— Selecionar —</option>
+            <option value="FOB — Por conta do comprador" ${o.frete==='FOB — Por conta do comprador'?'selected':''}>FOB — Por conta do comprador</option>
+            <option value="CIF — Por conta da Bandeirante" ${o.frete==='CIF — Por conta da Bandeirante'?'selected':''}>CIF — Por conta da Bandeirante</option>
+          </select>
+        </div>
+        <div class="ig"><label>Acréscimo/Desconto (R$) <span style="font-size:10px;color:var(--text2)">(soma ao total)</span></label>
+          <input type="number" id="edit-acrescimo-vend" data-base="${(o.total||0)-(o.acrescimo_valor||0)}" value="${o.acrescimo_valor||0}" step="0.01">
+        </div>
+      </div>
       <button class="btn btn-primary btn-sm" style="margin-top:.5rem" onclick="salvarStatusOrc('${o.id}')"><i class="ti ti-device-floppy"></i> Atualizar status</button>
     </div>`}
 
@@ -3717,9 +3729,19 @@ async function salvarStatusOrc(id){
   const o=orcamentos.find(x=>x.id===id);
   if(o && !isAdmin() && o.status==='Aprovado'){toast('Pedido aprovado não pode mais ser alterado.');return;}
   const status=document.getElementById('edit-status-vend')?.value||'Em aberto';
+  const acEl=document.getElementById('edit-acrescimo-vend');
+  const freteEl=document.getElementById('edit-frete-vend');
+  const body={status};
+  if(freteEl) body.frete=freteEl.value||null;
+  if(acEl){
+    const acrescimo_valor=parseFloat(acEl.value)||0;
+    const base=parseFloat(acEl.dataset.base)||((o?.total||0)-(o?.acrescimo_valor||0));
+    body.acrescimo_valor=acrescimo_valor;
+    body.total=base+acrescimo_valor;
+  }
   try{
-    await sbReq('PATCH','orcamentos','id=eq.'+id,{status});
-    toast('Status atualizado! ✓');
+    await sbReq('PATCH','orcamentos','id=eq.'+id,body);
+    toast('Pedido atualizado! ✓');
     await loadOrcamentos();
     abrirOrcamento(id);
   }catch(e){toast('Erro ao salvar.');}
