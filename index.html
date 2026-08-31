@@ -217,9 +217,47 @@ async function loadConfigPagamento(){
   }
 }
 
+// Valores já usados pelas opções fixas de pagamento (embutidas em todos os selects).
+// Nunca deve existir uma condição extra com um desses valores — isso faz o <select>
+// ter duas <option> com o mesmo value, e o navegador escolhe a última como "selected",
+// fazendo aparecer uma condição diferente da que o vendedor clicou.
+const VALORES_PGTO_FIXOS = ['','À vista','7 dias','15 dias','20% Sinal + Saldo à vista','2x','3x','4x','5x','6x'];
+
 // Gera as <option> extras (criadas pelo Admin) para acrescentar nos selects de forma de pagamento.
+// Filtra qualquer condição extra cujo valor colida com uma opção fixa (proteção mesmo que
+// já existam condições duplicadas salvas no banco de dados de antes da correção).
 function optionsCondicoesExtra(valorAtual){
-  return CONDICOES_PGTO_EXTRA.map(c=>`<option value="${c.valor}" ${valorAtual===c.valor?'selected':''}>${c.nome}</option>`).join('');
+  return CONDICOES_PGTO_EXTRA
+    .filter(c=>!VALORES_PGTO_FIXOS.includes(c.valor))
+    .map(c=>`<option value="${c.valor}" ${valorAtual===c.valor?'selected':''}>${c.nome}</option>`).join('');
+}
+
+// Traduz o VALOR salvo de uma condição de pagamento (ex: "3x", "À vista") para o texto
+// amigável que deve aparecer pro cliente/vendedor (tela de resumo e PDF). Sem essa função,
+// qualquer tela que mostrasse o valor bruto exibiria "3x" mesmo quando o vendedor escolheu
+// uma condição customizada (ex: "20% 30/60/90/120") cujo valor interno também virou "3x".
+function labelCondicaoPagamento(valor){
+  if(!valor) return '';
+  // Prioriza a condição CUSTOMIZADA quando existir uma com esse valor — é o que a tela de
+  // edição também mostra nesse caso (o <select> exibe a última opção marcada como
+  // selecionada, e as customizadas vêm depois das fixas na lista). Sem essa ordem, o PDF
+  // mostrava "3x mensais" mesmo quando o vendedor tinha escolhido a condição customizada
+  // colidente (ex: "20% Sinal - Saldo 30/60/90/120").
+  const extra=CONDICOES_PGTO_EXTRA.find(c=>c.valor===valor);
+  if(extra) return extra.nome;
+  const fixos={
+    'À vista':'À vista',
+    '7 dias':'7 dias (sem juros)',
+    '15 dias':'15 dias (sem juros)',
+    '20% Sinal + Saldo à vista':'20% Sinal - Saldo à vista',
+    '2x':'2x mensais ('+TAXA_JUROS_MENSAL+'% a.m.)',
+    '3x':'3x mensais ('+TAXA_JUROS_MENSAL+'% a.m.)',
+    '4x':'4x mensais ('+TAXA_JUROS_MENSAL+'% a.m.)',
+    '5x':'5x mensais ('+TAXA_JUROS_MENSAL+'% a.m.)',
+    '6x':'6x mensais ('+TAXA_JUROS_MENSAL+'% a.m.)',
+  };
+  if(fixos[valor]) return fixos[valor];
+  return valor;
 }
 let PRODUTOS_POR_CATEGORIA = {};
 
@@ -1243,7 +1281,7 @@ function gerarPDFRasthor(){
   y+=8;
 
   // Info rodapé
-  [{label:'Condição de Pagamento:',val:pgto||'—'},{label:'Transportadora / Frete:',val:frete||'—'},{label:'Vendedor:',val:vendedor||'—'},{label:'Data de Emissão:',val:hoje}].forEach(row=>{
+  [{label:'Condição de Pagamento:',val:labelCondicaoPagamento(pgto)||'—'},{label:'Transportadora / Frete:',val:frete||'—'},{label:'Vendedor:',val:vendedor||'—'},{label:'Data de Emissão:',val:hoje}].forEach(row=>{
     doc.setFillColor(248,248,248);doc.rect(M,y,W-M*2,6,'FD');
     doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(40);
     doc.text(row.label,M+2,y+4.2);
@@ -1841,7 +1879,7 @@ function gerarPDFGenerico(){
 
   // Rodapé
   const mGenPdf = st.marcaSel?MARCAS.find(x=>x.id===st.marcaSel):null;
-  const rodapeGen = [{label:'Condição de Pagamento:',val:pgto||'—'},{label:'Transportadora / Frete:',val:frete||'—'}];
+  const rodapeGen = [{label:'Condição de Pagamento:',val:labelCondicaoPagamento(pgto)||'—'},{label:'Transportadora / Frete:',val:frete||'—'}];
   if(mGenPdf && st.modeloSel){
     rodapeGen.push({label:'Marca:',val:mGenPdf.label});
     rodapeGen.push({label:'Modelo:',val:st.modeloSel});
@@ -2932,7 +2970,7 @@ function s6(){
       <div><div style="color:var(--text2);font-size:10px">Cliente</div><div style="font-weight:600">${nomeCliente}</div></div>
       <div><div style="color:var(--text2);font-size:10px">Cidade</div><div style="font-weight:600">${g('cli-cidade')||st.clienteSel?.cidade||'—'}</div></div>
       ${g('cli-frete')?`<div style="grid-column:1/-1"><div style="color:var(--text2);font-size:10px">Frete</div><div style="font-weight:600">${g('cli-frete')}</div></div>`:''}
-      ${(g('cli-pgto')||st.pgto)?`<div style="grid-column:1/-1"><div style="color:var(--text2);font-size:10px">Pagamento</div><div style="font-weight:600">${g('cli-pgto')||st.pgto}</div></div>`:''}
+      ${(g('cli-pgto')||st.pgto)?`<div style="grid-column:1/-1"><div style="color:var(--text2);font-size:10px">Pagamento</div><div style="font-weight:600">${labelCondicaoPagamento(g('cli-pgto')||st.pgto)}</div></div>`:''}
     </div>
     <hr class="divider">
     ${itens.map(it=>`<div class="orc-row"><span style="color:var(--text2)">${it.qtd>1?`${it.qtd}× `:''}${it.nome}${it.ajuste?` <span style="font-size:10px;color:${isAdmin()?'#c0392b':'#e67e22'}">(${isAdmin()?'-':'+'+(it.ajuste)}%)</span>`:''}</span><span style="font-weight:600;flex-shrink:0;margin-left:8px">${fmt(it.preco)}</span></div>`).join('')}
@@ -3212,7 +3250,7 @@ function gerarPDF(){
 
   // ── RODAPÉ INFO ──
   const infoRows = [];
-  if(pgto) infoRows.push({label:'Condição de Pagamento:', val:pgto});
+  if(pgto) infoRows.push({label:'Condição de Pagamento:', val:labelCondicaoPagamento(pgto)});
   if(frete) infoRows.push({label:'Transportadora / Frete:', val:frete});
   if(m&&st.modeloSel){
     infoRows.push({label:'Marca:', val:m.label});
@@ -3978,7 +4016,7 @@ async function regenarPDFHistorico(id){
   y+=5;
   df('Data:',hoje,M,y);
   df('Vendedor:',(o.vendedor||'—'),W/2,y); y+=5;
-  if(pgto) { df('Pagamento:',pgto,M,y); y+=5; }
+  if(pgto) { df('Pagamento:',labelCondicaoPagamento(pgto),M,y); y+=5; }
   if(frete) { df('Frete:',frete,M,y); y+=5; }
   if(o.obs){
     doc.setFontSize(8);doc.setTextColor(100);
@@ -4038,7 +4076,7 @@ async function regenarPDFHistorico(id){
 
   // Rodapé info: pagamento, frete, marca/modelo do trator (Carregadores), vendedor, data
   const infoRows=[];
-  if(pgto) infoRows.push({label:'Condição de Pagamento:',val:pgto});
+  if(pgto) infoRows.push({label:'Condição de Pagamento:',val:labelCondicaoPagamento(pgto)});
   if(frete) infoRows.push({label:'Transportadora / Frete:',val:frete});
   if(o.trator_marca && o.trator_modelo){
     infoRows.push({label:'Marca:',val:o.trator_marca});
@@ -4431,6 +4469,15 @@ async function criarCondicaoPagamento(){
     parcelas = parseInt(document.getElementById('new-cond-parcelas')?.value);
     if(!parcelas || parcelas<2){ toast('Digite o número de parcelas (2 ou mais).'); return; }
     valor = parcelas+'x';
+  }
+  // Impede criar uma condição com o mesmo valor de uma opção fixa (ex: "3x mensais" já
+  // existe pra qualquer categoria). Duas opções com o mesmo valor no menu causavam o bug
+  // de selecionar uma condição e aparecer outra na tela.
+  if(VALORES_PGTO_FIXOS.includes(valor) || CONDICOES_PGTO_EXTRA.some(c=>c.valor===valor)){
+    toast(tipo==='parcelado'
+      ? `Já existe uma condição de "${parcelas}x". Escolha um número de parcelas diferente (o sistema já tem 2x a 6x prontos).`
+      : 'Já existe uma condição com esse nome/valor. Escolha outro nome.');
+    return;
   }
   const id = 'cond_'+Date.now().toString(36);
   try{
