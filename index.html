@@ -4131,6 +4131,7 @@ async function rodarSeedProdutosEmSegundoPlano(rowsAtuais){
       // são gerenciados manualmente no banco) — evita sobrescrever dados que você
       // já ajustou nos demais carregadores.
       ...CARREGADORES.filter(p=>p.id==='hx1450auto').map(p=>({id:p.id,categoria:'carregador',nome:p.nome,preco:p.preco,descricao:p.desc||'',cod:p.cod||'',ativo:true})),
+      ...ADAPTADORES.filter(p=>p.id==='adp_hx1450auto').map(p=>({id:p.id,categoria:'adaptador',nome:p.nome,preco:p.preco,descricao:p.desc||'',cod:p.cod||'',ativo:true})),
       ...CARRETAS.map(p=>({id:p.id,categoria:'carreta',nome:p.nome,preco:p.preco,descricao:p.desc||'',ativo:true})),
       ...AERADORES.map(p=>({id:p.id,categoria:'aerador',nome:p.nome,preco:p.preco,descricao:p.desc||'',ativo:true})),
       ...PLANTADEIRAS.map(p=>({id:p.id,categoria:'plantadeira',nome:p.nome,preco:p.preco,descricao:p.desc||'',ativo:true})),
