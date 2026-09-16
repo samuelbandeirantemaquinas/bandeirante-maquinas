@@ -259,6 +259,13 @@ function labelCondicaoPagamento(valor){
   if(fixos[valor]) return fixos[valor];
   return valor;
 }
+
+// Mesma coisa, mas para uso nos PDFs que vão para o cliente: esconde a taxa de juros
+// (ex: "3x mensais (1.6% a.m.)" vira só "3x mensais"). O valor final já está calculado
+// com o juros embutido no preço, então isso não muda nada além do texto exibido.
+function labelCondicaoPagamentoPDF(valor){
+  return labelCondicaoPagamento(valor).replace(/\s*\([^)]*a\.m\.\)\s*/i,'');
+}
 let PRODUTOS_POR_CATEGORIA = {};
 
 async function loadCategorias(){
@@ -676,31 +683,14 @@ async function loadProdutos(){
     // antes de gerar um orçamento.
     window.__precosSincronizadosEm = new Date();
     window.__erroCarregarProdutos = null;
-    window.__usandoCacheLocal = false;
-    // Salva no navegador os dados que acabaram de sincronizar com sucesso — isso
-    // vira o respaldo automático caso o Supabase fique fora do ar depois, em vez
-    // de depender de um valor "de fábrica" fixo no código (que podia ficar
-    // desatualizado sempre que um preço mudava só no banco).
-    try{
-      localStorage.setItem('bandeirante_produtos_cache', JSON.stringify(rows));
-      localStorage.setItem('bandeirante_produtos_cache_em', new Date().toISOString());
-    }catch(e){}
   }catch(e){
     console.warn('Erro ao carregar produtos:',e);
     window.__erroCarregarProdutos = e;
-    // Banco fora do ar: usa o último preço sincronizado com sucesso NESTE
-    // navegador (guardado em localStorage), que é sempre mais confiável que o
-    // valor "de fábrica" fixo no código. Só cai no valor do código se este
-    // navegador nunca sincronizou com sucesso antes (ex: primeiro acesso).
-    try{
-      const cacheStr = localStorage.getItem('bandeirante_produtos_cache');
-      if(cacheStr){
-        aplicarProdutosNosArrays(JSON.parse(cacheStr));
-        const cacheEm = localStorage.getItem('bandeirante_produtos_cache_em');
-        window.__precosCacheEm = cacheEm ? new Date(cacheEm) : null;
-        window.__usandoCacheLocal = true;
-      }
-    }catch(e2){console.warn('Erro ao aplicar cache local de produtos:', e2);}
+    // Decisão do time: NÃO usar mais um cache de preços antigos como respaldo quando o
+    // banco está fora do ar — isso estava causando confusão (vendedores viam preços de
+    // uma sincronização muito antiga sem perceber). Agora, se não sincronizar de
+    // verdade, o app bloqueia o uso em vez de seguir com valores desatualizados
+    // (ver mostrarBloqueioSemConexao / tentarReconectarProdutos).
   }
 }
 
@@ -1027,11 +1017,11 @@ function gerarOrcRasthor(){
     </div>
     <div style="display:flex;gap:8px">
       <button class="btn" id="btn-salvar-rasthor" onclick="salvarOrcamentoRasthor()"><i class="ti ti-device-floppy"></i> Salvar</button>
-      <button class="btn btn-primary" id="btn-pdf-rasthor" style="flex:1;justify-content:center" ${st.rasthorPdfLiberado?'':'disabled title="Salve o orçamento antes de baixar o PDF"'} onclick="gerarPDFRasthor()">
+      <button class="btn btn-primary" id="btn-pdf-rasthor" style="flex:1;justify-content:center" onclick="gerarPDFRasthor()">
         <i class="ti ti-file-type-pdf"></i> Baixar PDF
       </button>
     </div>
-    ${!st.rasthorPdfLiberado?`<div style="font-size:11px;color:var(--text2);margin-top:6px;text-align:right"><i class="ti ti-info-circle"></i> Salve o orçamento primeiro para poder baixar o PDF</div>`:''}
+    ${!st.rasthorPdfLiberado?`<div style="font-size:11px;color:var(--text2);margin-top:6px;text-align:right"><i class="ti ti-info-circle"></i> O PDF pode ser gerado a qualquer momento. Clique em "Salvar" para registrar no Histórico.</div>`:''}
     <div id="modal-cli-rasthor" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;padding:1rem;overflow-y:auto">
       <div style="background:var(--bg2);border-radius:var(--radius-lg);padding:1.25rem;max-width:480px;margin:60px auto 0">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
@@ -1281,7 +1271,7 @@ function gerarPDFRasthor(){
   y+=8;
 
   // Info rodapé
-  [{label:'Condição de Pagamento:',val:labelCondicaoPagamento(pgto)||'—'},{label:'Transportadora / Frete:',val:frete||'—'},{label:'Vendedor:',val:vendedor||'—'},{label:'Data de Emissão:',val:hoje}].forEach(row=>{
+  [{label:'Condição de Pagamento:',val:labelCondicaoPagamentoPDF(pgto)||'—'},{label:'Transportadora / Frete:',val:frete||'—'},{label:'Vendedor:',val:vendedor||'—'},{label:'Data de Emissão:',val:hoje}].forEach(row=>{
     doc.setFillColor(248,248,248);doc.rect(M,y,W-M*2,6,'FD');
     doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(40);
     doc.text(row.label,M+2,y+4.2);
@@ -1537,11 +1527,11 @@ function abrirFormProduto(tipo) {
     </div>
     <div style="display:flex;gap:8px">
       <button class="btn" id="btn-salvar-gen" onclick="salvarOrcamentoGenerico()"><i class="ti ti-device-floppy"></i> Salvar</button>
-      <button class="btn btn-primary" id="btn-pdf-generico" style="flex:1;justify-content:center" ${st.genPdfLiberado?'':'disabled title="Salve o orçamento antes de baixar o PDF"'} onclick="gerarPDFGenerico()">
+      <button class="btn btn-primary" id="btn-pdf-generico" style="flex:1;justify-content:center" onclick="gerarPDFGenerico()">
         <i class="ti ti-file-type-pdf"></i> Baixar PDF
       </button>
     </div>
-    ${!st.genPdfLiberado?`<div style="font-size:11px;color:var(--text2);margin-top:6px;text-align:right"><i class="ti ti-info-circle"></i> Salve o orçamento primeiro para poder baixar o PDF</div>`:''}
+    ${!st.genPdfLiberado?`<div style="font-size:11px;color:var(--text2);margin-top:6px;text-align:right"><i class="ti ti-info-circle"></i> O PDF pode ser gerado a qualquer momento. Clique em "Salvar" para registrar no Histórico.</div>`:''}
     <div id="modal-cli-gen" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;padding:1rem;overflow-y:auto">
       <div style="background:var(--bg2);border-radius:var(--radius-lg);padding:1.25rem;max-width:480px;margin:60px auto 0">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
@@ -1879,7 +1869,7 @@ function gerarPDFGenerico(){
 
   // Rodapé
   const mGenPdf = st.marcaSel?MARCAS.find(x=>x.id===st.marcaSel):null;
-  const rodapeGen = [{label:'Condição de Pagamento:',val:labelCondicaoPagamento(pgto)||'—'},{label:'Transportadora / Frete:',val:frete||'—'}];
+  const rodapeGen = [{label:'Condição de Pagamento:',val:labelCondicaoPagamentoPDF(pgto)||'—'},{label:'Transportadora / Frete:',val:frete||'—'}];
   if(mGenPdf && st.modeloSel){
     rodapeGen.push({label:'Marca:',val:mGenPdf.label});
     rodapeGen.push({label:'Modelo:',val:st.modeloSel});
@@ -2262,7 +2252,14 @@ function renderProg(){
       <div class="prog-dot">${i<st.step?'<i class="ti ti-check" style="font-size:10px"></i>':i+1}</div>${s}</div>`;
   }).join('');
 }
-function goStep(n){st.step=n;renderProg();renderStep();}
+function goStep(n){
+  // Proteção extra: garante que o texto do campo Observações (se estiver na tela) seja
+  // salvo em st.obs antes de trocar de tela, mesmo que por algum motivo o evento de
+  // digitação não tenha disparado a tempo.
+  const obsEl=document.getElementById('cli-obs');
+  if(obsEl) st.obs=obsEl.value;
+  st.step=n;renderProg();renderStep();
+}
 function renderStep(){
   const el=document.getElementById('step-content');if(!el)return;
   const fns=[s0,s1,s2,s3,s4,s5,s6];
@@ -2507,6 +2504,36 @@ function s4(){
       <button class="btn btn-primary" onclick="goStep(5)">Cliente <i class="ti ti-arrow-right"></i></button>
     </div>
   </div>`;
+}
+
+// Mostra uma mensagem de ajuda abaixo do select de Frete, conforme a opção escolhida.
+// Era chamada pelo onchange do select mas nunca tinha sido implementada — isso disparava
+// um erro (função não existe) toda vez que o vendedor trocava o frete, no meio do
+// preenchimento do formulário (que inclui o campo de Observações logo abaixo).
+function atualizarFrete(){
+  const el=document.getElementById('frete-info');
+  if(!el) return;
+  el.innerHTML = st.frete==='CIF — Por conta da Bandeirante'
+    ? 'O frete até o cliente é por conta da Bandeirante.'
+    : st.frete==='FOB — Por conta do comprador'
+    ? 'O frete é por conta do cliente/comprador.' : '';
+}
+
+// Mostra o valor de cada parcela quando uma condição "Nx" é selecionada. Mesmo problema:
+// era chamada pelo onchange do select de forma de pagamento mas nunca existia.
+function calcParcelas(){
+  const el=document.getElementById('pgto-calc');
+  if(!el) return;
+  const match=/^(\d+)x$/.exec(st.pgto||'');
+  const n=match?parseInt(match[1]):NaN;
+  if(!isNaN(n) && n>1){
+    const totalComJuros=calcTotal()*(1+n*(TAXA_JUROS_MENSAL/100));
+    el.style.display='block';
+    el.innerHTML=n+'x de '+fmt(totalComJuros/n)+' &middot; total '+fmt(totalComJuros);
+  } else {
+    el.style.display='none';
+    el.innerHTML='';
+  }
 }
 
 function s5(){
@@ -2994,10 +3021,10 @@ function s6(){
     <button class="btn" onclick="goStep(5)"><i class="ti ti-arrow-left"></i> Voltar</button>
     <div style="display:flex;gap:8px">
       <button class="btn" id="btn-salvar" onclick="salvarOrcamento()"><i class="ti ti-device-floppy"></i> Salvar</button>
-      <button class="btn btn-primary" id="btn-pdf" ${st.pdfLiberado?'':'disabled title="Salve o orçamento antes de baixar o PDF"'} onclick="gerarPDF()"><i class="ti ti-file-type-pdf"></i> Baixar PDF</button>
+      <button class="btn btn-primary" id="btn-pdf" onclick="gerarPDF()"><i class="ti ti-file-type-pdf"></i> Baixar PDF</button>
     </div>
   </div>
-  ${!st.pdfLiberado?`<div style="font-size:11px;color:var(--text2);margin-top:6px;text-align:right"><i class="ti ti-info-circle"></i> Salve o orçamento primeiro para poder baixar o PDF (assim a data fica registrada no Histórico)</div>`:''}
+  ${!st.pdfLiberado?`<div style="font-size:11px;color:var(--text2);margin-top:6px;text-align:right"><i class="ti ti-info-circle"></i> O PDF pode ser gerado a qualquer momento. Clique em "Salvar" para o orçamento também ficar registrado no Histórico.</div>`:''}
   <button class="btn btn-sm" style="margin-top:.75rem;color:var(--text2)" onclick="novoOrcamento()"><i class="ti ti-plus"></i> Novo orçamento</button>`;
 }
 
@@ -3250,7 +3277,7 @@ function gerarPDF(){
 
   // ── RODAPÉ INFO ──
   const infoRows = [];
-  if(pgto) infoRows.push({label:'Condição de Pagamento:', val:labelCondicaoPagamento(pgto)});
+  if(pgto) infoRows.push({label:'Condição de Pagamento:', val:labelCondicaoPagamentoPDF(pgto)});
   if(frete) infoRows.push({label:'Transportadora / Frete:', val:frete});
   if(m&&st.modeloSel){
     infoRows.push({label:'Marca:', val:m.label});
@@ -4016,7 +4043,7 @@ async function regenarPDFHistorico(id){
   y+=5;
   df('Data:',hoje,M,y);
   df('Vendedor:',(o.vendedor||'—'),W/2,y); y+=5;
-  if(pgto) { df('Pagamento:',labelCondicaoPagamento(pgto),M,y); y+=5; }
+  if(pgto) { df('Pagamento:',labelCondicaoPagamentoPDF(pgto),M,y); y+=5; }
   if(frete) { df('Frete:',frete,M,y); y+=5; }
   if(o.obs){
     doc.setFontSize(8);doc.setTextColor(100);
@@ -4076,7 +4103,7 @@ async function regenarPDFHistorico(id){
 
   // Rodapé info: pagamento, frete, marca/modelo do trator (Carregadores), vendedor, data
   const infoRows=[];
-  if(pgto) infoRows.push({label:'Condição de Pagamento:',val:labelCondicaoPagamento(pgto)});
+  if(pgto) infoRows.push({label:'Condição de Pagamento:',val:labelCondicaoPagamentoPDF(pgto)});
   if(frete) infoRows.push({label:'Transportadora / Frete:',val:frete});
   if(o.trator_marca && o.trator_modelo){
     infoRows.push({label:'Marca:',val:o.trator_marca});
@@ -4131,7 +4158,6 @@ async function rodarSeedProdutosEmSegundoPlano(rowsAtuais){
       // são gerenciados manualmente no banco) — evita sobrescrever dados que você
       // já ajustou nos demais carregadores.
       ...CARREGADORES.filter(p=>p.id==='hx1450auto').map(p=>({id:p.id,categoria:'carregador',nome:p.nome,preco:p.preco,descricao:p.desc||'',cod:p.cod||'',ativo:true})),
-      ...ADAPTADORES.filter(p=>p.id==='adp_hx1450auto').map(p=>({id:p.id,categoria:'adaptador',nome:p.nome,preco:p.preco,descricao:p.desc||'',cod:p.cod||'',ativo:true})),
       ...CARRETAS.map(p=>({id:p.id,categoria:'carreta',nome:p.nome,preco:p.preco,descricao:p.desc||'',ativo:true})),
       ...AERADORES.map(p=>({id:p.id,categoria:'aerador',nome:p.nome,preco:p.preco,descricao:p.desc||'',ativo:true})),
       ...PLANTADEIRAS.map(p=>({id:p.id,categoria:'plantadeira',nome:p.nome,preco:p.preco,descricao:p.desc||'',ativo:true})),
@@ -5092,6 +5118,39 @@ function confirmarTrocaSenha(){
   toast('✓ Senha alterada com sucesso!');
 }
 
+// Tela de bloqueio mostrada quando o app não consegue sincronizar os preços com o
+// banco no login. Substitui o comportamento antigo (usar preços salvos de uma
+// sincronização anterior, às vezes bem antiga) — agora o vendedor não consegue
+// nem começar um orçamento sem garantir que os preços são os atuais.
+function mostrarBloqueioSemConexao(){
+  const el=document.getElementById('app-content');
+  if(!el) return;
+  el.innerHTML=`<div class="page-wrap" style="max-width:420px;margin:15vh auto;text-align:center">
+    <div style="font-size:40px;margin-bottom:12px">⚠️</div>
+    <div style="font-size:16px;font-weight:700;margin-bottom:8px">Não foi possível carregar os preços atuais</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:20px">O banco de dados não respondeu. Para evitar gerar orçamentos com preços desatualizados, o sistema não deixa continuar sem sincronizar de verdade. Verifique sua internet e tente novamente.</div>
+    <button class="btn btn-primary" id="btn-retry-sync" onclick="tentarReconectarProdutos()"><i class="ti ti-refresh"></i> Tentar novamente</button>
+  </div>`;
+}
+
+// Nova tentativa de sincronizar preços a partir da tela de bloqueio.
+async function tentarReconectarProdutos(){
+  const btn=document.getElementById('btn-retry-sync');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .7s linear infinite"></i> Sincronizando...';}
+  await Promise.all([loadCategorias(),loadProdutos()]);
+  if(window.__erroCarregarProdutos){
+    mostrarBloqueioSemConexao();
+    toast('⚠️ Ainda sem conexão com o banco de dados.', 4000);
+  } else {
+    showTab('home');
+    loadOrcamentos();
+    loadVendedores();
+    loadConfigPagamento();
+    loadClientes(true);
+    toast('✓ Preços sincronizados!');
+  }
+}
+
 function entrarNoApp(){
   const ls=document.getElementById('login-screen');
   const ma=document.getElementById('main-app');
@@ -5108,14 +5167,18 @@ function entrarNoApp(){
   // Orçamentos (pode ter até 500 linhas), vendedores, config de pagamento e clientes
   // carregam em segundo plano sem travar a entrada no app.
   Promise.all([loadCategorias(),loadProdutos()]).then(()=>{
+    if(window.__erroCarregarProdutos){
+      // Antes o app seguia em frente usando um cache de preços antigos — isso
+      // confundia os vendedores, que às vezes viam preços de uma sincronização
+      // muito antiga sem perceber. Agora bloqueia o uso até sincronizar de verdade.
+      mostrarBloqueioSemConexao();
+      return;
+    }
     showTab('home');
     loadOrcamentos();
     loadVendedores();
     loadConfigPagamento();
     loadClientes(true);
-    if(window.__erroCarregarProdutos){
-      toast('⚠️ Não foi possível sincronizar os preços agora — valores podem estar desatualizados.', 5000);
-    }
   });
   // Mostra no cabeçalho a que horas os preços foram sincronizados pela última vez
   // (ou um alerta vermelho se a sincronização falhou), pra qualquer vendedor
@@ -5124,15 +5187,7 @@ function entrarNoApp(){
   function atualizarIndicadorSync(){
     const el = document.getElementById('sync-indicator');
     if(!el) return;
-    if(window.__erroCarregarProdutos && window.__usandoCacheLocal && window.__precosCacheEm){
-      // Banco fora do ar, mas o navegador tem um preço salvo de uma sincronização
-      // anterior bem-sucedida — mais confiável que travar tudo ou usar um valor
-      // fixo no código que pode estar desatualizado.
-      const hhmm = window.__precosCacheEm.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-      const dataStr = window.__precosCacheEm.toLocaleDateString('pt-BR');
-      const hoje = new Date().toLocaleDateString('pt-BR')===dataStr;
-      el.innerHTML = '🟡 <span style="color:#b7791f">Sem conexão — usando preços salvos '+(hoje?'às '+hhmm:'de '+dataStr)+'</span>';
-    } else if(window.__erroCarregarProdutos){
+    if(window.__erroCarregarProdutos){
       el.innerHTML = '⚠️ <span style="color:var(--danger,#e53e3e)">Preços NÃO sincronizados</span>';
     } else if(window.__precosSincronizadosEm){
       const hhmm = window.__precosSincronizadosEm.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
