@@ -915,16 +915,26 @@ function idOrcamentoSalvo(chave, novoId){
 // Salva (cria ou atualiza) um orçamento no banco, reaproveitando o mesmo registro se
 // esse fluxo já tinha sido salvo antes nesta sessão. Usado por salvarOrcamento,
 // salvarOrcamentoRasthor e salvarOrcamentoGenerico.
+// Trava contra clique duplo / duas chamadas praticamente ao mesmo tempo: se já tem um
+// "Salvar" em andamento para esse fluxo, esta chamada espera terminar antes de decidir
+// se cria um registro novo ou atualiza o existente — evita duplicar no Histórico.
+let _salvandoOrcamento = new Set();
 async function salvarOuAtualizarOrcamento(chave, dados){
-  const idExistente = idOrcamentoSalvo(chave);
-  if(idExistente){
-    await sbPatch('orcamentos', idExistente, dados);
-    return idExistente;
+  while(_salvandoOrcamento.has(chave)) await new Promise(r=>setTimeout(r,80));
+  _salvandoOrcamento.add(chave);
+  try{
+    const idExistente = idOrcamentoSalvo(chave);
+    if(idExistente){
+      await sbPatch('orcamentos', idExistente, dados);
+      return idExistente;
+    }
+    const resultado = await sbPost('orcamentos', dados);
+    const novoId = Array.isArray(resultado) ? resultado[0]?.id : resultado?.id;
+    if(novoId) idOrcamentoSalvo(chave, novoId);
+    return novoId;
+  } finally {
+    _salvandoOrcamento.delete(chave);
   }
-  const resultado = await sbPost('orcamentos', dados);
-  const novoId = Array.isArray(resultado) ? resultado[0]?.id : resultado?.id;
-  if(novoId) idOrcamentoSalvo(chave, novoId);
-  return novoId;
 }
 
 function renderRasthor(){
@@ -3005,7 +3015,7 @@ function calcTotal(){
 function s6(){
   const itens=montarItens();
   const total=calcTotal();
-  const num=genNum();
+  const num=numeroOrcamento('carregador');
   const m=st.marcaSel?MARCAS.find(x=>x.id===st.marcaSel):null;
   const nomeCliente=g('cli-nome')||st.clienteSel?.nome||'—';
   const vendedor=(g('cli-vendedor')||document.getElementById('cli-vendedor')?.value||st.vendedor||currentPerfil?.nome||st.clienteSel?.vendedor||'—');
