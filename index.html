@@ -849,6 +849,7 @@ function linhaCarregadores(){
 }
 
 function linhaSolo(){
+  delete st._numero_rasthor; // começando um orçamento novo — gera número novo
   document.getElementById('app-content').innerHTML=`
   <div style="display:flex;align-items:center;gap:10px;padding:.75rem 1rem;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:56px;z-index:50">
     <button class="btn btn-sm" onclick="showTab('home')"><i class="ti ti-arrow-left"></i></button>
@@ -888,6 +889,18 @@ let RASTHOR = [
 
 function getImgRasthor(id){return IMGS['rasthor_'+id]||null;}
 function getRasthorSel(){return RASTHOR.filter(r=>getQtd(r.id)>0);}
+
+// Garante que "Salvar" e "Baixar PDF" usem sempre o MESMO número de orçamento — antes
+// cada um gerava o seu próprio número (baseado no horário exato do clique), então o
+// PDF baixado e o registro salvo no Histórico ficavam com números diferentes para o
+// mesmo orçamento. Agora o número é gerado uma única vez e reaproveitado, até o
+// vendedor começar um orçamento novo de verdade (ver linhaSolo/linhaTransporte/etc.
+// e novoOrcamento, que limpam esse valor).
+function numeroOrcamento(chave){
+  const campo='_numero_'+chave;
+  if(!st[campo]) st[campo]='ORC-'+Date.now().toString().slice(-6);
+  return st[campo];
+}
 
 function renderRasthor(){
   const el = document.getElementById('rasthor-list');
@@ -1111,7 +1124,7 @@ async function salvarOrcamentoRasthor(){
   try{
     const vendedorSalvo = gr('rc-vendedor')||document.getElementById('rc-vendedor')?.value||st.vendedor||currentPerfil?.nome||null;
     await sbPost('orcamentos',{
-      numero:'ORC-'+Date.now().toString().slice(-6),
+      numero:numeroOrcamento('rasthor'),
       cliente_id:rasthorClienteSel?.id||null,
       cliente_nome:gr('rc-nome')||rasthorClienteSel?.nome||null,
       trator_marca:null,trator_modelo:null,estrutura:null,
@@ -1142,7 +1155,7 @@ function gerarPDFRasthor(){
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   const W=doc.internal.pageSize.getWidth();
   const M=14;
-  const num='ORC-'+Date.now().toString().slice(-6);
+  const num=numeroOrcamento('rasthor');
   const hoje=new Date().toLocaleDateString('pt-BR');
   // Só reconhece o padrão "Nx" (ex: "3x") como parcelamento com juros;
   // "À vista", "7 dias" e "15 dias" não têm juros.
@@ -1426,6 +1439,7 @@ function renderListaGenerica(tipo, lista, iconHtml){
 }
 
 function linhaTransporte(){
+  delete st._numero_generico; // começando um orçamento novo — gera número novo
   document.getElementById('app-content').innerHTML=`
   <div style="display:flex;align-items:center;gap:10px;padding:.75rem 1rem;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:56px;z-index:50">
     <button class="btn btn-sm" onclick="showTab('home')"><i class="ti ti-arrow-left"></i></button>
@@ -1642,6 +1656,7 @@ function voltarLinha(tipo){
 // Funciona exatamente como as telas fixas (Carretas, Aeradores etc.), sem precisar
 // codificar uma função nova a cada categoria criada pelo usuário.
 function linhaGenerica(tipo){
+  delete st._numero_generico; // começando um orçamento novo — gera número novo
   const cat = CATEGORIAS_CUSTOM.find(c=>c.id===tipo);
   const nome = cat?.nome || tipo;
   document.getElementById('app-content').innerHTML=`
@@ -1724,7 +1739,7 @@ async function salvarOrcamentoGenerico(){
     const vendedorSalvo = gn('gn-vendedor')||document.getElementById('gn-vendedor')?.value||st.vendedor||currentPerfil?.nome||null;
     const mGen = st.marcaSel?MARCAS.find(x=>x.id===st.marcaSel):null;
     await sbPost('orcamentos',{
-      numero:'ORC-'+Date.now().toString().slice(-6),
+      numero:numeroOrcamento('generico'),
       cliente_id:_cliGenSel?.id||null,
       cliente_nome:gn('gn-nome')||_cliGenSel?.nome||null,
       trator_marca:mGen?.label||null,trator_modelo:st.modeloSel||null,estrutura:st.adaptDB?.estrutura||null,
@@ -1761,9 +1776,8 @@ function gerarPDFGenerico(){
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   const W=doc.internal.pageSize.getWidth(); const M=14;
-  const num='ORC-'+Date.now().toString().slice(-6);
+  const num=numeroOrcamento('generico');
   const hoje=new Date().toLocaleDateString('pt-BR');
-
   const nome=(gn('gn-nome')||'').toUpperCase();
   const empresa=gn('gn-empresa');
   const tel=gn('gn-tel');
@@ -1966,6 +1980,7 @@ function gerarPDFCarreta(cid){
 }
 
 function linhaAerador(){
+  delete st._numero_generico; // começando um orçamento novo — gera número novo
   document.getElementById('app-content').innerHTML=`
   <div style="display:flex;align-items:center;gap:10px;padding:.75rem 1rem;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:56px;z-index:50">
     <button class="btn btn-sm" onclick="showTab('home')"><i class="ti ti-arrow-left"></i></button>
@@ -2033,6 +2048,7 @@ function gerarPDFAerador(aid){
 }
 
 function linhaPlantadeira(){
+  delete st._numero_generico; // começando um orçamento novo — gera número novo
   document.getElementById('app-content').innerHTML=`
   <div style="display:flex;align-items:center;gap:10px;padding:.75rem 1rem;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:56px;z-index:50">
     <button class="btn btn-sm" onclick="showTab('home')"><i class="ti ti-arrow-left"></i></button>
@@ -2104,6 +2120,7 @@ function gerarPDFPlantadeira(pid){
 }
 
 function linhaVirtuos(){
+  delete st._numero_generico; // começando um orçamento novo — gera número novo
   document.getElementById('app-content').innerHTML=`
   <div style="display:flex;align-items:center;gap:10px;padding:.75rem 1rem;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:56px;z-index:50">
     <button class="btn btn-sm" onclick="showTab('home')"><i class="ti ti-arrow-left"></i></button>
@@ -2171,6 +2188,7 @@ function gerarPDFVirtuos(vid){
 }
 
 function linhaTratador(){
+  delete st._numero_generico; // começando um orçamento novo — gera número novo
   document.getElementById('app-content').innerHTML=`
   <div style="display:flex;align-items:center;gap:10px;padding:.75rem 1rem;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:56px;z-index:50">
     <button class="btn btn-sm" onclick="showTab('home')"><i class="ti ti-arrow-left"></i></button>
@@ -3042,7 +3060,7 @@ async function salvarOrcamento(){
   try{
     const vendedorSalvo = g('cli-vendedor')||st.vendedor||st.clienteSel?.vendedor||currentPerfil?.nome||null;
     await sbPost('orcamentos',{
-      numero:'ORC-'+Date.now().toString().slice(-6),
+      numero:numeroOrcamento('carregador'),
       cliente_id:st.clienteSel?.id||null,
       cliente_nome:g('cli-nome')||st.clienteSel?.nome||null,
       trator_marca:m?.label||null,trator_modelo:st.modeloSel||null,
@@ -3079,7 +3097,7 @@ function gerarPDF(){
   // Dados do orçamento
   const total=calcTotal();
   const m=st.marcaSel?MARCAS.find(x=>x.id===st.marcaSel):null;
-  const num='ORC-'+Date.now().toString().slice(-6);
+  const num=numeroOrcamento('carregador');
   const hoje=new Date().toLocaleDateString('pt-BR');
   const nomeCliente=(g('cli-nome')||st.clienteSel?.nome||'').toUpperCase();
   const vendedor=(g('cli-vendedor')||document.getElementById('cli-vendedor')?.value||st.vendedor||currentPerfil?.nome||st.clienteSel?.vendedor||'—');
