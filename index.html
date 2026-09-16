@@ -848,8 +848,8 @@ function linhaCarregadores(){
   showTab('orcamento');
 }
 
-function linhaSolo(){
-  delete st._numero_rasthor; // começando um orçamento novo — gera número novo
+function linhaSolo(voltando){
+  if(!voltando) { delete st._numero_rasthor; delete st._id_rasthor; } // só reseta se for orçamento novo de verdade, não ao voltar pra ajustar qtd
   document.getElementById('app-content').innerHTML=`
   <div style="display:flex;align-items:center;gap:10px;padding:.75rem 1rem;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:56px;z-index:50">
     <button class="btn btn-sm" onclick="showTab('home')"><i class="ti ti-arrow-left"></i></button>
@@ -900,6 +900,31 @@ function numeroOrcamento(chave){
   const campo='_numero_'+chave;
   if(!st[campo]) st[campo]='ORC-'+Date.now().toString().slice(-6);
   return st[campo];
+}
+
+// Guarda o id do orçamento já salvo nesta sessão (por fluxo). Assim, se o vendedor
+// clicar em "Salvar" mais de uma vez para o MESMO orçamento (ex: salvou, ajustou algo,
+// salvou de novo), o sistema ATUALIZA o mesmo registro em vez de criar um duplicado
+// no Histórico — sempre em cima do mesmo número.
+function idOrcamentoSalvo(chave, novoId){
+  const campo='_id_'+chave;
+  if(novoId!==undefined) st[campo]=novoId;
+  return st[campo];
+}
+
+// Salva (cria ou atualiza) um orçamento no banco, reaproveitando o mesmo registro se
+// esse fluxo já tinha sido salvo antes nesta sessão. Usado por salvarOrcamento,
+// salvarOrcamentoRasthor e salvarOrcamentoGenerico.
+async function salvarOuAtualizarOrcamento(chave, dados){
+  const idExistente = idOrcamentoSalvo(chave);
+  if(idExistente){
+    await sbPatch('orcamentos', idExistente, dados);
+    return idExistente;
+  }
+  const resultado = await sbPost('orcamentos', dados);
+  const novoId = Array.isArray(resultado) ? resultado[0]?.id : resultado?.id;
+  if(novoId) idOrcamentoSalvo(chave, novoId);
+  return novoId;
 }
 
 function renderRasthor(){
@@ -958,7 +983,7 @@ function gerarOrcRasthor(){
   // Ir para tela de dados do cliente antes de gerar
   document.getElementById('app-content').innerHTML=`
   <div style="display:flex;align-items:center;gap:10px;padding:.75rem 1rem;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:56px;z-index:50">
-    <button class="btn btn-sm" onclick="linhaSolo()"><i class="ti ti-arrow-left"></i></button>
+    <button class="btn btn-sm" onclick="linhaSolo(true)"><i class="ti ti-arrow-left"></i></button>
     <div style="font-size:14px;font-weight:700">${tituloHdr}</div>
   </div>
   <div class="page-wrap">
@@ -1123,7 +1148,7 @@ async function salvarOrcamentoRasthor(){
   if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .7s linear infinite"></i> Salvando...';}
   try{
     const vendedorSalvo = gr('rc-vendedor')||document.getElementById('rc-vendedor')?.value||st.vendedor||currentPerfil?.nome||null;
-    await sbPost('orcamentos',{
+    await salvarOuAtualizarOrcamento('rasthor',{
       numero:numeroOrcamento('rasthor'),
       cliente_id:rasthorClienteSel?.id||null,
       cliente_nome:gr('rc-nome')||rasthorClienteSel?.nome||null,
@@ -1438,8 +1463,8 @@ function renderListaGenerica(tipo, lista, iconHtml){
   }
 }
 
-function linhaTransporte(){
-  delete st._numero_generico; // começando um orçamento novo — gera número novo
+function linhaTransporte(voltando){
+  if(!voltando) { delete st._numero_generico; delete st._id_generico; } // só reseta se for orçamento novo de verdade, não ao voltar pra ajustar qtd
   document.getElementById('app-content').innerHTML=`
   <div style="display:flex;align-items:center;gap:10px;padding:.75rem 1rem;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:56px;z-index:50">
     <button class="btn btn-sm" onclick="showTab('home')"><i class="ti ti-arrow-left"></i></button>
@@ -1644,19 +1669,19 @@ function atualizarItemFormGenerico(id, preco, tipo){
 }
 
 function voltarLinha(tipo){
-  if(tipo==='carreta') linhaTransporte();
-  else if(tipo==='aerador') linhaAerador();
-  else if(tipo==='plantadeira') linhaPlantadeira();
-  else if(tipo==='virtuos') linhaVirtuos();
-  else if(tipo==='mtsb') linhaTratador();
-  else linhaGenerica(tipo);
+  if(tipo==='carreta') linhaTransporte(true);
+  else if(tipo==='aerador') linhaAerador(true);
+  else if(tipo==='plantadeira') linhaPlantadeira(true);
+  else if(tipo==='virtuos') linhaVirtuos(true);
+  else if(tipo==='mtsb') linhaTratador(true);
+  else linhaGenerica(tipo, true);
 }
 
 // Tela genérica de listagem/orçamento para qualquer categoria dinâmica criada no Admin.
 // Funciona exatamente como as telas fixas (Carretas, Aeradores etc.), sem precisar
 // codificar uma função nova a cada categoria criada pelo usuário.
-function linhaGenerica(tipo){
-  delete st._numero_generico; // começando um orçamento novo — gera número novo
+function linhaGenerica(tipo, voltando){
+  if(!voltando) { delete st._numero_generico; delete st._id_generico; } // só reseta se for orçamento novo de verdade, não ao voltar pra ajustar qtd
   const cat = CATEGORIAS_CUSTOM.find(c=>c.id===tipo);
   const nome = cat?.nome || tipo;
   document.getElementById('app-content').innerHTML=`
@@ -1738,7 +1763,7 @@ async function salvarOrcamentoGenerico(){
   try{
     const vendedorSalvo = gn('gn-vendedor')||document.getElementById('gn-vendedor')?.value||st.vendedor||currentPerfil?.nome||null;
     const mGen = st.marcaSel?MARCAS.find(x=>x.id===st.marcaSel):null;
-    await sbPost('orcamentos',{
+    await salvarOuAtualizarOrcamento('generico',{
       numero:numeroOrcamento('generico'),
       cliente_id:_cliGenSel?.id||null,
       cliente_nome:gn('gn-nome')||_cliGenSel?.nome||null,
@@ -1979,8 +2004,8 @@ function gerarPDFCarreta(cid){
   doc.save('orcamento-carreta-'+num+'.pdf');
 }
 
-function linhaAerador(){
-  delete st._numero_generico; // começando um orçamento novo — gera número novo
+function linhaAerador(voltando){
+  if(!voltando) { delete st._numero_generico; delete st._id_generico; } // só reseta se for orçamento novo de verdade, não ao voltar pra ajustar qtd
   document.getElementById('app-content').innerHTML=`
   <div style="display:flex;align-items:center;gap:10px;padding:.75rem 1rem;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:56px;z-index:50">
     <button class="btn btn-sm" onclick="showTab('home')"><i class="ti ti-arrow-left"></i></button>
@@ -2047,8 +2072,8 @@ function gerarPDFAerador(aid){
   doc.save('orcamento-aerador-'+num+'.pdf');
 }
 
-function linhaPlantadeira(){
-  delete st._numero_generico; // começando um orçamento novo — gera número novo
+function linhaPlantadeira(voltando){
+  if(!voltando) { delete st._numero_generico; delete st._id_generico; } // só reseta se for orçamento novo de verdade, não ao voltar pra ajustar qtd
   document.getElementById('app-content').innerHTML=`
   <div style="display:flex;align-items:center;gap:10px;padding:.75rem 1rem;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:56px;z-index:50">
     <button class="btn btn-sm" onclick="showTab('home')"><i class="ti ti-arrow-left"></i></button>
@@ -2119,8 +2144,8 @@ function gerarPDFPlantadeira(pid){
   doc.save('orcamento-plantadeira-'+num+'.pdf');
 }
 
-function linhaVirtuos(){
-  delete st._numero_generico; // começando um orçamento novo — gera número novo
+function linhaVirtuos(voltando){
+  if(!voltando) { delete st._numero_generico; delete st._id_generico; } // só reseta se for orçamento novo de verdade, não ao voltar pra ajustar qtd
   document.getElementById('app-content').innerHTML=`
   <div style="display:flex;align-items:center;gap:10px;padding:.75rem 1rem;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:56px;z-index:50">
     <button class="btn btn-sm" onclick="showTab('home')"><i class="ti ti-arrow-left"></i></button>
@@ -2187,8 +2212,8 @@ function gerarPDFVirtuos(vid){
   doc.save('orcamento-distribuidor-'+num+'.pdf');
 }
 
-function linhaTratador(){
-  delete st._numero_generico; // começando um orçamento novo — gera número novo
+function linhaTratador(voltando){
+  if(!voltando) { delete st._numero_generico; delete st._id_generico; } // só reseta se for orçamento novo de verdade, não ao voltar pra ajustar qtd
   document.getElementById('app-content').innerHTML=`
   <div style="display:flex;align-items:center;gap:10px;padding:.75rem 1rem;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:56px;z-index:50">
     <button class="btn btn-sm" onclick="showTab('home')"><i class="ti ti-arrow-left"></i></button>
@@ -3059,7 +3084,7 @@ async function salvarOrcamento(){
   if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .7s linear infinite"></i> Salvando...';}
   try{
     const vendedorSalvo = g('cli-vendedor')||st.vendedor||st.clienteSel?.vendedor||currentPerfil?.nome||null;
-    await sbPost('orcamentos',{
+    await salvarOuAtualizarOrcamento('carregador',{
       numero:numeroOrcamento('carregador'),
       cliente_id:st.clienteSel?.id||null,
       cliente_nome:g('cli-nome')||st.clienteSel?.nome||null,
