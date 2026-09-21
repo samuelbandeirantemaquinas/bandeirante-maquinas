@@ -217,54 +217,9 @@ async function loadConfigPagamento(){
   }
 }
 
-// Valores já usados pelas opções fixas de pagamento (embutidas em todos os selects).
-// Nunca deve existir uma condição extra com um desses valores — isso faz o <select>
-// ter duas <option> com o mesmo value, e o navegador escolhe a última como "selected",
-// fazendo aparecer uma condição diferente da que o vendedor clicou.
-const VALORES_PGTO_FIXOS = ['','À vista','7 dias','15 dias','20% Sinal + Saldo à vista','2x','3x','4x','5x','6x'];
-
 // Gera as <option> extras (criadas pelo Admin) para acrescentar nos selects de forma de pagamento.
-// Filtra qualquer condição extra cujo valor colida com uma opção fixa (proteção mesmo que
-// já existam condições duplicadas salvas no banco de dados de antes da correção).
 function optionsCondicoesExtra(valorAtual){
-  return CONDICOES_PGTO_EXTRA
-    .filter(c=>!VALORES_PGTO_FIXOS.includes(c.valor))
-    .map(c=>`<option value="${c.valor}" ${valorAtual===c.valor?'selected':''}>${c.nome}</option>`).join('');
-}
-
-// Traduz o VALOR salvo de uma condição de pagamento (ex: "3x", "À vista") para o texto
-// amigável que deve aparecer pro cliente/vendedor (tela de resumo e PDF). Sem essa função,
-// qualquer tela que mostrasse o valor bruto exibiria "3x" mesmo quando o vendedor escolheu
-// uma condição customizada (ex: "20% 30/60/90/120") cujo valor interno também virou "3x".
-function labelCondicaoPagamento(valor){
-  if(!valor) return '';
-  // Prioriza a condição CUSTOMIZADA quando existir uma com esse valor — é o que a tela de
-  // edição também mostra nesse caso (o <select> exibe a última opção marcada como
-  // selecionada, e as customizadas vêm depois das fixas na lista). Sem essa ordem, o PDF
-  // mostrava "3x mensais" mesmo quando o vendedor tinha escolhido a condição customizada
-  // colidente (ex: "20% Sinal - Saldo 30/60/90/120").
-  const extra=CONDICOES_PGTO_EXTRA.find(c=>c.valor===valor);
-  if(extra) return extra.nome;
-  const fixos={
-    'À vista':'À vista',
-    '7 dias':'7 dias (sem juros)',
-    '15 dias':'15 dias (sem juros)',
-    '20% Sinal + Saldo à vista':'20% Sinal - Saldo à vista',
-    '2x':'2x mensais ('+TAXA_JUROS_MENSAL+'% a.m.)',
-    '3x':'3x mensais ('+TAXA_JUROS_MENSAL+'% a.m.)',
-    '4x':'4x mensais ('+TAXA_JUROS_MENSAL+'% a.m.)',
-    '5x':'5x mensais ('+TAXA_JUROS_MENSAL+'% a.m.)',
-    '6x':'6x mensais ('+TAXA_JUROS_MENSAL+'% a.m.)',
-  };
-  if(fixos[valor]) return fixos[valor];
-  return valor;
-}
-
-// Mesma coisa, mas para uso nos PDFs que vão para o cliente: esconde a taxa de juros
-// (ex: "3x mensais (1.6% a.m.)" vira só "3x mensais"). O valor final já está calculado
-// com o juros embutido no preço, então isso não muda nada além do texto exibido.
-function labelCondicaoPagamentoPDF(valor){
-  return labelCondicaoPagamento(valor).replace(/\s*\([^)]*a\.m\.\)\s*/i,'');
+  return CONDICOES_PGTO_EXTRA.map(c=>`<option value="${c.valor}" ${valorAtual===c.valor?'selected':''}>${c.nome}</option>`).join('');
 }
 let PRODUTOS_POR_CATEGORIA = {};
 
@@ -392,20 +347,20 @@ const ADAPTS_DB = [
 
 
   // ========= JOHN DEERE =========
-  {marca:'jd',modelo:'5055E / 5065E / 5075E',estrutura:'1450',adaptador:'074094',joystick:'064216',obs:'3 Cil — Centro Fechado'},
+  {marca:'jd',modelo:'5055E / 5065E / 5075E / 5085 GI/GII',estrutura:'1450',adaptador:'074094',joystick:'064585',obs:'3 Cil — Centro Fechado'},
   {marca:'jd',modelo:'5055 / 5065 / 5075 / 5085 GI/GII',estrutura:'1450',adaptador:'057067',joystick:'064216',obs:'Centro Fechado'},
   {marca:'jd',modelo:'5055 / 5065 / 5075',estrutura:'1450',adaptador:'057067',joystick:'064216',obs:'Centro Fechado'},
-  {marca:'jd',modelo:'5060E / 5070E / 5080E',estrutura:'1450',adaptador:'074094',joystick:'064216',obs:'3 Cil — Centro Fechado'},
-  {marca:'jd',modelo:'5603 / 5605 / 5705 / 5078 / 5085 / 5090',estrutura:'1450',adaptador:'018817',joystick:'064216',obs:'Centro Fechado'},
-  {marca:'jd',modelo:'5080E',estrutura:'1450',adaptador:'074094',joystick:'064216',obs:'3 Cil — Centro Fechado'},
+  {marca:'jd',modelo:'5060E / 5070E / 5080E',estrutura:'1450',adaptador:'057653',joystick:'064585',obs:'3 Cil — Centro Fechado'},
+  {marca:'jd',modelo:'5603 / 5605 / 5705 / 5078 / 5085 / 5090',estrutura:'1450',adaptador:'056373',joystick:'064216',obs:'Centro Fechado'},
+  {marca:'jd',modelo:'5080E',estrutura:'1450',adaptador:'057653',joystick:'064585',obs:'3 Cil — Centro Fechado'},
+  {marca:'jd',modelo:'5060E',estrutura:'hx1450auto 60cv',adaptador:'',joystick:'',obs:''},
+  {marca:'jd',modelo:'5070E',estrutura:'hx1450auto 70cv',adaptador:'',joystick:'',obs:''},
   {marca:'jd',modelo:'5105',estrutura:'1450',adaptador:'057653',joystick:'',obs:''},
-  {marca:'jd',modelo:'6100 / 6110 / 6115 / 6125 / 6415',estrutura:'1550',adaptador:'056373',joystick:'066379',obs:'4 Cil Load Sense'},
-  {marca:'jd',modelo:'6300 / 6405',estrutura:'1450',adaptador:'043671',joystick:'066379',obs:'Load Sense'},
-  {marca:'jd',modelo:'6130J / 6130M / 6150M',estrutura:'1950',adaptador:'',joystick:'066379',obs:'Load Sense'},
-  {marca:'jd',modelo:'6145 / 6165',estrutura:'1950',adaptador:'',joystick:'066379',obs:'Load Sense'},
-  {marca:'jd',modelo:'6170J / 6180J / 6190J / 6170M / 6210M',estrutura:'2200',adaptador:'16425.3000',joystick:'066379',obs:'Load Sense'},
-  {marca:'jd',modelo:'6615 / 7515',estrutura:'1950',adaptador:'18430.4000',joystick:'066379',obs:'Load Sense'},
-  {marca:'jd',modelo:'7505 / 7500',estrutura:'1950',adaptador:'18418.3000',joystick:'joy_ls',obs:'Estrutura 1950 pinada · Load Sense'},
+  {marca:'jd',modelo:'6100 / 6110 / 6115 / 6125 / 6415',estrutura:'1550',adaptador:'046957',joystick:'066379',obs:'4 Cil Load Sense'},
+  {marca:'jd',modelo:'6300 / 6405',estrutura:'1450',adaptador:'018817',joystick:'066379',obs:'Load Sense'},
+  {marca:'jd',modelo:'6130J / 6130M / 6150M / 6145 / 6165 / 6615 / 7515',estrutura:'1950',adaptador:'18430.4000',joystick:'066379',obs:'6 Cil · Load Sense'},
+  {marca:'jd',modelo:'6170J / 6180J / 6190J / 6170M / 6210M',estrutura:'2200',adaptador:'16425.3000',joystick:'066379',obs:'Load Sense · 6 Cil'},
+  {marca:'jd',modelo:'7505 / 7500',estrutura:'1950',adaptador:'16407.3000',joystick:'066379',obs:'Estrutura 1950 pinada · Load Sense'},
   {marca:'jd',modelo:'6135M',estrutura:'1950',adaptador:'',joystick:'066379',obs:'Load Sense'},
   {marca:'jd',modelo:'6500 / 6600 / 6605',estrutura:'1550',adaptador:'063921',joystick:'066379',obs:'Load Sense'},
 
@@ -683,14 +638,31 @@ async function loadProdutos(){
     // antes de gerar um orçamento.
     window.__precosSincronizadosEm = new Date();
     window.__erroCarregarProdutos = null;
+    window.__usandoCacheLocal = false;
+    // Salva no navegador os dados que acabaram de sincronizar com sucesso — isso
+    // vira o respaldo automático caso o Supabase fique fora do ar depois, em vez
+    // de depender de um valor "de fábrica" fixo no código (que podia ficar
+    // desatualizado sempre que um preço mudava só no banco).
+    try{
+      localStorage.setItem('bandeirante_produtos_cache', JSON.stringify(rows));
+      localStorage.setItem('bandeirante_produtos_cache_em', new Date().toISOString());
+    }catch(e){}
   }catch(e){
     console.warn('Erro ao carregar produtos:',e);
     window.__erroCarregarProdutos = e;
-    // Decisão do time: NÃO usar mais um cache de preços antigos como respaldo quando o
-    // banco está fora do ar — isso estava causando confusão (vendedores viam preços de
-    // uma sincronização muito antiga sem perceber). Agora, se não sincronizar de
-    // verdade, o app bloqueia o uso em vez de seguir com valores desatualizados
-    // (ver mostrarBloqueioSemConexao / tentarReconectarProdutos).
+    // Banco fora do ar: usa o último preço sincronizado com sucesso NESTE
+    // navegador (guardado em localStorage), que é sempre mais confiável que o
+    // valor "de fábrica" fixo no código. Só cai no valor do código se este
+    // navegador nunca sincronizou com sucesso antes (ex: primeiro acesso).
+    try{
+      const cacheStr = localStorage.getItem('bandeirante_produtos_cache');
+      if(cacheStr){
+        aplicarProdutosNosArrays(JSON.parse(cacheStr));
+        const cacheEm = localStorage.getItem('bandeirante_produtos_cache_em');
+        window.__precosCacheEm = cacheEm ? new Date(cacheEm) : null;
+        window.__usandoCacheLocal = true;
+      }
+    }catch(e2){console.warn('Erro ao aplicar cache local de produtos:', e2);}
   }
 }
 
@@ -702,6 +674,20 @@ function imgFmt(dataUri){
   if(!dataUri) return 'PNG';
   const b64body = (dataUri.split(',')[1]||dataUri);
   return b64body.startsWith('/9j/') ? 'JPEG' : 'PNG';
+}
+// Evita que o conteúdo de um PDF (itens, totais, condições, observações, rodapé) seja
+// desenhado além do fim da página e fique invisível. Antes de cada bloco (linha de item,
+// linha de total, observações etc.), chama-se isto passando a altura que o bloco vai
+// ocupar; se não couber no que resta da página atual, pula pra uma página nova e devolve
+// o y do topo dessa página nova. Sem isso, orçamentos com muitos itens empurravam as
+// Observações (e o rodapé) pra além do fim da página em branco.
+function pdfQuebraPagina(doc, y, alturaBloco, M){
+  const alturaPagina = doc.internal.pageSize.getHeight();
+  if(y + alturaBloco > alturaPagina - M){
+    doc.addPage();
+    return M;
+  }
+  return y;
 }
 function iniciais(n){if(!n)return '?';const p=n.trim().split(/\s+/);return p.length>=2?(p[0][0]+p[p.length-1][0]).toUpperCase():n.slice(0,2).toUpperCase();}
 function genNum(){return 'ORC-'+Date.now().toString().slice(-6);}
@@ -848,8 +834,7 @@ function linhaCarregadores(){
   showTab('orcamento');
 }
 
-function linhaSolo(voltando){
-  if(!voltando) { delete st._numero_rasthor; delete st._id_rasthor; } // só reseta se for orçamento novo de verdade, não ao voltar pra ajustar qtd
+function linhaSolo(){
   document.getElementById('app-content').innerHTML=`
   <div style="display:flex;align-items:center;gap:10px;padding:.75rem 1rem;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:56px;z-index:50">
     <button class="btn btn-sm" onclick="showTab('home')"><i class="ti ti-arrow-left"></i></button>
@@ -889,53 +874,6 @@ let RASTHOR = [
 
 function getImgRasthor(id){return IMGS['rasthor_'+id]||null;}
 function getRasthorSel(){return RASTHOR.filter(r=>getQtd(r.id)>0);}
-
-// Garante que "Salvar" e "Baixar PDF" usem sempre o MESMO número de orçamento — antes
-// cada um gerava o seu próprio número (baseado no horário exato do clique), então o
-// PDF baixado e o registro salvo no Histórico ficavam com números diferentes para o
-// mesmo orçamento. Agora o número é gerado uma única vez e reaproveitado, até o
-// vendedor começar um orçamento novo de verdade (ver linhaSolo/linhaTransporte/etc.
-// e novoOrcamento, que limpam esse valor).
-function numeroOrcamento(chave){
-  const campo='_numero_'+chave;
-  if(!st[campo]) st[campo]='ORC-'+Date.now().toString().slice(-6);
-  return st[campo];
-}
-
-// Guarda o id do orçamento já salvo nesta sessão (por fluxo). Assim, se o vendedor
-// clicar em "Salvar" mais de uma vez para o MESMO orçamento (ex: salvou, ajustou algo,
-// salvou de novo), o sistema ATUALIZA o mesmo registro em vez de criar um duplicado
-// no Histórico — sempre em cima do mesmo número.
-function idOrcamentoSalvo(chave, novoId){
-  const campo='_id_'+chave;
-  if(novoId!==undefined) st[campo]=novoId;
-  return st[campo];
-}
-
-// Salva (cria ou atualiza) um orçamento no banco, reaproveitando o mesmo registro se
-// esse fluxo já tinha sido salvo antes nesta sessão. Usado por salvarOrcamento,
-// salvarOrcamentoRasthor e salvarOrcamentoGenerico.
-// Trava contra clique duplo / duas chamadas praticamente ao mesmo tempo: se já tem um
-// "Salvar" em andamento para esse fluxo, esta chamada espera terminar antes de decidir
-// se cria um registro novo ou atualiza o existente — evita duplicar no Histórico.
-let _salvandoOrcamento = new Set();
-async function salvarOuAtualizarOrcamento(chave, dados){
-  while(_salvandoOrcamento.has(chave)) await new Promise(r=>setTimeout(r,80));
-  _salvandoOrcamento.add(chave);
-  try{
-    const idExistente = idOrcamentoSalvo(chave);
-    if(idExistente){
-      await sbPatch('orcamentos', idExistente, dados);
-      return idExistente;
-    }
-    const resultado = await sbPost('orcamentos', dados);
-    const novoId = Array.isArray(resultado) ? resultado[0]?.id : resultado?.id;
-    if(novoId) idOrcamentoSalvo(chave, novoId);
-    return novoId;
-  } finally {
-    _salvandoOrcamento.delete(chave);
-  }
-}
 
 function renderRasthor(){
   const el = document.getElementById('rasthor-list');
@@ -993,7 +931,7 @@ function gerarOrcRasthor(){
   // Ir para tela de dados do cliente antes de gerar
   document.getElementById('app-content').innerHTML=`
   <div style="display:flex;align-items:center;gap:10px;padding:.75rem 1rem;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:56px;z-index:50">
-    <button class="btn btn-sm" onclick="linhaSolo(true)"><i class="ti ti-arrow-left"></i></button>
+    <button class="btn btn-sm" onclick="linhaSolo()"><i class="ti ti-arrow-left"></i></button>
     <div style="font-size:14px;font-weight:700">${tituloHdr}</div>
   </div>
   <div class="page-wrap">
@@ -1158,8 +1096,8 @@ async function salvarOrcamentoRasthor(){
   if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .7s linear infinite"></i> Salvando...';}
   try{
     const vendedorSalvo = gr('rc-vendedor')||document.getElementById('rc-vendedor')?.value||st.vendedor||currentPerfil?.nome||null;
-    await salvarOuAtualizarOrcamento('rasthor',{
-      numero:numeroOrcamento('rasthor'),
+    await sbPost('orcamentos',{
+      numero:'ORC-'+Date.now().toString().slice(-6),
       cliente_id:rasthorClienteSel?.id||null,
       cliente_nome:gr('rc-nome')||rasthorClienteSel?.nome||null,
       trator_marca:null,trator_modelo:null,estrutura:null,
@@ -1190,7 +1128,7 @@ function gerarPDFRasthor(){
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   const W=doc.internal.pageSize.getWidth();
   const M=14;
-  const num=numeroOrcamento('rasthor');
+  const num='ORC-'+Date.now().toString().slice(-6);
   const hoje=new Date().toLocaleDateString('pt-BR');
   // Só reconhece o padrão "Nx" (ex: "3x") como parcelamento com juros;
   // "À vista", "7 dias" e "15 dias" não têm juros.
@@ -1308,9 +1246,11 @@ function gerarPDFRasthor(){
   y=doc.lastAutoTable.finalY;
 
   // Totais
+  y = pdfQuebraPagina(doc, y, 6, M);
   doc.setFillColor(240,240,240);doc.rect(M,y,W-M*2,6,'F');
   doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(40);
   doc.text('Qtde. Total:',W-M-30,y+4.5);doc.text(String(qtdTotal),W-M-1,y+4.5,{align:'right'});y+=6;
+  y = pdfQuebraPagina(doc, y, 7, M);
   doc.setFillColor(230,230,230);doc.rect(M,y,W-M*2,7,'F');
   doc.setFontSize(10);doc.setTextColor(20);
   const lblTot='Valor total:';
@@ -1319,7 +1259,8 @@ function gerarPDFRasthor(){
   y+=8;
 
   // Info rodapé
-  [{label:'Condição de Pagamento:',val:labelCondicaoPagamentoPDF(pgto)||'—'},{label:'Transportadora / Frete:',val:frete||'—'},{label:'Vendedor:',val:vendedor||'—'},{label:'Data de Emissão:',val:hoje}].forEach(row=>{
+  [{label:'Condição de Pagamento:',val:pgto||'—'},{label:'Transportadora / Frete:',val:frete||'—'},{label:'Vendedor:',val:vendedor||'—'},{label:'Data de Emissão:',val:hoje}].forEach(row=>{
+    y = pdfQuebraPagina(doc, y, 6, M);
     doc.setFillColor(248,248,248);doc.rect(M,y,W-M*2,6,'FD');
     doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(40);
     doc.text(row.label,M+2,y+4.2);
@@ -1327,8 +1268,11 @@ function gerarPDFRasthor(){
     doc.text(row.val,M+55,y+4.2);y+=6;
   });
 
+  // Observações — era o bloco que sumia em orçamentos com muitos itens (nada antes dele
+  // verificava se ainda cabia página, então acabava desenhado abaixo do fim da folha).
   if(obs){
     const obsLines=doc.splitTextToSize('Informações Adicionais:\n'+obs,W-M*2-6);
+    y = pdfQuebraPagina(doc, y, obsLines.length*4+4, M);
     doc.setFillColor(248,248,248);doc.rect(M,y,W-M*2,obsLines.length*4+4,'FD');
     doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(60);
     doc.text(obsLines,M+2,y+4);y+=obsLines.length*4+6;
@@ -1338,6 +1282,7 @@ function gerarPDFRasthor(){
   doc.setFontSize(7);doc.setTextColor(150);
   const nota='Havendo oscilação positiva em valores das commodities, aço e importados, este pedido pode estar sujeito à reajuste. Validade do orçamento de 10 dias. A estimativa de entrega do seu pedido pode variar de 30 à 60 dias (não havendo demandas de engenharia).';
   const notaL=doc.splitTextToSize(nota,W-M*2);
+  y = pdfQuebraPagina(doc, y, notaL.length*3.5+8+10, M);
   doc.text(notaL,W/2,y,{align:'center'});y+=notaL.length*3.5+8;
 
   doc.setDrawColor(160);doc.setLineWidth(0.3);
@@ -1473,8 +1418,7 @@ function renderListaGenerica(tipo, lista, iconHtml){
   }
 }
 
-function linhaTransporte(voltando){
-  if(!voltando) { delete st._numero_generico; delete st._id_generico; } // só reseta se for orçamento novo de verdade, não ao voltar pra ajustar qtd
+function linhaTransporte(){
   document.getElementById('app-content').innerHTML=`
   <div style="display:flex;align-items:center;gap:10px;padding:.75rem 1rem;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:56px;z-index:50">
     <button class="btn btn-sm" onclick="showTab('home')"><i class="ti ti-arrow-left"></i></button>
@@ -1679,19 +1623,18 @@ function atualizarItemFormGenerico(id, preco, tipo){
 }
 
 function voltarLinha(tipo){
-  if(tipo==='carreta') linhaTransporte(true);
-  else if(tipo==='aerador') linhaAerador(true);
-  else if(tipo==='plantadeira') linhaPlantadeira(true);
-  else if(tipo==='virtuos') linhaVirtuos(true);
-  else if(tipo==='mtsb') linhaTratador(true);
-  else linhaGenerica(tipo, true);
+  if(tipo==='carreta') linhaTransporte();
+  else if(tipo==='aerador') linhaAerador();
+  else if(tipo==='plantadeira') linhaPlantadeira();
+  else if(tipo==='virtuos') linhaVirtuos();
+  else if(tipo==='mtsb') linhaTratador();
+  else linhaGenerica(tipo);
 }
 
 // Tela genérica de listagem/orçamento para qualquer categoria dinâmica criada no Admin.
 // Funciona exatamente como as telas fixas (Carretas, Aeradores etc.), sem precisar
 // codificar uma função nova a cada categoria criada pelo usuário.
-function linhaGenerica(tipo, voltando){
-  if(!voltando) { delete st._numero_generico; delete st._id_generico; } // só reseta se for orçamento novo de verdade, não ao voltar pra ajustar qtd
+function linhaGenerica(tipo){
   const cat = CATEGORIAS_CUSTOM.find(c=>c.id===tipo);
   const nome = cat?.nome || tipo;
   document.getElementById('app-content').innerHTML=`
@@ -1773,8 +1716,8 @@ async function salvarOrcamentoGenerico(){
   try{
     const vendedorSalvo = gn('gn-vendedor')||document.getElementById('gn-vendedor')?.value||st.vendedor||currentPerfil?.nome||null;
     const mGen = st.marcaSel?MARCAS.find(x=>x.id===st.marcaSel):null;
-    await salvarOuAtualizarOrcamento('generico',{
-      numero:numeroOrcamento('generico'),
+    await sbPost('orcamentos',{
+      numero:'ORC-'+Date.now().toString().slice(-6),
       cliente_id:_cliGenSel?.id||null,
       cliente_nome:gn('gn-nome')||_cliGenSel?.nome||null,
       trator_marca:mGen?.label||null,trator_modelo:st.modeloSel||null,estrutura:st.adaptDB?.estrutura||null,
@@ -1811,8 +1754,9 @@ function gerarPDFGenerico(){
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   const W=doc.internal.pageSize.getWidth(); const M=14;
-  const num=numeroOrcamento('generico');
+  const num='ORC-'+Date.now().toString().slice(-6);
   const hoje=new Date().toLocaleDateString('pt-BR');
+
   const nome=(gn('gn-nome')||'').toUpperCase();
   const empresa=gn('gn-empresa');
   const tel=gn('gn-tel');
@@ -1910,6 +1854,7 @@ function gerarPDFGenerico(){
   const totalFinalGen=(!isNaN(nParcGen)&&nParcGen>1)?subtotalGeral*(1+nParcGen*(TAXA_JUROS_MENSAL/100)):subtotalGeral;
 
   // Total
+  y = pdfQuebraPagina(doc, y, 7, M);
   doc.setFillColor(230,230,230);doc.rect(M,y,W-M*2,7,'F');
   doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(20);
   doc.text('Valor total:',W-M-55,y+5.5);
@@ -1918,7 +1863,7 @@ function gerarPDFGenerico(){
 
   // Rodapé
   const mGenPdf = st.marcaSel?MARCAS.find(x=>x.id===st.marcaSel):null;
-  const rodapeGen = [{label:'Condição de Pagamento:',val:labelCondicaoPagamentoPDF(pgto)||'—'},{label:'Transportadora / Frete:',val:frete||'—'}];
+  const rodapeGen = [{label:'Condição de Pagamento:',val:pgto||'—'},{label:'Transportadora / Frete:',val:frete||'—'}];
   if(mGenPdf && st.modeloSel){
     rodapeGen.push({label:'Marca:',val:mGenPdf.label});
     rodapeGen.push({label:'Modelo:',val:st.modeloSel});
@@ -1933,14 +1878,18 @@ function gerarPDFGenerico(){
   rodapeGen.forEach(row=>{
     const valLines=doc.splitTextToSize(row.val,W-M*2-55);
     const rh=Math.max(6,valLines.length*4+2);
+    y = pdfQuebraPagina(doc, y, rh, M);
     doc.setFillColor(248,248,248);doc.rect(M,y,W-M*2,rh,'FD');
     doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(40);
     doc.text(row.label,M+2,y+4.2);
     doc.setFont('helvetica','normal');doc.setTextColor(60);
     doc.text(valLines,M+55,y+4.2);y+=rh;
   });
+  // Observações — era o bloco que sumia em orçamentos com muitos itens (nada antes dele
+  // verificava se ainda cabia página, então acabava desenhado abaixo do fim da folha).
   if(obs){
     const obsLines=doc.splitTextToSize('Informações Adicionais:\n'+obs,W-M*2-6);
+    y = pdfQuebraPagina(doc, y, obsLines.length*4+4, M);
     doc.setFillColor(248,248,248);doc.rect(M,y,W-M*2,obsLines.length*4+4,'FD');
     doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(60);
     doc.text(obsLines,M+2,y+4);y+=obsLines.length*4+6;
@@ -1949,6 +1898,7 @@ function gerarPDFGenerico(){
   doc.setFontSize(7);doc.setTextColor(150);
   const nota='Havendo oscilação positiva em valores das commodities, aço e importados, este pedido pode estar sujeito à reajuste. Validade do orçamento de 10 dias. A estimativa de entrega do seu pedido pode variar de 30 à 60 dias (não havendo demandas de engenharia).';
   const notaL=doc.splitTextToSize(nota,W-M*2);
+  y = pdfQuebraPagina(doc, y, notaL.length*3.5+8+10, M);
   doc.text(notaL,W/2,y,{align:'center'});y+=notaL.length*3.5+8;
   doc.setDrawColor(160);doc.setLineWidth(0.3);
   const c3=(W-M*2)/3;
@@ -2014,8 +1964,7 @@ function gerarPDFCarreta(cid){
   doc.save('orcamento-carreta-'+num+'.pdf');
 }
 
-function linhaAerador(voltando){
-  if(!voltando) { delete st._numero_generico; delete st._id_generico; } // só reseta se for orçamento novo de verdade, não ao voltar pra ajustar qtd
+function linhaAerador(){
   document.getElementById('app-content').innerHTML=`
   <div style="display:flex;align-items:center;gap:10px;padding:.75rem 1rem;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:56px;z-index:50">
     <button class="btn btn-sm" onclick="showTab('home')"><i class="ti ti-arrow-left"></i></button>
@@ -2082,8 +2031,7 @@ function gerarPDFAerador(aid){
   doc.save('orcamento-aerador-'+num+'.pdf');
 }
 
-function linhaPlantadeira(voltando){
-  if(!voltando) { delete st._numero_generico; delete st._id_generico; } // só reseta se for orçamento novo de verdade, não ao voltar pra ajustar qtd
+function linhaPlantadeira(){
   document.getElementById('app-content').innerHTML=`
   <div style="display:flex;align-items:center;gap:10px;padding:.75rem 1rem;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:56px;z-index:50">
     <button class="btn btn-sm" onclick="showTab('home')"><i class="ti ti-arrow-left"></i></button>
@@ -2154,8 +2102,7 @@ function gerarPDFPlantadeira(pid){
   doc.save('orcamento-plantadeira-'+num+'.pdf');
 }
 
-function linhaVirtuos(voltando){
-  if(!voltando) { delete st._numero_generico; delete st._id_generico; } // só reseta se for orçamento novo de verdade, não ao voltar pra ajustar qtd
+function linhaVirtuos(){
   document.getElementById('app-content').innerHTML=`
   <div style="display:flex;align-items:center;gap:10px;padding:.75rem 1rem;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:56px;z-index:50">
     <button class="btn btn-sm" onclick="showTab('home')"><i class="ti ti-arrow-left"></i></button>
@@ -2222,8 +2169,7 @@ function gerarPDFVirtuos(vid){
   doc.save('orcamento-distribuidor-'+num+'.pdf');
 }
 
-function linhaTratador(voltando){
-  if(!voltando) { delete st._numero_generico; delete st._id_generico; } // só reseta se for orçamento novo de verdade, não ao voltar pra ajustar qtd
+function linhaTratador(){
   document.getElementById('app-content').innerHTML=`
   <div style="display:flex;align-items:center;gap:10px;padding:.75rem 1rem;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:56px;z-index:50">
     <button class="btn btn-sm" onclick="showTab('home')"><i class="ti ti-arrow-left"></i></button>
@@ -2305,14 +2251,7 @@ function renderProg(){
       <div class="prog-dot">${i<st.step?'<i class="ti ti-check" style="font-size:10px"></i>':i+1}</div>${s}</div>`;
   }).join('');
 }
-function goStep(n){
-  // Proteção extra: garante que o texto do campo Observações (se estiver na tela) seja
-  // salvo em st.obs antes de trocar de tela, mesmo que por algum motivo o evento de
-  // digitação não tenha disparado a tempo.
-  const obsEl=document.getElementById('cli-obs');
-  if(obsEl) st.obs=obsEl.value;
-  st.step=n;renderProg();renderStep();
-}
+function goStep(n){st.step=n;renderProg();renderStep();}
 function renderStep(){
   const el=document.getElementById('step-content');if(!el)return;
   const fns=[s0,s1,s2,s3,s4,s5,s6];
@@ -2557,36 +2496,6 @@ function s4(){
       <button class="btn btn-primary" onclick="goStep(5)">Cliente <i class="ti ti-arrow-right"></i></button>
     </div>
   </div>`;
-}
-
-// Mostra uma mensagem de ajuda abaixo do select de Frete, conforme a opção escolhida.
-// Era chamada pelo onchange do select mas nunca tinha sido implementada — isso disparava
-// um erro (função não existe) toda vez que o vendedor trocava o frete, no meio do
-// preenchimento do formulário (que inclui o campo de Observações logo abaixo).
-function atualizarFrete(){
-  const el=document.getElementById('frete-info');
-  if(!el) return;
-  el.innerHTML = st.frete==='CIF — Por conta da Bandeirante'
-    ? 'O frete até o cliente é por conta da Bandeirante.'
-    : st.frete==='FOB — Por conta do comprador'
-    ? 'O frete é por conta do cliente/comprador.' : '';
-}
-
-// Mostra o valor de cada parcela quando uma condição "Nx" é selecionada. Mesmo problema:
-// era chamada pelo onchange do select de forma de pagamento mas nunca existia.
-function calcParcelas(){
-  const el=document.getElementById('pgto-calc');
-  if(!el) return;
-  const match=/^(\d+)x$/.exec(st.pgto||'');
-  const n=match?parseInt(match[1]):NaN;
-  if(!isNaN(n) && n>1){
-    const totalComJuros=calcTotal()*(1+n*(TAXA_JUROS_MENSAL/100));
-    el.style.display='block';
-    el.innerHTML=n+'x de '+fmt(totalComJuros/n)+' &middot; total '+fmt(totalComJuros);
-  } else {
-    el.style.display='none';
-    el.innerHTML='';
-  }
 }
 
 function s5(){
@@ -3015,7 +2924,7 @@ function calcTotal(){
 function s6(){
   const itens=montarItens();
   const total=calcTotal();
-  const num=numeroOrcamento('carregador');
+  const num=genNum();
   const m=st.marcaSel?MARCAS.find(x=>x.id===st.marcaSel):null;
   const nomeCliente=g('cli-nome')||st.clienteSel?.nome||'—';
   const vendedor=(g('cli-vendedor')||document.getElementById('cli-vendedor')?.value||st.vendedor||currentPerfil?.nome||st.clienteSel?.vendedor||'—');
@@ -3050,7 +2959,7 @@ function s6(){
       <div><div style="color:var(--text2);font-size:10px">Cliente</div><div style="font-weight:600">${nomeCliente}</div></div>
       <div><div style="color:var(--text2);font-size:10px">Cidade</div><div style="font-weight:600">${g('cli-cidade')||st.clienteSel?.cidade||'—'}</div></div>
       ${g('cli-frete')?`<div style="grid-column:1/-1"><div style="color:var(--text2);font-size:10px">Frete</div><div style="font-weight:600">${g('cli-frete')}</div></div>`:''}
-      ${(g('cli-pgto')||st.pgto)?`<div style="grid-column:1/-1"><div style="color:var(--text2);font-size:10px">Pagamento</div><div style="font-weight:600">${labelCondicaoPagamento(g('cli-pgto')||st.pgto)}</div></div>`:''}
+      ${(g('cli-pgto')||st.pgto)?`<div style="grid-column:1/-1"><div style="color:var(--text2);font-size:10px">Pagamento</div><div style="font-weight:600">${g('cli-pgto')||st.pgto}</div></div>`:''}
     </div>
     <hr class="divider">
     ${itens.map(it=>`<div class="orc-row"><span style="color:var(--text2)">${it.qtd>1?`${it.qtd}× `:''}${it.nome}${it.ajuste?` <span style="font-size:10px;color:${isAdmin()?'#c0392b':'#e67e22'}">(${isAdmin()?'-':'+'+(it.ajuste)}%)</span>`:''}</span><span style="font-weight:600;flex-shrink:0;margin-left:8px">${fmt(it.preco)}</span></div>`).join('')}
@@ -3094,8 +3003,8 @@ async function salvarOrcamento(){
   if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .7s linear infinite"></i> Salvando...';}
   try{
     const vendedorSalvo = g('cli-vendedor')||st.vendedor||st.clienteSel?.vendedor||currentPerfil?.nome||null;
-    await salvarOuAtualizarOrcamento('carregador',{
-      numero:numeroOrcamento('carregador'),
+    await sbPost('orcamentos',{
+      numero:'ORC-'+Date.now().toString().slice(-6),
       cliente_id:st.clienteSel?.id||null,
       cliente_nome:g('cli-nome')||st.clienteSel?.nome||null,
       trator_marca:m?.label||null,trator_modelo:st.modeloSel||null,
@@ -3132,7 +3041,7 @@ function gerarPDF(){
   // Dados do orçamento
   const total=calcTotal();
   const m=st.marcaSel?MARCAS.find(x=>x.id===st.marcaSel):null;
-  const num=numeroOrcamento('carregador');
+  const num='ORC-'+Date.now().toString().slice(-6);
   const hoje=new Date().toLocaleDateString('pt-BR');
   const nomeCliente=(g('cli-nome')||st.clienteSel?.nome||'').toUpperCase();
   const vendedor=(g('cli-vendedor')||document.getElementById('cli-vendedor')?.value||st.vendedor||currentPerfil?.nome||st.clienteSel?.vendedor||'—');
@@ -3229,27 +3138,37 @@ function gerarPDF(){
   // ── TABELA DE ITENS ──
   const colW = {num:8, cod:0, img:16, nome:W-M*2-8-16-26, val:26};
   const hRow = 7;
+  let cx;
 
-  // Cabeçalho tabela
-  doc.setFillColor(240,240,240);
-  doc.rect(M, y, W-M*2, hRow, 'F');
-  doc.setDrawColor(180);
-  doc.setLineWidth(0.3);
-  doc.rect(M, y, W-M*2, hRow, 'S');
+  // Cabeçalho da tabela — vira função porque precisa ser redesenhado toda vez que os
+  // itens pulam pra uma página nova (orçamentos com muitos itens/adaptadores).
+  const desenharCabecalhoItens = () => {
+    doc.setFillColor(240,240,240);
+    doc.rect(M, y, W-M*2, hRow, 'F');
+    doc.setDrawColor(180);
+    doc.setLineWidth(0.3);
+    doc.rect(M, y, W-M*2, hRow, 'S');
 
-  doc.setFont('helvetica','bold');
-  doc.setFontSize(8);
-  doc.setTextColor(40);
-  let cx = M+1;
-  doc.text('#', cx+2, y+5);                     cx+=colW.num;
-  doc.text('Produto', cx+colW.img+1, y+5);      cx+=colW.img+colW.nome;
-  doc.text('Qtde.', cx+1, y+5);
-  doc.text('Subtotal', W-M-1, y+5, {align:'right'});
-  y += hRow;
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(8);
+    doc.setTextColor(40);
+    cx = M+1;
+    doc.text('#', cx+2, y+5);                     cx+=colW.num;
+    doc.text('Produto', cx+colW.img+1, y+5);      cx+=colW.img+colW.nome;
+    doc.text('Qtde.', cx+1, y+5);
+    doc.text('Subtotal', W-M-1, y+5, {align:'right'});
+    y += hRow;
+  };
+  desenharCabecalhoItens();
 
   // Itens
   itens.forEach((it, idx) => {
     const rh = it.desc ? 24 : 18;
+    if(y + rh > doc.internal.pageSize.getHeight() - M){
+      doc.addPage();
+      y = M;
+      desenharCabecalhoItens();
+    }
     doc.setDrawColor(200);
     doc.setLineWidth(0.2);
     doc.rect(M, y, W-M*2, rh, 'S');
@@ -3302,6 +3221,7 @@ function gerarPDF(){
   // Acréscimo embutido proporcionalmente em cada item — não aparece no PDF
 
   // Linha qtde total
+  y = pdfQuebraPagina(doc, y, 6, M);
   doc.setFillColor(245,245,245);
   doc.rect(M, y, W-M*2, 6, 'FD');
   doc.setFont('helvetica','bold');
@@ -3312,6 +3232,7 @@ function gerarPDF(){
   y+=6;
 
   // Valor total
+  y = pdfQuebraPagina(doc, y, 7, M);
   doc.setFillColor(235,235,235);
   doc.rect(M, y, W-M*2, 7, 'FD');
   doc.setFont('helvetica','bold');
@@ -3330,7 +3251,7 @@ function gerarPDF(){
 
   // ── RODAPÉ INFO ──
   const infoRows = [];
-  if(pgto) infoRows.push({label:'Condição de Pagamento:', val:labelCondicaoPagamentoPDF(pgto)});
+  if(pgto) infoRows.push({label:'Condição de Pagamento:', val:pgto});
   if(frete) infoRows.push({label:'Transportadora / Frete:', val:frete});
   if(m&&st.modeloSel){
     infoRows.push({label:'Marca:', val:m.label});
@@ -3348,6 +3269,7 @@ function gerarPDF(){
   infoRows.forEach(row => {
     const valLines=doc.splitTextToSize(row.val,W-M*2-55);
     const rh=Math.max(6,valLines.length*4+2);
+    y = pdfQuebraPagina(doc, y, rh, M);
     doc.setFillColor(248,248,248);
     doc.rect(M, y, W-M*2, rh, 'FD');
     doc.setFont('helvetica','bold');
@@ -3360,10 +3282,13 @@ function gerarPDF(){
     y+=rh;
   });
 
-  // Observações
+  // Observações — esse é o campo que sumia em orçamentos com muitos itens: como nada
+  // antes disso verificava se ainda cabia página, ele ficava desenhado abaixo do fim
+  // da folha (invisível). Agora, se não couber, pula pra uma página nova antes de desenhar.
   if(obs){
-    doc.setFillColor(248,248,248);
     const obsLines = doc.splitTextToSize('Observações: '+obs, W-M*2-6);
+    y = pdfQuebraPagina(doc, y, obsLines.length*4+4, M);
+    doc.setFillColor(248,248,248);
     doc.rect(M, y, W-M*2, obsLines.length*4+4, 'FD');
     doc.setFont('helvetica','normal');
     doc.setFontSize(7.5);
@@ -3372,12 +3297,14 @@ function gerarPDF(){
     y += obsLines.length*4+5;
   }
 
-  // Nota padrão
+  // Nota padrão + assinatura — tratados como um bloco só pra não separar a nota de
+  // uma página e a linha de assinatura da próxima.
   y+=2;
   doc.setFontSize(7);
   doc.setTextColor(140);
   const nota = 'Havendo oscilação positiva em valores das commodities, aço e importados, este pedido pode estar sujeito à reajuste. Validade do orçamento de 10 dias. A estimativa de entrega do seu pedido pode variar de 30 à 60 dias (não havendo demandas de engenharia).';
   const notaLines = doc.splitTextToSize(nota, W-M*2);
+  y = pdfQuebraPagina(doc, y, notaLines.length*3.5+6+10, M);
   doc.text(notaLines, W/2, y, {align:'center'});
   y += notaLines.length*3.5+6;
 
@@ -4096,7 +4023,7 @@ async function regenarPDFHistorico(id){
   y+=5;
   df('Data:',hoje,M,y);
   df('Vendedor:',(o.vendedor||'—'),W/2,y); y+=5;
-  if(pgto) { df('Pagamento:',labelCondicaoPagamentoPDF(pgto),M,y); y+=5; }
+  if(pgto) { df('Pagamento:',pgto,M,y); y+=5; }
   if(frete) { df('Frete:',frete,M,y); y+=5; }
   if(o.obs){
     doc.setFontSize(8);doc.setTextColor(100);
@@ -4156,7 +4083,7 @@ async function regenarPDFHistorico(id){
 
   // Rodapé info: pagamento, frete, marca/modelo do trator (Carregadores), vendedor, data
   const infoRows=[];
-  if(pgto) infoRows.push({label:'Condição de Pagamento:',val:labelCondicaoPagamentoPDF(pgto)});
+  if(pgto) infoRows.push({label:'Condição de Pagamento:',val:pgto});
   if(frete) infoRows.push({label:'Transportadora / Frete:',val:frete});
   if(o.trator_marca && o.trator_modelo){
     infoRows.push({label:'Marca:',val:o.trator_marca});
@@ -4549,15 +4476,6 @@ async function criarCondicaoPagamento(){
     parcelas = parseInt(document.getElementById('new-cond-parcelas')?.value);
     if(!parcelas || parcelas<2){ toast('Digite o número de parcelas (2 ou mais).'); return; }
     valor = parcelas+'x';
-  }
-  // Impede criar uma condição com o mesmo valor de uma opção fixa (ex: "3x mensais" já
-  // existe pra qualquer categoria). Duas opções com o mesmo valor no menu causavam o bug
-  // de selecionar uma condição e aparecer outra na tela.
-  if(VALORES_PGTO_FIXOS.includes(valor) || CONDICOES_PGTO_EXTRA.some(c=>c.valor===valor)){
-    toast(tipo==='parcelado'
-      ? `Já existe uma condição de "${parcelas}x". Escolha um número de parcelas diferente (o sistema já tem 2x a 6x prontos).`
-      : 'Já existe uma condição com esse nome/valor. Escolha outro nome.');
-    return;
   }
   const id = 'cond_'+Date.now().toString(36);
   try{
@@ -5171,39 +5089,6 @@ function confirmarTrocaSenha(){
   toast('✓ Senha alterada com sucesso!');
 }
 
-// Tela de bloqueio mostrada quando o app não consegue sincronizar os preços com o
-// banco no login. Substitui o comportamento antigo (usar preços salvos de uma
-// sincronização anterior, às vezes bem antiga) — agora o vendedor não consegue
-// nem começar um orçamento sem garantir que os preços são os atuais.
-function mostrarBloqueioSemConexao(){
-  const el=document.getElementById('app-content');
-  if(!el) return;
-  el.innerHTML=`<div class="page-wrap" style="max-width:420px;margin:15vh auto;text-align:center">
-    <div style="font-size:40px;margin-bottom:12px">⚠️</div>
-    <div style="font-size:16px;font-weight:700;margin-bottom:8px">Não foi possível carregar os preços atuais</div>
-    <div style="font-size:13px;color:var(--text2);margin-bottom:20px">O banco de dados não respondeu. Para evitar gerar orçamentos com preços desatualizados, o sistema não deixa continuar sem sincronizar de verdade. Verifique sua internet e tente novamente.</div>
-    <button class="btn btn-primary" id="btn-retry-sync" onclick="tentarReconectarProdutos()"><i class="ti ti-refresh"></i> Tentar novamente</button>
-  </div>`;
-}
-
-// Nova tentativa de sincronizar preços a partir da tela de bloqueio.
-async function tentarReconectarProdutos(){
-  const btn=document.getElementById('btn-retry-sync');
-  if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin .7s linear infinite"></i> Sincronizando...';}
-  await Promise.all([loadCategorias(),loadProdutos()]);
-  if(window.__erroCarregarProdutos){
-    mostrarBloqueioSemConexao();
-    toast('⚠️ Ainda sem conexão com o banco de dados.', 4000);
-  } else {
-    showTab('home');
-    loadOrcamentos();
-    loadVendedores();
-    loadConfigPagamento();
-    loadClientes(true);
-    toast('✓ Preços sincronizados!');
-  }
-}
-
 function entrarNoApp(){
   const ls=document.getElementById('login-screen');
   const ma=document.getElementById('main-app');
@@ -5220,18 +5105,14 @@ function entrarNoApp(){
   // Orçamentos (pode ter até 500 linhas), vendedores, config de pagamento e clientes
   // carregam em segundo plano sem travar a entrada no app.
   Promise.all([loadCategorias(),loadProdutos()]).then(()=>{
-    if(window.__erroCarregarProdutos){
-      // Antes o app seguia em frente usando um cache de preços antigos — isso
-      // confundia os vendedores, que às vezes viam preços de uma sincronização
-      // muito antiga sem perceber. Agora bloqueia o uso até sincronizar de verdade.
-      mostrarBloqueioSemConexao();
-      return;
-    }
     showTab('home');
     loadOrcamentos();
     loadVendedores();
     loadConfigPagamento();
     loadClientes(true);
+    if(window.__erroCarregarProdutos){
+      toast('⚠️ Não foi possível sincronizar os preços agora — valores podem estar desatualizados.', 5000);
+    }
   });
   // Mostra no cabeçalho a que horas os preços foram sincronizados pela última vez
   // (ou um alerta vermelho se a sincronização falhou), pra qualquer vendedor
@@ -5240,7 +5121,15 @@ function entrarNoApp(){
   function atualizarIndicadorSync(){
     const el = document.getElementById('sync-indicator');
     if(!el) return;
-    if(window.__erroCarregarProdutos){
+    if(window.__erroCarregarProdutos && window.__usandoCacheLocal && window.__precosCacheEm){
+      // Banco fora do ar, mas o navegador tem um preço salvo de uma sincronização
+      // anterior bem-sucedida — mais confiável que travar tudo ou usar um valor
+      // fixo no código que pode estar desatualizado.
+      const hhmm = window.__precosCacheEm.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+      const dataStr = window.__precosCacheEm.toLocaleDateString('pt-BR');
+      const hoje = new Date().toLocaleDateString('pt-BR')===dataStr;
+      el.innerHTML = '🟡 <span style="color:#b7791f">Sem conexão — usando preços salvos '+(hoje?'às '+hhmm:'de '+dataStr)+'</span>';
+    } else if(window.__erroCarregarProdutos){
       el.innerHTML = '⚠️ <span style="color:var(--danger,#e53e3e)">Preços NÃO sincronizados</span>';
     } else if(window.__precosSincronizadosEm){
       const hhmm = window.__precosSincronizadosEm.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
