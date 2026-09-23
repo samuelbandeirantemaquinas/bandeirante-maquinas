@@ -4698,7 +4698,7 @@ async function excluirClientesSelecionadosLimpeza(){
   if(marcados.length===0){ toast('Nenhum cadastro marcado.'); return; }
   if(!confirm(`Excluir ${marcados.length} cadastro(s) de cliente? Essa ação não pode ser desfeita.`)) return;
   const status=document.getElementById('limpeza-status');
-  let ok=0, falhas=0;
+  let ok=0, falhas=0, primeiroErro=null;
   for(const id of marcados){
     try{
       await sbDelete('clientes', id);
@@ -4707,10 +4707,15 @@ async function excluirClientesSelecionadosLimpeza(){
       ok++;
     }catch(e){
       console.error('Erro ao excluir cliente', id, e);
+      if(!primeiroErro) primeiroErro = e?.message || e?.body?.message || e?.body?.hint || JSON.stringify(e?.body||{}) || 'erro desconhecido';
       falhas++;
     }
   }
-  if(status) status.textContent = `✓ ${ok} cadastro(s) excluído(s)${falhas?`, ${falhas} falharam`:''}.`;
+  if(status){
+    status.textContent = `✓ ${ok} cadastro(s) excluído(s)${falhas?`, ${falhas} falharam — motivo: ${primeiroErro}`:''}.`;
+    if(falhas) status.style.color='#dc3545';
+  }
+  if(falhas) alert(`${falhas} cadastro(s) não foram excluídos.\n\nMotivo retornado pelo banco:\n${primeiroErro}\n\nEnvie essa mensagem pro suporte se não souber o que fazer.`);
   toast(`✓ ${ok} cadastro(s) excluído(s)${falhas?`, ${falhas} falharam`:''}.`);
   analisarClientesDuplicados();
 }
