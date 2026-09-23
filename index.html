@@ -4659,30 +4659,35 @@ async function analisarClientesDuplicados(){
       }
     });
     _limpezaCandidatos = candidatos;
+    // Com listas grandes (milhares de candidatos), renderizar um <label> por item trava o
+    // navegador e faz parecer que nada acontece. Por isso só mostramos uma prévia limitada
+    // pra revisão visual — a exclusão em massa abaixo sempre age sobre TODOS os candidatos
+    // encontrados, não só os que aparecem na tela.
+    const LIMITE_PREVIA = 300;
     if(status) status.textContent = `${todosClientes.length} clientes no total · ${candidatos.length} candidatos a exclusão (nunca usados em orçamento).`;
     if(out){
       if(candidatos.length===0){
         out.innerHTML = `<div style="font-size:12px;color:var(--text2);padding:.75rem">Nenhum cadastro órfão duplicado ou incompleto encontrado. 🎉</div>`;
       } else {
+        const previa = candidatos.slice(0, LIMITE_PREVIA);
+        const truncado = candidatos.length > LIMITE_PREVIA;
         out.innerHTML = `
+        ${truncado?`<div style="font-size:12px;color:#B45309;margin-bottom:.6rem">Mostrando os primeiros ${LIMITE_PREVIA} de ${candidatos.length} candidatos (lista muito grande pra exibir tudo). O botão "Excluir todos os candidatos" abaixo age sobre os ${candidatos.length} — não só os listados aqui.</div>`:''}
         <div style="max-height:420px;overflow:auto;border:1px solid var(--border);border-radius:var(--radius-sm)">
-          ${candidatos.map((cand,i)=>{
+          ${previa.map((cand,i)=>{
             const c=cand.cliente;
             const detalhes=[c.empresa,c.tel,c.cidade,c.cpfcnpj].filter(Boolean).join(' · ')||'sem nenhum outro dado';
-            return `<label style="display:flex;gap:.6rem;align-items:flex-start;padding:.6rem .8rem;border-bottom:1px solid var(--border);cursor:pointer">
-              <input type="checkbox" class="limpeza-chk" data-id="${c.id}" checked style="margin-top:3px">
+            return `<div style="display:flex;gap:.6rem;align-items:flex-start;padding:.6rem .8rem;border-bottom:1px solid var(--border)">
               <div style="flex:1;min-width:0">
                 <div style="font-size:13px;font-weight:600">${c.nome}</div>
                 <div style="font-size:11px;color:var(--text2)">${detalhes}</div>
                 <div style="font-size:11px;color:#B45309;margin-top:2px">${cand.motivo}</div>
               </div>
-            </label>`;
+            </div>`;
           }).join('')}
         </div>
         <div style="display:flex;gap:.6rem;margin-top:.9rem">
-          <button class="btn" onclick="document.querySelectorAll('.limpeza-chk').forEach(cb=>cb.checked=true)">Marcar todos</button>
-          <button class="btn" onclick="document.querySelectorAll('.limpeza-chk').forEach(cb=>cb.checked=false)">Desmarcar todos</button>
-          <button class="btn btn-danger" onclick="excluirClientesSelecionadosLimpeza()"><i class="ti ti-trash"></i> Excluir marcados</button>
+          <button class="btn btn-danger" onclick="excluirTodosCandidatosLimpeza()"><i class="ti ti-trash"></i> Excluir todos os ${candidatos.length} candidatos</button>
         </div>`;
       }
     }
@@ -4693,30 +4698,40 @@ async function analisarClientesDuplicados(){
     if(btn) btn.disabled=false;
   }
 }
-async function excluirClientesSelecionadosLimpeza(){
-  const marcados=[...document.querySelectorAll('.limpeza-chk:checked')].map(cb=>cb.dataset.id);
-  if(marcados.length===0){ toast('Nenhum cadastro marcado.'); return; }
-  if(!confirm(`Excluir ${marcados.length} cadastro(s) de cliente? Essa ação não pode ser desfeita.`)) return;
+// Apaga em lotes (id=in.(...)) em vez de um DELETE por registro — com milhares de
+// candidatos, um DELETE de cada vez levaria dezenas de minutos e parecia "travado".
+async function excluirTodosCandidatosLimpeza(){
+  const total=_limpezaCandidatos.length;
+  if(total===0){ toast('Nada pra excluir.'); return; }
+  const digitado=prompt(`Isso vai excluir ${total} cadastro(s) de cliente PERMANENTEMENTE (nenhum tem orçamento vinculado).\n\nPra confirmar, digite EXCLUIR:`);
+  if(digitado!=='EXCLUIR'){ toast('Cancelado — nada foi excluído.'); return; }
   const status=document.getElementById('limpeza-status');
+  const btn=document.getElementById('btn-analisar-limpeza');
+  if(btn) btn.disabled=true;
+  const TAMANHO_LOTE=150;
+  const ids=_limpezaCandidatos.map(cand=>cand.cliente.id);
   let ok=0, falhas=0, primeiroErro=null;
-  for(const id of marcados){
+  for(let i=0;i<ids.length;i+=TAMANHO_LOTE){
+    const lote=ids.slice(i,i+TAMANHO_LOTE);
+    if(status) status.textContent=`Excluindo… ${Math.min(i+TAMANHO_LOTE,ids.length)}/${ids.length}`;
     try{
-      await sbDelete('clientes', id);
-      const idx=clientes.findIndex(c=>String(c.id)===String(id));
-      if(idx>=0) clientes.splice(idx,1);
-      ok++;
+      await sbReq('DELETE','clientes','id=in.('+lote.join(',')+')',null);
+      ok+=lote.length;
     }catch(e){
-      console.error('Erro ao excluir cliente', id, e);
+      console.error('Erro ao excluir lote', lote, e);
       if(!primeiroErro) primeiroErro = e?.message || e?.body?.message || e?.body?.hint || JSON.stringify(e?.body||{}) || 'erro desconhecido';
-      falhas++;
+      falhas+=lote.length;
     }
   }
+  const idsExcluidosSet = new Set(ids.map(String));
+  clientes = clientes.filter(c=>!idsExcluidosSet.has(String(c.id)));
   if(status){
     status.textContent = `✓ ${ok} cadastro(s) excluído(s)${falhas?`, ${falhas} falharam — motivo: ${primeiroErro}`:''}.`;
     if(falhas) status.style.color='#dc3545';
   }
   if(falhas) alert(`${falhas} cadastro(s) não foram excluídos.\n\nMotivo retornado pelo banco:\n${primeiroErro}\n\nEnvie essa mensagem pro suporte se não souber o que fazer.`);
   toast(`✓ ${ok} cadastro(s) excluído(s)${falhas?`, ${falhas} falharam`:''}.`);
+  if(btn) btn.disabled=false;
   analisarClientesDuplicados();
 }
 
