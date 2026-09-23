@@ -4219,6 +4219,7 @@ async function renderAdmin(){
       <button class="adm-tab-btn" id="adm-tab-btn-performance" onclick="showAdminTab('performance')" style="padding:.6rem 1rem;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;color:var(--text2);cursor:pointer">📊 Performance</button>
       <button class="adm-tab-btn" id="adm-tab-btn-pagamento" onclick="showAdminTab('pagamento')" style="padding:.6rem 1rem;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;color:var(--text2);cursor:pointer">💰 Pagamento</button>
       <button class="adm-tab-btn" id="adm-tab-btn-backup" onclick="showAdminTab('backup')" style="padding:.6rem 1rem;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;color:var(--text2);cursor:pointer">💾 Backup</button>
+      <button class="adm-tab-btn" id="adm-tab-btn-limpeza" onclick="showAdminTab('limpeza')" style="padding:.6rem 1rem;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;color:var(--text2);cursor:pointer">🧹 Limpeza</button>
     </div>
 
     <div id="admin-tab-produtos">
@@ -4436,6 +4437,23 @@ async function renderAdmin(){
         </div>
       </div>
     </div>
+    <div id="admin-tab-limpeza" style="display:none">
+      <div style="margin-bottom:1.25rem">
+        <div style="font-size:13px;font-weight:700;margin-bottom:.35rem">Limpeza de clientes duplicados/incompletos</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.5">
+          Procura cadastros de cliente que estão <b>duplicados</b> (mesmo nome cadastrado mais de uma vez) ou
+          <b>incompletos</b> (só o nome preenchido, sem telefone/cidade/CPF-CNPJ) — e que <b>nunca foram usados
+          em nenhum orçamento</b>. Só esses ficam marcados para apagar por padrão: cliente com orçamento vinculado
+          nunca é sugerido, mesmo incompleto, pra ninguém perder histórico nem precisar recadastrar.
+          Revise a lista antes de confirmar.
+        </div>
+      </div>
+      <button class="btn btn-primary" id="btn-analisar-limpeza" onclick="analisarClientesDuplicados()">
+        <i class="ti ti-search"></i> Analisar cadastros
+      </button>
+      <div id="limpeza-status" style="margin-top:.75rem;font-size:12px;color:var(--text2)"></div>
+      <div id="limpeza-resultados" style="margin-top:1rem"></div>
+    </div>
   </div>`;
 }
 
@@ -4555,7 +4573,7 @@ async function adicionarProdutoNovoCategoria(){
 
 
 function showAdminTab(tab){
-  const abas=['produtos','vendedores','performance','backup','pagamento'];
+  const abas=['produtos','vendedores','performance','backup','pagamento','limpeza'];
   abas.forEach(a=>{
     const div=document.getElementById('admin-tab-'+a);
     const btn=document.getElementById('adm-tab-btn-'+a);
@@ -4589,6 +4607,112 @@ async function sbGetTudo(table, orderBy){
     from += pageSize;
   }
   return all;
+}
+
+// ---- LIMPEZA DE CLIENTES DUPLICADOS/INCOMPLETOS ----
+// Remove acentos/maiúsculas e espaços extras só pra comparar nomes — não altera o dado salvo.
+function _limpezaNormNome(s){
+  return (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toLowerCase().replace(/\s+/g,' ');
+}
+// Quanto mais campos opcionais um cadastro tem preenchidos, mais "completo" ele é —
+// usado pra decidir qual cópia manter quando o mesmo nome está duplicado.
+function _limpezaScoreCompletude(c){
+  return ['empresa','tel','cidade','estado','cpfcnpj','ie','rua','cep','email'].filter(k=>(c[k]||'').toString().trim()).length;
+}
+function _limpezaIncompleto(c){
+  return !(c.tel||'').trim() && !(c.cidade||'').trim() && !(c.cpfcnpj||'').trim();
+}
+let _limpezaCandidatos = [];
+async function analisarClientesDuplicados(){
+  const btn=document.getElementById('btn-analisar-limpeza');
+  const status=document.getElementById('limpeza-status');
+  const out=document.getElementById('limpeza-resultados');
+  if(btn) btn.disabled=true;
+  if(status) status.textContent='Carregando clientes e orçamentos…';
+  if(out) out.innerHTML='';
+  try{
+    const [todosClientes, todosOrcamentos] = await Promise.all([
+      sbGetTudo('clientes','nome.asc'),
+      sbGetTudo('orcamentos','id.asc')
+    ]);
+    const usados = new Set(todosOrcamentos.map(o=>o.cliente_id).filter(Boolean));
+    // Agrupa por nome normalizado pra achar duplicados
+    const porNome = {};
+    todosClientes.forEach(c=>{
+      const k=_limpezaNormNome(c.nome);
+      if(!porNome[k]) porNome[k]=[];
+      porNome[k].push(c);
+    });
+    const candidatos=[]; // {cliente, motivo}
+    Object.values(porNome).forEach(grupo=>{
+      if(grupo.length>1){
+        // Duplicado: mantém o mais completo (empate: o de id maior/mais recente), marca os outros
+        const ordenado=[...grupo].sort((a,b)=>_limpezaScoreCompletude(b)-_limpezaScoreCompletude(a)||(b.id-a.id));
+        ordenado.slice(1).forEach(c=>{
+          if(!usados.has(c.id)) candidatos.push({cliente:c,motivo:'Duplicado — mantendo o cadastro mais completo do mesmo nome',grupo:ordenado});
+        });
+      } else {
+        const c=grupo[0];
+        if(_limpezaIncompleto(c) && !usados.has(c.id)){
+          candidatos.push({cliente:c,motivo:'Incompleto — só o nome preenchido',grupo:[c]});
+        }
+      }
+    });
+    _limpezaCandidatos = candidatos;
+    if(status) status.textContent = `${todosClientes.length} clientes no total · ${candidatos.length} candidatos a exclusão (nunca usados em orçamento).`;
+    if(out){
+      if(candidatos.length===0){
+        out.innerHTML = `<div style="font-size:12px;color:var(--text2);padding:.75rem">Nenhum cadastro órfão duplicado ou incompleto encontrado. 🎉</div>`;
+      } else {
+        out.innerHTML = `
+        <div style="max-height:420px;overflow:auto;border:1px solid var(--border);border-radius:var(--radius-sm)">
+          ${candidatos.map((cand,i)=>{
+            const c=cand.cliente;
+            const detalhes=[c.empresa,c.tel,c.cidade,c.cpfcnpj].filter(Boolean).join(' · ')||'sem nenhum outro dado';
+            return `<label style="display:flex;gap:.6rem;align-items:flex-start;padding:.6rem .8rem;border-bottom:1px solid var(--border);cursor:pointer">
+              <input type="checkbox" class="limpeza-chk" data-id="${c.id}" checked style="margin-top:3px">
+              <div style="flex:1;min-width:0">
+                <div style="font-size:13px;font-weight:600">${c.nome}</div>
+                <div style="font-size:11px;color:var(--text2)">${detalhes}</div>
+                <div style="font-size:11px;color:#B45309;margin-top:2px">${cand.motivo}</div>
+              </div>
+            </label>`;
+          }).join('')}
+        </div>
+        <div style="display:flex;gap:.6rem;margin-top:.9rem">
+          <button class="btn" onclick="document.querySelectorAll('.limpeza-chk').forEach(cb=>cb.checked=true)">Marcar todos</button>
+          <button class="btn" onclick="document.querySelectorAll('.limpeza-chk').forEach(cb=>cb.checked=false)">Desmarcar todos</button>
+          <button class="btn btn-danger" onclick="excluirClientesSelecionadosLimpeza()"><i class="ti ti-trash"></i> Excluir marcados</button>
+        </div>`;
+      }
+    }
+  }catch(e){
+    console.error('Erro ao analisar clientes:', e);
+    if(status) status.textContent='Erro ao carregar dados. Tente de novo.';
+  }finally{
+    if(btn) btn.disabled=false;
+  }
+}
+async function excluirClientesSelecionadosLimpeza(){
+  const marcados=[...document.querySelectorAll('.limpeza-chk:checked')].map(cb=>cb.dataset.id);
+  if(marcados.length===0){ toast('Nenhum cadastro marcado.'); return; }
+  if(!confirm(`Excluir ${marcados.length} cadastro(s) de cliente? Essa ação não pode ser desfeita.`)) return;
+  const status=document.getElementById('limpeza-status');
+  let ok=0, falhas=0;
+  for(const id of marcados){
+    try{
+      await sbDelete('clientes', id);
+      const idx=clientes.findIndex(c=>String(c.id)===String(id));
+      if(idx>=0) clientes.splice(idx,1);
+      ok++;
+    }catch(e){
+      console.error('Erro ao excluir cliente', id, e);
+      falhas++;
+    }
+  }
+  if(status) status.textContent = `✓ ${ok} cadastro(s) excluído(s)${falhas?`, ${falhas} falharam`:''}.`;
+  toast(`✓ ${ok} cadastro(s) excluído(s)${falhas?`, ${falhas} falharam`:''}.`);
+  analisarClientesDuplicados();
 }
 
 // Baixa um arquivo .json com uma cópia de todas as tabelas do sistema
