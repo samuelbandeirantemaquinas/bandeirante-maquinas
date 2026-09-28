@@ -458,8 +458,8 @@ let IMPLEMENTOS = [
   {id:'conchagarra195',cod:'PA54.00.00.00',nome:'Concha com Garra 1,95m × 1,2m³',preco:13336.84,img:'conchagarra',grupo:'Conchas'},
   // ── Garfos ──
   {id:'garfosilagem',cod:'PA16.31.00.00',nome:'Garfo Silagem 0,7m³ × 1,65m',preco:13354.74,img:'garfosilagem',grupo:'Garfos'},
-  {id:'garfotora',cod:'PA16.52.00.00',nome:'Garfo Tora Simples 1500kg',preco:5347.03,img:'garfotora',grupo:'Garfos',estruturaExata:'1450'},
-  {id:'garfotoragarra',cod:'PA16.53.00.00',nome:'Garfo Tora com 2 Garras 1500kg × 1685mm',preco:13083.24,img:'garfotoragarra',grupo:'Garfos',estruturaExata:'1450'},
+  {id:'garfotora',cod:'PA16.52.00.00',nome:'Garfo Tora Simples 1500kg',preco:5347.03,img:'garfotora',grupo:'Garfos'},
+  {id:'garfotoragarra',cod:'PA16.53.00.00',nome:'Garfo Tora com 2 Garras 1500kg × 1685mm',preco:13083.24,img:'garfotoragarra',grupo:'Garfos',estruturaMin:'1550'},
   // ── Enleiradores ──
   {id:'enleirador265',cod:'PA16.61.00.00',nome:'Enleirador 2,65m',preco:10448.22,img:'enleirador265',grupo:'Enleiradores',estruturaMin:'1950'},
   {id:'enleirador195',cod:'PA16.62.00.00',nome:'Enleirador 1,95m',preco:7805.43,img:'enleirador195',grupo:'Enleiradores'},
@@ -2448,16 +2448,13 @@ function estruturaAtendeMinimo(estrutura, minimo){
 // de estruturaMin — para casos em que um item precisa ficar de fora de uma
 // estrutura sem mexer no comportamento das demais.
 const IMPLEMENTOS_EXCLUIDOS_POR_ESTRUTURA = {
-  // Itens acima de 1,95m de largura não ficam disponíveis para a HX 1450
-  // Autonivelante (o Garfo Tora já fica de fora por causa de estruturaExata:'1450',
-  // já que 'hx1450auto' é uma estrutura diferente de '1450').
-  'hx1450auto': ['lam220','lam265','concha220','concha265','enleirador265'],
+  // Itens acima de 1,95m de largura, além do Garfo Tora, não ficam disponíveis
+  // para a HX 1450 Autonivelante (a Hexline 1450 comum continua sem restrição
+  // no Garfo Tora).
+  'hx1450auto': ['lam220','lam265','concha220','concha265','enleirador265','garfotora'],
 };
 function implementoCompativel(estrutura, item){
   if(!estruturaAtendeMinimo(estrutura, item.estruturaMin)) return false;
-  // estruturaExata: item só aparece para essa estrutura específica (ex: Garfo Tora,
-  // que é exclusivo da 1450 — não aparece em 1550/1950/2200 nem na hx1450auto).
-  if(item.estruturaExata && estrutura!==item.estruturaExata) return false;
   const excluidos = IMPLEMENTOS_EXCLUIDOS_POR_ESTRUTURA[estrutura];
   if(excluidos && excluidos.includes(item.id)) return false;
   return true;
