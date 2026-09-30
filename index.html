@@ -1239,7 +1239,7 @@ function gerarPDFRasthor(){
       const r=it.r;
       return [
         '',
-        r.nome.toUpperCase()+'\n'+(r.desc||''),
+        r.nome.toUpperCase()+'\n'+(r.desc||'')+(r.cod?'\nCódigo: '+r.cod:''),
         String(it.qtd),
         'R$ '+it.subtotal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})
       ];
@@ -1842,7 +1842,7 @@ function gerarPDFGenerico(){
     const unit=precoAjustado(prod.id, prod.preco);
     const subtotal=unit*qtd;
     subtotalGeral+=subtotal;
-    const bodyDesc=prod.nome.toUpperCase()+'\n'+prod.desc;
+    const bodyDesc=prod.nome.toUpperCase()+'\n'+prod.desc+(prod.cod?'\nCódigo: '+prod.cod:'');
     return ['', bodyDesc, String(qtd), 'R$ '+subtotal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})];
   });
   doc.autoTable({
@@ -3194,7 +3194,7 @@ function gerarPDF(){
 
   // Itens
   itens.forEach((it, idx) => {
-    const rh = it.desc ? 24 : 18;
+    const rh = 18 + (it.desc?6:0) + (it.cod?4:0);
     if(y + rh > doc.internal.pageSize.getHeight() - M){
       doc.addPage();
       y = M;
@@ -3230,7 +3230,8 @@ function gerarPDF(){
     doc.setFontSize(7);
     doc.setTextColor(120);
     let subY = y+6+nomeLines.length*4;
-    if(it.desc){ const descLines = doc.splitTextToSize(it.desc, colW.nome-2); doc.text(descLines, cx+1, subY); }
+    if(it.desc){ const descLines = doc.splitTextToSize(it.desc, colW.nome-2); doc.text(descLines, cx+1, subY); subY += descLines.length*4; }
+    if(it.cod){ doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(140); doc.text('Código: '+it.cod, cx+1, subY); }
 
     // Qtde e valor
     doc.setFont('helvetica','normal');
@@ -4082,7 +4083,7 @@ async function regenarPDFHistorico(id){
   y+=hRow;
 
   itens.forEach((it,idx)=>{
-    const rh = it.desc ? 24 : 18;
+    const rh = 18 + (it.desc?6:0) + (it.cod?4:0);
     doc.setDrawColor(200);doc.setLineWidth(0.2);doc.rect(M,y,W-M*2,rh,'S');
     cx2=M+1;
     doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(60);
@@ -4093,7 +4094,8 @@ async function regenarPDFHistorico(id){
     const nl=doc.splitTextToSize((it.nome||'').toUpperCase(),colW2.nome-2);
     doc.text(nl,cx2+1,y+6);
     let yDesc = y+6+nl.length*4;
-    if(it.desc){doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(90);const dl=doc.splitTextToSize(it.desc,colW2.nome-2);doc.text(dl,cx2+1,yDesc);}
+    if(it.desc){doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(90);const dl=doc.splitTextToSize(it.desc,colW2.nome-2);doc.text(dl,cx2+1,yDesc);yDesc+=dl.length*4;}
+    if(it.cod){doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(140);doc.text('Código: '+it.cod,cx2+1,yDesc);}
     doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(30);
     doc.text(String(it.qtd||1),W-M-26+5,y+8,{align:'center'});
     if(!esconderSubtotalItemPDF){
