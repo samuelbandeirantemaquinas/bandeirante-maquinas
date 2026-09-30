@@ -692,6 +692,24 @@ function iniciais(n){if(!n)return '?';const p=n.trim().split(/\s+/);return p.len
 function genNum(){return 'ORC-'+Date.now().toString().slice(-6);}
 function toast(msg,dur=2500){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),dur);}
 function g(id){return (document.getElementById(id)||{}).value||'';}
+// Alguns vendedores estavam salvando orçamento sem escolher condição de pagamento
+// nem frete (campos ficavam em branco no PDF). Chamada no início de cada
+// salvarOrcamento*(): se um dos dois estiver vazio, avisa, marca o campo em
+// vermelho e cancela o salvamento — devolve true se pode seguir, false se bloqueou.
+function validarPgtoFrete(pgtoId, freteId){
+  const pgtoEl=document.getElementById(pgtoId), freteEl=document.getElementById(freteId);
+  const pgtoOk=!!(pgtoEl&&pgtoEl.value);
+  const freteOk=!!(freteEl&&freteEl.value);
+  if(pgtoEl) pgtoEl.style.borderColor = pgtoOk?'':'#dc3545';
+  if(freteEl) freteEl.style.borderColor = freteOk?'':'#dc3545';
+  if(!pgtoOk||!freteOk){
+    const faltando=[!pgtoOk?'condição de pagamento':null,!freteOk?'frete':null].filter(Boolean).join(' e ');
+    toast('Selecione ' + faltando + ' antes de salvar.', 3500);
+    (pgtoOk?freteEl:pgtoEl)?.scrollIntoView({behavior:'smooth',block:'center'});
+    return false;
+  }
+  return true;
+}
 function imgTag(k,w,h){const src=IMGS[k];if(src)return `<img src="${src}" class="item-thumb" style="width:${w}px;height:${h}px" alt="${k}">`;return `<div class="item-thumb-ph" style="width:${w}px;height:${h}px"><i class="ti ti-photo" style="font-size:18px;color:var(--text3)"></i></div>`;}
 
 function showTab(tab){
@@ -1084,6 +1102,7 @@ async function limparOrcamentosAntigos(vendedorNome){
 async function salvarOrcamentoRasthor(){
   const sel = getRasthorSel();
   if(!sel.length) return;
+  if(!validarPgtoFrete('rc-pgto','rc-frete')) return;
   const gr=fid=>(document.getElementById(fid)||{}).value||'';
   const itens = sel.map(r=>({cod:r.cod||'',nome:r.nome,desc:r.desc||'',qtd:getQtd(r.id),preco:precoAjustado(r.id,r.preco),preco_base:r.preco,ajuste:st.ajustes[r.id]||0}));
   const total0 = sel.reduce((t,r)=>t+precoAjustado(r.id,r.preco)*getQtd(r.id),0);
@@ -1122,6 +1141,7 @@ async function salvarOrcamentoRasthor(){
 function gerarPDFRasthor(){
   const sel=getRasthorSel();
   if(!sel.length)return;
+  if(!validarPgtoFrete('rc-pgto','rc-frete')) return;
   const gr=id=>( document.getElementById(id)||{} ).value||'';
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
@@ -1695,6 +1715,7 @@ function selecionarCliGen(id){
 
 async function salvarOrcamentoGenerico(){
   if(!_prodSel) return;
+  if(!validarPgtoFrete('gn-pgto','gn-frete')) return;
   const {tipo}=_prodSel;
   const gn=fid=>(document.getElementById(fid)||{}).value||'';
   const itens = getSelPorTipo(tipo);
@@ -1742,6 +1763,7 @@ async function salvarOrcamentoGenerico(){
 
 function gerarPDFGenerico(){
   if(!_prodSel) return;
+  if(!validarPgtoFrete('gn-pgto','gn-frete')) return;
   const {tipo}=_prodSel;
   const gn=fid=>(document.getElementById(fid)||{}).value||'';
 
@@ -2439,6 +2461,10 @@ function avancarJoy(){
 const ORDEM_ESTRUTURAS = ['1450','1550','1950','2200'];
 function estruturaAtendeMinimo(estrutura, minimo){
   if(!minimo) return true;
+  // 'hx1450auto' não faz parte da escala 1450→2200 (não é "maior" nem "menor" que
+  // as outras, é uma variante autonivelante à parte) — então, pra ela, o campo
+  // "Estrutura mínima" funciona como exigência exata, não como piso de tamanho.
+  if(minimo==='hx1450auto' || estrutura==='hx1450auto') return estrutura===minimo;
   const iAtual = ORDEM_ESTRUTURAS.indexOf(estrutura);
   const iMin = ORDEM_ESTRUTURAS.indexOf(minimo);
   if(iAtual===-1 || iMin===-1) return true; // estrutura desconhecida: não bloqueia
@@ -2988,6 +3014,7 @@ function s6(){
 }
 
 async function salvarOrcamento(){
+  if(!validarPgtoFrete('cli-pgto','cli-frete')) return;
   const car=getCarregadoresSel()[0];
   const itens=montarItens();
   const total0=calcTotal();
@@ -3030,6 +3057,7 @@ async function salvarOrcamento(){
 }
 
 function gerarPDF(){
+  if(!validarPgtoFrete('cli-pgto','cli-frete')) return;
   const {jsPDF} = window.jspdf;
   const doc = new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   const W = doc.internal.pageSize.getWidth();
@@ -4266,6 +4294,7 @@ async function renderAdmin(){
                 <option value="1550" ${p.estrutura_min==='1550'?'selected':''}>1550</option>
                 <option value="1950" ${p.estrutura_min==='1950'?'selected':''}>1950</option>
                 <option value="2200" ${p.estrutura_min==='2200'?'selected':''}>2200</option>
+                <option value="hx1450auto" ${p.estrutura_min==='hx1450auto'?'selected':''}>HX 1450 Autonivelante</option>
               </select>
             </div>`:''}
           </div>
@@ -4329,6 +4358,7 @@ async function renderAdmin(){
           <option value="1550">1550</option>
           <option value="1950">1950</option>
           <option value="2200">2200</option>
+          <option value="hx1450auto">HX 1450 Autonivelante</option>
         </select>
       </div>
       <div class="ig" style="margin-top:6px;margin-bottom:0">
