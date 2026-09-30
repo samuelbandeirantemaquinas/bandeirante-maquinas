@@ -694,12 +694,18 @@ function toast(msg,dur=2500){const t=document.getElementById('toast');t.textCont
 function g(id){return (document.getElementById(id)||{}).value||'';}
 // Alguns vendedores estavam salvando orçamento sem escolher condição de pagamento
 // nem frete (campos ficavam em branco no PDF). Chamada no início de cada
-// salvarOrcamento*(): se um dos dois estiver vazio, avisa, marca o campo em
-// vermelho e cancela o salvamento — devolve true se pode seguir, false se bloqueou.
-function validarPgtoFrete(pgtoId, freteId){
-  const pgtoEl=document.getElementById(pgtoId), freteEl=document.getElementById(freteId);
-  const pgtoOk=!!(pgtoEl&&pgtoEl.value);
-  const freteOk=!!(freteEl&&freteEl.value);
+// salvarOrcamento*()/gerarPDF*(): se um dos dois estiver vazio, avisa e cancela.
+// Recebe os VALORES já resolvidos (não os ids) — em telas como o Resumo (passo 7),
+// o <select> de pagamento/frete nem existe mais no DOM (só existe no passo Cliente),
+// mas o valor escolhido continua guardado em st.pgto/st.frete (ou equivalente), então
+// checar a existência do elemento em vez do valor resolvido gerava falso bloqueio.
+// pgtoId/freteId são opcionais, só usados para destacar o campo em vermelho quando
+// ele estiver visível na tela atual.
+function validarPgtoFrete(pgtoValor, freteValor, pgtoId, freteId){
+  const pgtoEl=pgtoId?document.getElementById(pgtoId):null;
+  const freteEl=freteId?document.getElementById(freteId):null;
+  const pgtoOk=!!pgtoValor;
+  const freteOk=!!freteValor;
   if(pgtoEl) pgtoEl.style.borderColor = pgtoOk?'':'#dc3545';
   if(freteEl) freteEl.style.borderColor = freteOk?'':'#dc3545';
   if(!pgtoOk||!freteOk){
@@ -1102,8 +1108,8 @@ async function limparOrcamentosAntigos(vendedorNome){
 async function salvarOrcamentoRasthor(){
   const sel = getRasthorSel();
   if(!sel.length) return;
-  if(!validarPgtoFrete('rc-pgto','rc-frete')) return;
   const gr=fid=>(document.getElementById(fid)||{}).value||'';
+  if(!validarPgtoFrete(gr('rc-pgto')||st.pgto||'', gr('rc-frete')||st.frete||'', 'rc-pgto','rc-frete')) return;
   const itens = sel.map(r=>({cod:r.cod||'',nome:r.nome,desc:r.desc||'',qtd:getQtd(r.id),preco:precoAjustado(r.id,r.preco),preco_base:r.preco,ajuste:st.ajustes[r.id]||0}));
   const total0 = sel.reduce((t,r)=>t+precoAjustado(r.id,r.preco)*getQtd(r.id),0);
   const rcPgtoSalvar = gr('rc-pgto')||'';
@@ -1141,8 +1147,8 @@ async function salvarOrcamentoRasthor(){
 function gerarPDFRasthor(){
   const sel=getRasthorSel();
   if(!sel.length)return;
-  if(!validarPgtoFrete('rc-pgto','rc-frete')) return;
   const gr=id=>( document.getElementById(id)||{} ).value||'';
+  if(!validarPgtoFrete(gr('rc-pgto')||st.pgto||'', gr('rc-frete')||st.frete||'', 'rc-pgto','rc-frete')) return;
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   const W=doc.internal.pageSize.getWidth();
@@ -1715,9 +1721,9 @@ function selecionarCliGen(id){
 
 async function salvarOrcamentoGenerico(){
   if(!_prodSel) return;
-  if(!validarPgtoFrete('gn-pgto','gn-frete')) return;
   const {tipo}=_prodSel;
   const gn=fid=>(document.getElementById(fid)||{}).value||'';
+  if(!validarPgtoFrete(gn('gn-pgto')||st.pgto||'', gn('gn-frete')||st.frete||'', 'gn-pgto','gn-frete')) return;
   const itens = getSelPorTipo(tipo);
   if(!itens.length) return;
   const itensSalvar = itens.map(p=>({
@@ -1763,9 +1769,9 @@ async function salvarOrcamentoGenerico(){
 
 function gerarPDFGenerico(){
   if(!_prodSel) return;
-  if(!validarPgtoFrete('gn-pgto','gn-frete')) return;
   const {tipo}=_prodSel;
   const gn=fid=>(document.getElementById(fid)||{}).value||'';
+  if(!validarPgtoFrete(gn('gn-pgto')||st.pgto||'', gn('gn-frete')||st.frete||'', 'gn-pgto','gn-frete')) return;
 
   const itens = getSelPorTipo(tipo);
   if(!itens.length) return;
@@ -3014,7 +3020,7 @@ function s6(){
 }
 
 async function salvarOrcamento(){
-  if(!validarPgtoFrete('cli-pgto','cli-frete')) return;
+  if(!validarPgtoFrete(g('cli-pgto')||st.pgto||'', g('cli-frete')||st.frete||'', 'cli-pgto','cli-frete')) return;
   const car=getCarregadoresSel()[0];
   const itens=montarItens();
   const total0=calcTotal();
@@ -3057,7 +3063,7 @@ async function salvarOrcamento(){
 }
 
 function gerarPDF(){
-  if(!validarPgtoFrete('cli-pgto','cli-frete')) return;
+  if(!validarPgtoFrete(g('cli-pgto')||st.pgto||'', g('cli-frete')||st.frete||'', 'cli-pgto','cli-frete')) return;
   const {jsPDF} = window.jspdf;
   const doc = new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   const W = doc.internal.pageSize.getWidth();
