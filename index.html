@@ -250,6 +250,35 @@ async function loadCatalogos(){
   }
 }
 
+// ── DOCUMENTOS ÚTEIS (arquivos avulsos, qualquer tipo, pasta "documentos/" no mesmo bucket) ──
+let DOCUMENTOS_UTEIS = [];
+async function loadDocumentosUteis(){
+  try{
+    const lista = await sbStorageList('documentos');
+    DOCUMENTOS_UTEIS = (lista||[]).filter(f=>f && f.id).map(f=>({nome:f.name, path:'documentos/'+f.name}));
+  }catch(e){
+    console.warn('Erro ao carregar documentos úteis:', e);
+  }
+}
+async function enviarDocumentoUtil(files){
+  const resultados = {ok:0, falha:0};
+  for(const file of files){
+    try{
+      await sbStorageUpload('documentos/'+file.name, file);
+      resultados.ok++;
+    }catch(e){
+      console.error('Erro ao enviar documento', file.name, e);
+      resultados.falha++;
+    }
+  }
+  await loadDocumentosUteis();
+  return resultados;
+}
+async function removerDocumentoUtil(path){
+  await sbStorageDelete(path);
+  await loadDocumentosUteis();
+}
+
 async function loadCategorias(){
   try{
     const rows = await sbGet('categorias', 'ativo=eq.true&order=nome.asc');
@@ -314,13 +343,13 @@ async function sbStorageUpload(path, file){
   }
   return true;
 }
-async function sbStorageList(){
+async function sbStorageList(prefix){
   const token = localStorage.getItem('sb_token') || SB_KEY;
   const url = SB_URL + '/storage/v1/object/list/' + SB_STORAGE_BUCKET;
   const r = await fetch(url, {
     method: 'POST',
     headers: {'apikey': SB_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json'},
-    body: JSON.stringify({prefix:'', limit:1000, sortBy:{column:'name',order:'asc'}})
+    body: JSON.stringify({prefix:prefix||'', limit:1000, sortBy:{column:'name',order:'asc'}})
   });
   if(!r.ok) throw new Error('HTTP ' + r.status);
   return r.json();
@@ -805,7 +834,7 @@ function showTab(tab){
 
 // ---- CATÁLOGOS (tela do vendedor) ----
 function renderCatalogosVendedor(){
-  loadCatalogos().then(()=>{ if(currentTab==='catalogos') montarTelaCatalogos(); });
+  Promise.all([loadCatalogos(), loadDocumentosUteis()]).then(()=>{ if(currentTab==='catalogos') montarTelaCatalogos(); });
   montarTelaCatalogos();
 }
 function montarTelaCatalogos(){
@@ -833,6 +862,17 @@ function montarTelaCatalogos(){
       </div>`;
     }).join('')}
     ${cats.every(c=>!CATALOGOS_DISPONIVEIS[c.id])?'<div style="font-size:12px;color:var(--text2);text-align:center;padding:2rem 0">Nenhum catálogo foi enviado ainda.</div>':''}
+
+    ${DOCUMENTOS_UTEIS.length?`
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin:1.25rem 0 .6rem">Documentos úteis</div>
+    ${DOCUMENTOS_UTEIS.map(d=>`<div style="display:flex;align-items:center;gap:14px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:.85rem 1.1rem;margin-bottom:10px;box-shadow:var(--shadow)">
+      <div style="width:40px;height:40px;border-radius:var(--radius);background:var(--bg);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <i class="ti ti-file-text" style="font-size:20px;color:var(--text2)"></i>
+      </div>
+      <div style="flex:1;min-width:0;font-size:13px;font-weight:600;word-break:break-word">${d.nome}</div>
+      <a class="btn btn-sm" href="${sbStoragePublicUrl(d.path)}" target="_blank" rel="noopener"><i class="ti ti-download"></i></a>
+    </div>`).join('')}
+    `:''}
   </div>`;
 }
 
@@ -4621,8 +4661,65 @@ async function renderAdmin(){
         </div>
       </div>
       <div id="admin-catalogos-lista"></div>
+
+      <hr class="divider" style="margin:1.5rem 0">
+
+      <div style="margin-bottom:1.25rem">
+        <div style="font-size:13px;font-weight:700;margin-bottom:.35rem">📄 Documentos úteis</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.5">
+          Arquivos avulsos (tabelas, manuais, políticas, qualquer formato) que os vendedores possam precisar.
+          Também ficam disponíveis em "Início → Catálogos".
+        </div>
+      </div>
+      <input type="file" id="documento-util-file" multiple style="display:none" onchange="onEnviarDocumentosUteis()">
+      <button class="btn btn-sm btn-primary" onclick="document.getElementById('documento-util-file').click()">
+        <i class="ti ti-upload"></i> Enviar documento(s)
+      </button>
+      <div id="documentos-uteis-status" style="margin-top:.5rem;font-size:12px;color:var(--text2)"></div>
+      <div id="documentos-uteis-lista" style="margin-top:.75rem"></div>
     </div>
   </div>`;
+}
+
+function renderAdminDocumentosUteis(){
+  const el=document.getElementById('documentos-uteis-lista');
+  if(!el) return;
+  if(!DOCUMENTOS_UTEIS.length){
+    el.innerHTML='<div style="font-size:12px;color:var(--text2)">Nenhum documento enviado ainda.</div>';
+    return;
+  }
+  el.innerHTML = DOCUMENTOS_UTEIS.map(d=>`<div style="display:flex;align-items:center;gap:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:.7rem .9rem;margin-bottom:8px">
+    <i class="ti ti-file-text" style="font-size:18px;color:var(--text2)"></i>
+    <div style="flex:1;min-width:0;font-size:13px;word-break:break-word">${d.nome}</div>
+    <a class="btn btn-sm" href="${sbStoragePublicUrl(d.path)}" target="_blank" rel="noopener"><i class="ti ti-download"></i></a>
+    <button class="btn btn-sm" style="color:#c0392b" onclick="onRemoverDocumentoUtil('${d.path.replace(/'/g,"\\'")}')"><i class="ti ti-trash"></i></button>
+  </div>`).join('');
+}
+
+async function onEnviarDocumentosUteis(){
+  const input=document.getElementById('documento-util-file');
+  const files=Array.from(input?.files||[]);
+  if(!files.length) return;
+  const statusEl=document.getElementById('documentos-uteis-status');
+  if(statusEl) statusEl.textContent='Enviando '+files.length+' arquivo(s)...';
+  const r = await enviarDocumentoUtil(files);
+  if(statusEl) statusEl.textContent = r.falha ? ('Enviado(s) '+r.ok+', falhou '+r.falha+'.') : '';
+  if(r.ok) toast('Documento(s) enviado(s)! ✓');
+  if(r.falha) toast('⚠️ '+r.falha+' arquivo(s) não enviaram. Verifique o bucket "catalogos" no Supabase Storage.', 6000);
+  renderAdminDocumentosUteis();
+  if(input) input.value='';
+}
+
+async function onRemoverDocumentoUtil(path){
+  if(!confirm('Remover este documento? Os vendedores deixarão de conseguir baixá-lo.')) return;
+  try{
+    await removerDocumentoUtil(path);
+    toast('Documento removido.');
+    renderAdminDocumentosUteis();
+  }catch(e){
+    console.error('Erro ao remover documento:', e);
+    toast('⚠️ Não deu pra remover o documento agora.');
+  }
 }
 
 function renderAdminCatalogos(){
@@ -4809,7 +4906,10 @@ function showAdminTab(tab){
     }
   });
   if(tab==='performance') renderAdminPerformance();
-  if(tab==='catalogos') { loadCatalogos().then(renderAdminCatalogos); renderAdminCatalogos(); }
+  if(tab==='catalogos') {
+    loadCatalogos().then(renderAdminCatalogos); renderAdminCatalogos();
+    loadDocumentosUteis().then(renderAdminDocumentosUteis); renderAdminDocumentosUteis();
+  }
 }
 
 // Busca TODAS as linhas de uma tabela do Supabase, paginando de 1000 em 1000
