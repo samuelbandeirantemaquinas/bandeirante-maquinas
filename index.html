@@ -223,6 +223,33 @@ function optionsCondicoesExtra(valorAtual){
 }
 let PRODUTOS_POR_CATEGORIA = {};
 
+// ── CATÁLOGOS EM PDF (um por categoria de produto) ──
+// Arquivos ficam no bucket do Supabase Storage (SB_STORAGE_BUCKET), nomeados "<categoriaId>.pdf".
+// CATALOGOS_DISPONIVEIS guarda, após loadCatalogos(), quais categorias já têm PDF enviado.
+const CATEGORIAS_FIXAS = [
+  {id:'carregadores', nome:'Carregadores Frontais'},
+  {id:'solo', nome:'Preparo de Solo (Rasthor)'},
+  {id:'transporte', nome:'Carretas Graneleiras'},
+  {id:'aerador', nome:'Aeradores'},
+  {id:'plantadeira', nome:'Plantadeiras'},
+  {id:'virtuos', nome:'Distribuidor Virtuos'},
+  {id:'tratador', nome:'Tratadores de Sementes'},
+];
+function todasCategoriasCatalogo(){
+  return CATEGORIAS_FIXAS.concat(CATEGORIAS_CUSTOM.map(c=>({id:c.id, nome:c.nome})));
+}
+let CATALOGOS_DISPONIVEIS = {};
+async function loadCatalogos(){
+  try{
+    const lista = await sbStorageList();
+    const mapa = {};
+    (lista||[]).forEach(f=>{ if(f && f.name && f.name.endsWith('.pdf')) mapa[f.name.replace(/\.pdf$/,'')] = true; });
+    CATALOGOS_DISPONIVEIS = mapa;
+  }catch(e){
+    console.warn('Erro ao carregar catálogos (bucket "catalogos" pode não existir ainda no Supabase Storage):', e);
+  }
+}
+
 async function loadCategorias(){
   try{
     const rows = await sbGet('categorias', 'ativo=eq.true&order=nome.asc');
@@ -268,6 +295,50 @@ const sbGet = (t, p, h) => sbReq('GET', t, p, null, h);
 const sbPost = (t, b) => sbReq('POST', t, '', b);
 const sbPatch = (t, id, b) => sbReq('PATCH', t, 'id=eq.' + id, b);
 const sbDelete = (t, id) => sbReq('DELETE', t, 'id=eq.' + id);
+
+// ══ Supabase Storage (upload de catálogos em PDF) ══
+// Usa o bucket "catalogos" — precisa existir e ser público no Supabase (Storage > New bucket).
+const SB_STORAGE_BUCKET = 'catalogos';
+async function sbStorageUpload(path, file){
+  const token = localStorage.getItem('sb_token') || SB_KEY;
+  const url = SB_URL + '/storage/v1/object/' + SB_STORAGE_BUCKET + '/' + encodeURIComponent(path);
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: {'apikey': SB_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': file.type || 'application/pdf', 'x-upsert': 'true'},
+    body: file
+  });
+  if(!r.ok){
+    let errBody=null; try{ errBody = await r.json(); }catch(e){}
+    const msg = (errBody && (errBody.message || errBody.error)) || ('HTTP ' + r.status);
+    throw new Error(msg);
+  }
+  return true;
+}
+async function sbStorageList(){
+  const token = localStorage.getItem('sb_token') || SB_KEY;
+  const url = SB_URL + '/storage/v1/object/list/' + SB_STORAGE_BUCKET;
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: {'apikey': SB_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json'},
+    body: JSON.stringify({prefix:'', limit:1000, sortBy:{column:'name',order:'asc'}})
+  });
+  if(!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}
+async function sbStorageDelete(path){
+  const token = localStorage.getItem('sb_token') || SB_KEY;
+  const url = SB_URL + '/storage/v1/object/' + SB_STORAGE_BUCKET;
+  const r = await fetch(url, {
+    method: 'DELETE',
+    headers: {'apikey': SB_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json'},
+    body: JSON.stringify({prefixes:[path]})
+  });
+  if(!r.ok) throw new Error('HTTP ' + r.status);
+  return true;
+}
+function sbStoragePublicUrl(path){
+  return SB_URL + '/storage/v1/object/public/' + SB_STORAGE_BUCKET + '/' + encodeURIComponent(path);
+}
 
 const MARCAS = [
   {id:'mf',label:'Massey Ferguson',cor:'#CC0000',txt:'#fff',abbr:'MF'},
@@ -729,6 +800,40 @@ function showTab(tab){
   if(tab==='clientes'){document.getElementById('nav-cli').classList.add('active');renderClientes();}
   if(tab==='historico'){document.getElementById('nav-hist').classList.add('active');renderHistorico();}
   if(tab==='admin'&&isAdmin()){document.getElementById('nav-admin').classList.add('active');renderAdmin();}
+  if(tab==='catalogos'){renderCatalogosVendedor();}
+}
+
+// ---- CATÁLOGOS (tela do vendedor) ----
+function renderCatalogosVendedor(){
+  loadCatalogos().then(()=>{ if(currentTab==='catalogos') montarTelaCatalogos(); });
+  montarTelaCatalogos();
+}
+function montarTelaCatalogos(){
+  const cats = todasCategoriasCatalogo();
+  document.getElementById('app-content').innerHTML=`
+  <div style="display:flex;align-items:center;gap:10px;padding:.75rem 1rem;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:56px;z-index:50">
+    <button class="btn btn-sm" onclick="showTab('home')"><i class="ti ti-arrow-left"></i></button>
+    <div>
+      <div style="font-size:14px;font-weight:700">Catálogos</div>
+      <div style="font-size:11px;color:var(--text2)">PDFs de cada linha de produto</div>
+    </div>
+  </div>
+  <div class="page-wrap" style="padding-bottom:40px">
+    ${cats.map(c=>{
+      const disp = !!CATALOGOS_DISPONIVEIS[c.id];
+      return `<div style="display:flex;align-items:center;gap:14px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1rem 1.1rem;margin-bottom:10px;box-shadow:var(--shadow)">
+        <div style="width:44px;height:44px;border-radius:var(--radius);background:#FAECE7;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <i class="ti ti-file-type-pdf" style="font-size:22px;color:#B3261E"></i>
+        </div>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:700;color:var(--text)">${c.nome}</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px">${disp?'Catálogo disponível':'Catálogo ainda não enviado'}</div>
+        </div>
+        ${disp?`<a class="btn btn-sm btn-primary" href="${sbStoragePublicUrl(c.id+'.pdf')}" target="_blank" rel="noopener"><i class="ti ti-download"></i> Baixar</a>`:''}
+      </div>`;
+    }).join('')}
+    ${cats.every(c=>!CATALOGOS_DISPONIVEIS[c.id])?'<div style="font-size:12px;color:var(--text2);text-align:center;padding:2rem 0">Nenhum catálogo foi enviado ainda.</div>':''}
+  </div>`;
 }
 
 // ---- ORÇAMENTO ----
@@ -740,6 +845,18 @@ function renderHome(){
     <div style="margin-bottom:1.5rem">
       <div style="font-size:16px;font-weight:700;color:var(--text)">Linhas de Produtos</div>
       <div style="font-size:12px;color:var(--text2)">Selecione a linha para gerar um orçamento</div>
+    </div>
+
+    <!-- Catálogos -->
+    <div onclick="showTab('catalogos')" style="display:flex;align-items:center;gap:16px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.1rem 1.25rem;margin-bottom:12px;cursor:pointer;box-shadow:var(--shadow);transition:all .15s">
+      <div style="width:52px;height:52px;border-radius:var(--radius);background:#FAECE7;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden">
+        <i class="ti ti-file-type-pdf" style="font-size:24px;color:#B3261E"></i>
+      </div>
+      <div style="flex:1">
+        <div style="font-size:15px;font-weight:700;color:var(--text)">Catálogos</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:2px">PDFs para baixar e enviar ao cliente</div>
+      </div>
+      <i class="ti ti-chevron-right" style="font-size:20px;color:var(--text3)"></i>
     </div>
 
     <!-- Carregadores Frontais -->
@@ -4258,6 +4375,7 @@ async function renderAdmin(){
       <button class="adm-tab-btn" id="adm-tab-btn-pagamento" onclick="showAdminTab('pagamento')" style="padding:.6rem 1rem;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;color:var(--text2);cursor:pointer">💰 Pagamento</button>
       <button class="adm-tab-btn" id="adm-tab-btn-backup" onclick="showAdminTab('backup')" style="padding:.6rem 1rem;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;color:var(--text2);cursor:pointer">💾 Backup</button>
       <button class="adm-tab-btn" id="adm-tab-btn-limpeza" onclick="showAdminTab('limpeza')" style="padding:.6rem 1rem;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;color:var(--text2);cursor:pointer">🧹 Limpeza</button>
+      <button class="adm-tab-btn" id="adm-tab-btn-catalogos" onclick="showAdminTab('catalogos')" style="padding:.6rem 1rem;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;color:var(--text2);cursor:pointer">📚 Catálogos</button>
     </div>
 
     <div id="admin-tab-produtos">
@@ -4494,7 +4612,74 @@ async function renderAdmin(){
       <div id="limpeza-status" style="margin-top:.75rem;font-size:12px;color:var(--text2)"></div>
       <div id="limpeza-resultados" style="margin-top:1rem"></div>
     </div>
+    <div id="admin-tab-catalogos" style="display:none">
+      <div style="margin-bottom:1.25rem">
+        <div style="font-size:13px;font-weight:700;margin-bottom:.35rem">Catálogos em PDF por categoria</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.5">
+          Envie aqui o catálogo em PDF de cada linha de produto. Assim que enviado, fica disponível para
+          <b>todos os vendedores</b> baixarem direto pelo app, em "Início → Catálogos".
+        </div>
+      </div>
+      <div id="admin-catalogos-lista"></div>
+    </div>
   </div>`;
+}
+
+function renderAdminCatalogos(){
+  const el=document.getElementById('admin-catalogos-lista');
+  if(!el) return;
+  const cats = todasCategoriasCatalogo();
+  el.innerHTML = cats.map(c=>{
+    const disp = !!CATALOGOS_DISPONIVEIS[c.id];
+    return `<div style="display:flex;align-items:center;gap:12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:.85rem 1rem;margin-bottom:10px">
+      <div style="width:40px;height:40px;border-radius:var(--radius-sm);background:#FAECE7;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <i class="ti ti-file-type-pdf" style="font-size:20px;color:#B3261E"></i>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600">${c.nome}</div>
+        <div style="font-size:11px;color:${disp?'#0C7C4A':'var(--text2)'}" id="catalogo-status-${c.id}">${disp?'✓ Catálogo enviado':'Nenhum catálogo enviado ainda'}</div>
+      </div>
+      <input type="file" accept="application/pdf" id="catalogo-file-${c.id}" style="display:none" onchange="enviarCatalogo('${c.id}')">
+      <button class="btn btn-sm" onclick="document.getElementById('catalogo-file-${c.id}').click()"><i class="ti ti-upload"></i> ${disp?'Substituir':'Enviar'}</button>
+      ${disp?`<button class="btn btn-sm" style="color:#c0392b" onclick="removerCatalogo('${c.id}')"><i class="ti ti-trash"></i></button>`:''}
+    </div>`;
+  }).join('');
+}
+
+async function enviarCatalogo(categoriaId){
+  const input=document.getElementById('catalogo-file-'+categoriaId);
+  const file=input?.files?.[0];
+  if(!file) return;
+  if(file.type!=='application/pdf' && !file.name.toLowerCase().endsWith('.pdf')){
+    toast('Envie um arquivo em PDF.');
+    return;
+  }
+  const statusEl=document.getElementById('catalogo-status-'+categoriaId);
+  if(statusEl){ statusEl.textContent='Enviando...'; statusEl.style.color='var(--text2)'; }
+  try{
+    await sbStorageUpload(categoriaId+'.pdf', file);
+    CATALOGOS_DISPONIVEIS[categoriaId]=true;
+    toast('Catálogo enviado! ✓');
+    renderAdminCatalogos();
+  }catch(e){
+    console.error('Erro ao enviar catálogo:', e);
+    toast('⚠️ Não deu pra enviar o catálogo. Verifique se o bucket "catalogos" existe e é público no Supabase Storage. Detalhe: '+(e.message||''), 7000);
+    if(statusEl){ statusEl.textContent='Falha no envio'; statusEl.style.color='#c0392b'; }
+  }
+  if(input) input.value='';
+}
+
+async function removerCatalogo(categoriaId){
+  if(!confirm('Remover o catálogo desta categoria? Os vendedores deixarão de conseguir baixá-lo.')) return;
+  try{
+    await sbStorageDelete(categoriaId+'.pdf');
+    delete CATALOGOS_DISPONIVEIS[categoriaId];
+    toast('Catálogo removido.');
+    renderAdminCatalogos();
+  }catch(e){
+    console.error('Erro ao remover catálogo:', e);
+    toast('⚠️ Não deu pra remover o catálogo agora.');
+  }
 }
 
 // Mostra/esconde o campo de estrutura mínima no formulário de produto novo,
@@ -4613,7 +4798,7 @@ async function adicionarProdutoNovoCategoria(){
 
 
 function showAdminTab(tab){
-  const abas=['produtos','vendedores','performance','backup','pagamento','limpeza'];
+  const abas=['produtos','vendedores','performance','backup','pagamento','limpeza','catalogos'];
   abas.forEach(a=>{
     const div=document.getElementById('admin-tab-'+a);
     const btn=document.getElementById('adm-tab-btn-'+a);
@@ -4624,6 +4809,7 @@ function showAdminTab(tab){
     }
   });
   if(tab==='performance') renderAdminPerformance();
+  if(tab==='catalogos') { loadCatalogos().then(renderAdminCatalogos); renderAdminCatalogos(); }
 }
 
 // Busca TODAS as linhas de uma tabela do Supabase, paginando de 1000 em 1000
@@ -5293,6 +5479,7 @@ function entrarNoApp(){
     loadVendedores();
     loadConfigPagamento();
     loadClientes(true);
+    loadCatalogos();
     if(window.__erroCarregarProdutos){
       toast('⚠️ Não foi possível sincronizar os preços agora — valores podem estar desatualizados.', 5000);
     }
