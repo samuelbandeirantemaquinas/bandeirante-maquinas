@@ -1324,6 +1324,12 @@ function gerarPDFRasthor(){
   const subtotalGeral=itensRasthor.reduce((t,it)=>t+it.subtotal,0);
   const qtdTotal=itensRasthor.reduce((t,it)=>t+it.qtd,0);
   const totalFinal=(!isNaN(nParc)&&nParc>1)?subtotalGeral*(1+nParc*(TAXA_JUROS_MENSAL/100)):subtotalGeral;
+  // Quando há juros (parcelado), escala o subtotal de cada item proporcionalmente —
+  // assim o cliente não vê o preço à vista ao lado do total financiado e não descobre o juro.
+  if(totalFinal!==subtotalGeral && subtotalGeral>0){
+    const fatorJurosR=totalFinal/subtotalGeral;
+    itensRasthor.forEach(it=>{ it.subtotal = it.subtotal*fatorJurosR; });
+  }
 
   let y=M;
 
@@ -1462,7 +1468,7 @@ function gerarPDFRasthor(){
 
   y+=2;
   doc.setFontSize(7);doc.setTextColor(150);
-  const nota='Havendo oscilação positiva em valores das commodities, aço e importados, este pedido pode estar sujeito à reajuste. Validade do orçamento de 10 dias. A estimativa de entrega do seu pedido pode variar de 30 à 60 dias (não havendo demandas de engenharia).';
+  const nota='Havendo oscilação positiva em valores das commodities, aço e importados, este pedido pode estar sujeito à reajuste. Validade do orçamento de 10 dias. A estimativa de entrega do seu pedido pode variar de 30 à 60 dias (não havendo demandas de engenharia). Questões estéticas do produto podem ser alteradas sem aviso prévio.';
   const notaL=doc.splitTextToSize(nota,W-M*2);
   y = pdfQuebraPagina(doc, y, notaL.length*3.5+8+10, M);
   doc.text(notaL,W/2,y,{align:'center'});y+=notaL.length*3.5+8;
@@ -1993,12 +1999,22 @@ function gerarPDFGenerico(){
   doc.text(cats[tipo]||'PRODUTO',M+2,y+4.5);y+=8;
 
   // Descrição — uma linha por item selecionado, com imagem, quantidade e subtotal ajustado
-  let subtotalGeral=0;
-  const body = itens.map((prod,idx)=>{
+  const itensCalc = itens.map(prod=>{
     const qtd=getQtd(prod.id);
     const unit=precoAjustado(prod.id, prod.preco);
-    const subtotal=unit*qtd;
-    subtotalGeral+=subtotal;
+    return {prod, qtd, subtotal:unit*qtd};
+  });
+  let subtotalGeral = itensCalc.reduce((t,it)=>t+it.subtotal,0);
+  // Quando há juros (parcelado), escala o subtotal de cada item proporcionalmente —
+  // assim o cliente não vê o preço à vista ao lado do total financiado e não descobre o juro.
+  const matchParcGenPdf = /^(\d+)x$/.exec(pgto);
+  const nParcGenPdf = matchParcGenPdf ? parseInt(matchParcGenPdf[1]) : NaN;
+  const totalFinalGenPdf = (!isNaN(nParcGenPdf) && nParcGenPdf>1) ? subtotalGeral*(1+nParcGenPdf*(TAXA_JUROS_MENSAL/100)) : subtotalGeral;
+  if(totalFinalGenPdf!==subtotalGeral && subtotalGeral>0){
+    const fatorJurosGen = totalFinalGenPdf/subtotalGeral;
+    itensCalc.forEach(it=>{ it.subtotal = it.subtotal*fatorJurosGen; });
+  }
+  const body = itensCalc.map(({prod,qtd,subtotal})=>{
     const bodyDesc=prod.nome.toUpperCase()+'\n'+prod.desc+(prod.cod?'\nCódigo: '+prod.cod:'');
     return ['', bodyDesc, String(qtd), 'R$ '+subtotal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})];
   });
@@ -2078,7 +2094,7 @@ function gerarPDFGenerico(){
   }
   y+=2;
   doc.setFontSize(7);doc.setTextColor(150);
-  const nota='Havendo oscilação positiva em valores das commodities, aço e importados, este pedido pode estar sujeito à reajuste. Validade do orçamento de 10 dias. A estimativa de entrega do seu pedido pode variar de 30 à 60 dias (não havendo demandas de engenharia).';
+  const nota='Havendo oscilação positiva em valores das commodities, aço e importados, este pedido pode estar sujeito à reajuste. Validade do orçamento de 10 dias. A estimativa de entrega do seu pedido pode variar de 30 à 60 dias (não havendo demandas de engenharia). Questões estéticas do produto podem ser alteradas sem aviso prévio.';
   const notaL=doc.splitTextToSize(nota,W-M*2);
   y = pdfQuebraPagina(doc, y, notaL.length*3.5+8+10, M);
   doc.text(notaL,W/2,y,{align:'center'});y+=notaL.length*3.5+8;
@@ -3251,8 +3267,14 @@ function gerarPDF(){
   const nParc=matchParc?parseInt(matchParc[1]):NaN;
   const totalFinal=(!isNaN(nParc)&&nParc>1)?total*(1+nParc*(TAXA_JUROS_MENSAL/100)):total;
 
-  // Montar itens
+  // Montar itens — quando há juros (parcelado), o valor de cada item é escalado
+  // proporcionalmente para já sair embutido no PDF. Isso evita que o cliente veja
+  // o preço à vista de cada item ao lado do total financiado e descubra o valor do juro.
   const itens=montarItens();
+  if(totalFinal!==total && total>0){
+    const fatorJuros=totalFinal/total;
+    itens.forEach(it=>{ it.preco = it.preco*fatorJuros; });
+  }
 
   let y = M;
 
@@ -3430,7 +3452,9 @@ function gerarPDF(){
   const labelTot = 'Valor total:';
   doc.text(labelTot, W-M-50, y+5.5);
   doc.text('R$ '+totalFinal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}), W-M-1, y+5.5, {align:'right'});
-  if(false){
+  // "À vista" só aparece quando o valor não tem juros embutidos (condição sem parcelamento) —
+  // se tivesse juros (ex: 3x), esse valor seria diferente do total cobrado e confundiria o cliente.
+  if(totalFinal===total){
     doc.setFontSize(7.5);
     doc.setTextColor(100);
     doc.text('À vista: R$ '+total.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}), W-M-1, y+10, {align:'right'});
@@ -3491,7 +3515,7 @@ function gerarPDF(){
   y+=2;
   doc.setFontSize(7);
   doc.setTextColor(140);
-  const nota = 'Havendo oscilação positiva em valores das commodities, aço e importados, este pedido pode estar sujeito à reajuste. Validade do orçamento de 10 dias. A estimativa de entrega do seu pedido pode variar de 30 à 60 dias (não havendo demandas de engenharia).';
+  const nota = 'Havendo oscilação positiva em valores das commodities, aço e importados, este pedido pode estar sujeito à reajuste. Validade do orçamento de 10 dias. A estimativa de entrega do seu pedido pode variar de 30 à 60 dias (não havendo demandas de engenharia). Questões estéticas do produto podem ser alteradas sem aviso prévio.';
   const notaLines = doc.splitTextToSize(nota, W-M*2);
   y = pdfQuebraPagina(doc, y, notaLines.length*3.5+6+10, M);
   doc.text(notaLines, W/2, y, {align:'center'});
@@ -4304,7 +4328,7 @@ async function regenarPDFHistorico(id){
   });
   y+=4;
   doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(100);
-  doc.text('Validade: 10 dias · Entrega: 30–60 dias · Sujeito a reajuste sem aviso prévio.',M,y);
+  doc.text(doc.splitTextToSize('Validade: 10 dias · Entrega: 30–60 dias · Sujeito a reajuste sem aviso prévio. Questões estéticas do produto podem ser alteradas sem aviso prévio.',W-M*2),M,y);
 
   doc.save('orcamento-'+o.numero+'.pdf');
 }
