@@ -4330,6 +4330,22 @@ async function regenarPDFHistorico(id){
   doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(100);
   doc.text(doc.splitTextToSize('Validade: 10 dias · Entrega: 30–60 dias · Sujeito a reajuste sem aviso prévio. Questões estéticas do produto podem ser alteradas sem aviso prévio.',W-M*2),M,y);
 
+  // Assinatura (mesmo bloco dos PDFs gerados na hora)
+  y += 10 + 6;
+  y = pdfQuebraPagina(doc, y, 14, M);
+  doc.setDrawColor(160);
+  doc.setLineWidth(0.3);
+  const col3H = (W-M*2)/3;
+  doc.line(M, y, M+col3H-4, y);
+  doc.line(M+col3H, y, M+col3H*2-4, y);
+  doc.line(M+col3H*2, y, W-M, y);
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(8);
+  doc.setTextColor(100);
+  doc.text('Data:  ___/___/______', M, y+4);
+  doc.text('Assinatura do cliente', M+col3H, y+4);
+  doc.text('Vendedor responsável', M+col3H*2, y+4);
+
   doc.save('orcamento-'+o.numero+'.pdf');
 }
 
