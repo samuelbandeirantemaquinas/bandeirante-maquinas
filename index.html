@@ -491,7 +491,7 @@ const ADAPTS_DB = [
 
   // ========= LS =========
   {marca:'ls',modelo:'H 125',estrutura:'1950',adaptador:'012590',joystick:'064216',obs:'Fast Coupling'},
-  {marca:'ls',modelo:'80 / 90 / 100',estrutura:'1450',adaptador:'057067',joystick:'064216',obs:'MWM / Perkins — Centro Fechado'},
+  {marca:'ls',modelo:'PLUS 80 / 90 / 100',estrutura:'1450',adaptador:'057067',joystick:'064216',obs:'MWM / Perkins — Centro Fechado'},
 
   // ========= SOLIS =========
   {marca:'solis',modelo:'Solis 80 / 90 — Cabinado',estrutura:'1450',adaptador:'015172',joystick:'066400',obs:'Cabinado — Centro Fechado'},
@@ -1468,7 +1468,7 @@ function gerarPDFRasthor(){
 
   y+=2;
   doc.setFontSize(7);doc.setTextColor(150);
-  const nota='Havendo oscilação positiva em valores das commodities, aço e importados, este pedido pode estar sujeito à reajuste. Validade do orçamento de 10 dias. A estimativa de entrega do seu pedido pode variar de 30 à 60 dias (não havendo demandas de engenharia). Questões estéticas do produto podem ser alteradas sem aviso prévio.';
+  const nota='Havendo oscilação positiva em valores das commodities, aço e importados, este pedido pode estar sujeito à reajuste. Validade da proposta de 10 dias. A estimativa de entrega do seu pedido pode variar de 30 à 60 dias (não havendo demandas de engenharia). Questões estéticas do produto podem ser alteradas sem aviso prévio.';
   const notaL=doc.splitTextToSize(nota,W-M*2);
   y = pdfQuebraPagina(doc, y, notaL.length*3.5+8+10, M);
   doc.text(notaL,W/2,y,{align:'center'});y+=notaL.length*3.5+8;
@@ -2094,7 +2094,7 @@ function gerarPDFGenerico(){
   }
   y+=2;
   doc.setFontSize(7);doc.setTextColor(150);
-  const nota='Havendo oscilação positiva em valores das commodities, aço e importados, este pedido pode estar sujeito à reajuste. Validade do orçamento de 10 dias. A estimativa de entrega do seu pedido pode variar de 30 à 60 dias (não havendo demandas de engenharia). Questões estéticas do produto podem ser alteradas sem aviso prévio.';
+  const nota='Havendo oscilação positiva em valores das commodities, aço e importados, este pedido pode estar sujeito à reajuste. Validade da proposta de 10 dias. A estimativa de entrega do seu pedido pode variar de 30 à 60 dias (não havendo demandas de engenharia). Questões estéticas do produto podem ser alteradas sem aviso prévio.';
   const notaL=doc.splitTextToSize(nota,W-M*2);
   y = pdfQuebraPagina(doc, y, notaL.length*3.5+8+10, M);
   doc.text(notaL,W/2,y,{align:'center'});y+=notaL.length*3.5+8;
@@ -3515,7 +3515,7 @@ function gerarPDF(){
   y+=2;
   doc.setFontSize(7);
   doc.setTextColor(140);
-  const nota = 'Havendo oscilação positiva em valores das commodities, aço e importados, este pedido pode estar sujeito à reajuste. Validade do orçamento de 10 dias. A estimativa de entrega do seu pedido pode variar de 30 à 60 dias (não havendo demandas de engenharia). Questões estéticas do produto podem ser alteradas sem aviso prévio.';
+  const nota = 'Havendo oscilação positiva em valores das commodities, aço e importados, este pedido pode estar sujeito à reajuste. Validade da proposta de 10 dias. A estimativa de entrega do seu pedido pode variar de 30 à 60 dias (não havendo demandas de engenharia). Questões estéticas do produto podem ser alteradas sem aviso prévio.';
   const notaLines = doc.splitTextToSize(nota, W-M*2);
   y = pdfQuebraPagina(doc, y, notaLines.length*3.5+6+10, M);
   doc.text(notaLines, W/2, y, {align:'center'});
