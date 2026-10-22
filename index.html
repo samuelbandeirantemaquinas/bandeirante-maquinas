@@ -817,6 +817,38 @@ function validarPgtoFrete(pgtoValor, freteValor, pgtoId, freteId){
   }
   return true;
 }
+// Frete CIF (por conta da Bandeirante) em conjunto frontal só é permitido se o pedido tiver
+// pelo menos 3% de acréscimo sobre o preço de tabela (acréscimo geral + ajustes por item).
+// O acréscimo pode ser comissão etc., por isso a base é o total do pedido, não o campo "Acréscimo %".
+const SALDO_EXTRA_MIN_CIF_PCT = 3;
+function saldoExtraCarregadoresInfo(){
+  const itens = montarItens();
+  const base = itens.reduce((t,it)=>t+(Number(it.preco_base)||0)*(it.qtd||1),0);
+  const total = itens.reduce((t,it)=>t+it.preco,0);
+  const extra = total - base;
+  const pct = base>0 ? (extra/base)*100 : 0;
+  return {base, total, extra, pct};
+}
+function saldoExtraItensInfo(lista){
+  // lista: produtos de catálogo selecionados (id, preco) — compara total ajustado com preço de tabela
+  const base = lista.reduce((t,p)=>t+(Number(p.preco)||0)*getQtd(p.id),0);
+  const total = lista.reduce((t,p)=>t+precoAjustado(p.id,p.preco)*getQtd(p.id),0);
+  const extra = total - base;
+  return {base, total, extra, pct: base>0 ? (extra/base)*100 : 0};
+}
+// listaProdutos: nas linhas sem montarItens() (Rasthor/genéricos); omitido = conjunto frontal.
+function validarFreteCIF(freteValor, listaProdutos, freteFieldId){
+  if(!/^CIF/i.test(freteValor||'')) return true;
+  const info = listaProdutos ? saldoExtraItensInfo(listaProdutos) : saldoExtraCarregadoresInfo();
+  if(info.pct >= SALDO_EXTRA_MIN_CIF_PCT - 0.005) return true;
+  const el=document.getElementById(freteFieldId||'cli-frete'); if(el) el.style.borderColor='#dc3545';
+  toast('Frete CIF exige pelo menos '+SALDO_EXTRA_MIN_CIF_PCT+'% de acréscimo sobre o preço de tabela (atual: '+Math.max(info.pct,0).toFixed(2).replace('.',',')+'%). Aumente o acréscimo ou troque para FOB.', 6000);
+  return false;
+}
+function irParaResumo(){
+  if(!validarFreteCIF(g('cli-frete')||st.frete||'')) return;
+  goStep(6);renderStep();
+}
 function imgTag(k,w,h){const src=IMGS[k];if(src)return `<img src="${src}" class="item-thumb" style="width:${w}px;height:${h}px" alt="${k}">`;return `<div class="item-thumb-ph" style="width:${w}px;height:${h}px"><i class="ti ti-photo" style="font-size:18px;color:var(--text3)"></i></div>`;}
 
 function showTab(tab){
@@ -1268,6 +1300,7 @@ async function salvarOrcamentoRasthor(){
   if(!sel.length) return;
   const gr=fid=>(document.getElementById(fid)||{}).value||'';
   if(!validarPgtoFrete(gr('rc-pgto')||st.pgto||'', gr('rc-frete')||st.frete||'', 'rc-pgto','rc-frete')) return;
+  if(!validarFreteCIF(gr('rc-frete')||st.frete||'', getRasthorSel(), 'rc-frete')) return;
   const itens = sel.map(r=>({cod:r.cod||'',nome:r.nome,desc:r.desc||'',qtd:getQtd(r.id),preco:precoAjustado(r.id,r.preco),preco_base:r.preco,ajuste:st.ajustes[r.id]||0}));
   const total0 = sel.reduce((t,r)=>t+precoAjustado(r.id,r.preco)*getQtd(r.id),0);
   const rcPgtoSalvar = gr('rc-pgto')||'';
@@ -1307,6 +1340,7 @@ function gerarPDFRasthor(){
   if(!sel.length)return;
   const gr=id=>( document.getElementById(id)||{} ).value||'';
   if(!validarPgtoFrete(gr('rc-pgto')||st.pgto||'', gr('rc-frete')||st.frete||'', 'rc-pgto','rc-frete')) return;
+  if(!validarFreteCIF(gr('rc-frete')||st.frete||'', getRasthorSel(), 'rc-frete')) return;
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   const W=doc.internal.pageSize.getWidth();
@@ -1398,20 +1432,19 @@ function gerarPDFRasthor(){
 
   // Itens
   doc.autoTable({
-    head:[['Foto','Produto','Qtde.','Subtotal']],
+    head:[['Foto','Produto','Qtde.']],
     body:itensRasthor.map((it,i)=>{
       const r=it.r;
       return [
         '',
         r.nome.toUpperCase()+'\n'+(r.desc||'')+(r.cod?'\nCódigo: '+r.cod:''),
-        String(it.qtd),
-        'R$ '+it.subtotal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})
+        String(it.qtd)
       ];
     }),
     startY:y, margin:{left:M,right:M},
     styles:{fontSize:9,cellPadding:4},
     headStyles:{fillColor:[240,240,240],textColor:[40,40,40],fontStyle:'bold',lineWidth:0.3,lineColor:[200,200,200]},
-    columnStyles:{0:{cellWidth:22},1:{cellWidth:'auto'},2:{cellWidth:12,halign:'center'},3:{cellWidth:30,halign:'right',fontStyle:'bold'}},
+    columnStyles:{0:{cellWidth:22},1:{cellWidth:'auto'},2:{cellWidth:12,halign:'center'}},
     bodyStyles:{lineColor:[220,220,220],lineWidth:0.2,minCellHeight:20},
     didDrawCell:(data)=>{
       if(data.section==='body' && data.column.index===0){
@@ -1888,6 +1921,7 @@ async function salvarOrcamentoGenerico(){
   const {tipo}=_prodSel;
   const gn=fid=>(document.getElementById(fid)||{}).value||'';
   if(!validarPgtoFrete(gn('gn-pgto')||st.pgto||'', gn('gn-frete')||st.frete||'', 'gn-pgto','gn-frete')) return;
+  if(!validarFreteCIF(gn('gn-frete')||st.frete||'', getSelPorTipo(tipo), 'gn-frete')) return;
   const itens = getSelPorTipo(tipo);
   if(!itens.length) return;
   const itensSalvar = itens.map(p=>({
@@ -1936,6 +1970,7 @@ function gerarPDFGenerico(){
   const {tipo}=_prodSel;
   const gn=fid=>(document.getElementById(fid)||{}).value||'';
   if(!validarPgtoFrete(gn('gn-pgto')||st.pgto||'', gn('gn-frete')||st.frete||'', 'gn-pgto','gn-frete')) return;
+  if(!validarFreteCIF(gn('gn-frete')||st.frete||'', getSelPorTipo(tipo), 'gn-frete')) return;
 
   const itens = getSelPorTipo(tipo);
   if(!itens.length) return;
@@ -2017,15 +2052,15 @@ function gerarPDFGenerico(){
   }
   const body = itensCalc.map(({prod,qtd,subtotal})=>{
     const bodyDesc=prod.nome.toUpperCase()+'\n'+prod.desc+(prod.cod?'\nCódigo: '+prod.cod:'');
-    return ['', bodyDesc, String(qtd), 'R$ '+subtotal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})];
+    return ['', bodyDesc, String(qtd)];
   });
   doc.autoTable({
-    head:[['Foto','Produto / Descrição','Qtde.','Valor']],
+    head:[['Foto','Produto / Descrição','Qtde.']],
     body:body,
     startY:y,margin:{left:M,right:M},
     styles:{fontSize:9,cellPadding:4},
     headStyles:{fillColor:[240,240,240],textColor:[40,40,40],fontStyle:'bold',lineWidth:0.3,lineColor:[200,200,200]},
-    columnStyles:{0:{cellWidth:22},1:{cellWidth:'auto'},2:{cellWidth:12,halign:'center'},3:{cellWidth:32,halign:'right',fontStyle:'bold'}},
+    columnStyles:{0:{cellWidth:22},1:{cellWidth:'auto'},2:{cellWidth:12,halign:'center'}},
     bodyStyles:{lineColor:[220,220,220],lineWidth:0.2,minCellHeight:20},
     didDrawCell:(data)=>{
       if(data.section==='body' && data.column.index===0){
@@ -2782,7 +2817,7 @@ function s5(){
   </div>
   <div style="display:flex;justify-content:space-between">
     <button class="btn" onclick="goStep(4)"><i class="ti ti-arrow-left"></i> Voltar</button>
-    <button class="btn btn-primary" onclick="goStep(6);renderStep();setTimeout(calcParcelas,100)">Ver resumo <i class="ti ti-receipt"></i></button>
+    <button class="btn btn-primary" onclick="irParaResumo()">Ver resumo <i class="ti ti-receipt"></i></button>
   </div>
   <div id="modal-cli" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;padding:1rem;overflow-y:auto">
     <div style="background:var(--bg2);border-radius:var(--radius-lg);padding:1.25rem;max-width:480px;margin:60px auto 0">
@@ -3195,6 +3230,7 @@ function s6(){
 
 async function salvarOrcamento(){
   if(!validarPgtoFrete(g('cli-pgto')||st.pgto||'', g('cli-frete')||st.frete||'', 'cli-pgto','cli-frete')) return;
+  if(!validarFreteCIF(g('cli-frete')||st.frete||'')) return;
   const car=getCarregadoresSel()[0];
   const itens=montarItens();
   const total0=calcTotal();
@@ -3238,6 +3274,7 @@ async function salvarOrcamento(){
 
 function gerarPDF(){
   if(!validarPgtoFrete(g('cli-pgto')||st.pgto||'', g('cli-frete')||st.frete||'', 'cli-pgto','cli-frete')) return;
+  if(!validarFreteCIF(g('cli-frete')||st.frete||'')) return;
   const {jsPDF} = window.jspdf;
   const doc = new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   const W = doc.internal.pageSize.getWidth();
@@ -3367,7 +3404,7 @@ function gerarPDF(){
     doc.text('#', cx+2, y+5);                     cx+=colW.num;
     doc.text('Produto', cx+colW.img+1, y+5);      cx+=colW.img+colW.nome;
     doc.text('Qtde.', cx+1, y+5);
-    doc.text('Subtotal', W-M-1, y+5, {align:'right'});
+    // Valor por item oculto de propósito: o PDF mostra só o Valor total.
     y += hRow;
   };
   desenharCabecalhoItens();
@@ -3421,7 +3458,7 @@ function gerarPDF(){
     doc.setFont('helvetica','bold');
     doc.setFontSize(8.5);
     doc.setTextColor(30);
-    doc.text('R$ '+it.preco.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}), W-M-1, y+8, {align:'right'});
+    // (valor por item não é impresso)
 
     y += rh;
   });
@@ -4182,7 +4219,9 @@ async function regenarPDFHistorico(id){
   const itens=Array.isArray(o.itens)?o.itens:[];
   const total=Number(o.total||0);
   const somaItensPDF = itens.reduce((t,it)=>t+Number(it.preco||0)*Number(it.qtd||1),0);
-  const esconderSubtotalItemPDF = Math.abs(total - somaItensPDF) > 0.01;
+  // Pedidos de conjunto frontal (têm estrutura/adaptador) imprimem só o total, sem valor por item.
+  const ehConjuntoFrontal = !!(o.estrutura || o.adaptador_cod);
+  const esconderSubtotalItemPDF = true; // todos os produtos imprimem só o total, sem valor por item
   const hoje=new Date(o.criado_em).toLocaleDateString('pt-BR');
 
   // Busca os dados completos do cliente (CPF, IE, endereço, CEP, telefone, e-mail)
