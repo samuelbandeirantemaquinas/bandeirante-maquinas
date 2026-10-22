@@ -820,7 +820,23 @@ function validarPgtoFrete(pgtoValor, freteValor, pgtoId, freteId){
 // Frete CIF (por conta da Bandeirante) em conjunto frontal só é permitido se o pedido tiver
 // pelo menos 3% de acréscimo sobre o preço de tabela (acréscimo geral + ajustes por item).
 // O acréscimo pode ser comissão etc., por isso a base é o total do pedido, não o campo "Acréscimo %".
-const SALDO_EXTRA_MIN_CIF_PCT = 3;
+const UFS_CIF_REDUZIDO = ['RS','PR','SC'];   // RS, PR e SC: mínimo 3%
+const SALDO_EXTRA_MIN_CIF_PCT = 3;            // demais estados: mínimo 7% (abaixo)
+const SALDO_EXTRA_MIN_CIF_PCT_OUTROS = 7;
+// UF do cliente: usa o cadastro do cliente selecionado; se não houver, tenta ler a sigla no
+// fim do campo Cidade (ex: "Passo Fundo RS", "Passo Fundo / RS"). Sem UF → usa o mínimo dos demais estados.
+function ufParaFrete(cliente, cidadeFieldId){
+  let uf = ((cliente&&cliente.estado)||'').trim().toUpperCase();
+  if(!uf){
+    const t = ((document.getElementById(cidadeFieldId)||{}).value||'').trim();
+    const m = /(?:^|[\s\/\-,])([A-Za-z]{2})\s*$/.exec(t);
+    if(m) uf = m[1].toUpperCase();
+  }
+  return uf;
+}
+function minimoCIFPorUF(uf){
+  return UFS_CIF_REDUZIDO.includes(uf) ? SALDO_EXTRA_MIN_CIF_PCT : SALDO_EXTRA_MIN_CIF_PCT_OUTROS;
+}
 function saldoExtraCarregadoresInfo(){
   const itens = montarItens();
   const base = itens.reduce((t,it)=>t+(Number(it.preco_base)||0)*(it.qtd||1),0);
@@ -837,16 +853,18 @@ function saldoExtraItensInfo(lista){
   return {base, total, extra, pct: base>0 ? (extra/base)*100 : 0};
 }
 // listaProdutos: nas linhas sem montarItens() (Rasthor/genéricos); omitido = conjunto frontal.
-function validarFreteCIF(freteValor, listaProdutos, freteFieldId){
+function validarFreteCIF(freteValor, listaProdutos, freteFieldId, cliente, cidadeFieldId){
   if(!/^CIF/i.test(freteValor||'')) return true;
   const info = listaProdutos ? saldoExtraItensInfo(listaProdutos) : saldoExtraCarregadoresInfo();
-  if(info.pct >= SALDO_EXTRA_MIN_CIF_PCT - 0.005) return true;
+  const uf = ufParaFrete(cliente, cidadeFieldId||'cli-cidade');
+  const minimo = minimoCIFPorUF(uf);
+  if(info.pct >= minimo - 0.005) return true;
   const el=document.getElementById(freteFieldId||'cli-frete'); if(el) el.style.borderColor='#dc3545';
-  toast('Frete CIF exige pelo menos '+SALDO_EXTRA_MIN_CIF_PCT+'% de acréscimo sobre o preço de tabela (atual: '+Math.max(info.pct,0).toFixed(2).replace('.',',')+'%). Aumente o acréscimo ou troque para FOB.', 6000);
+  toast('Frete CIF para '+(uf?('cliente de '+uf):'cliente sem UF identificada')+' exige pelo menos '+minimo+'% de acréscimo sobre o preço de tabela (atual: '+Math.max(info.pct,0).toFixed(2).replace('.',',')+'%).'+(uf?'':' Informe a UF na cidade (ex: Passo Fundo / RS).')+' Aumente o acréscimo ou troque para FOB.', 7000);
   return false;
 }
 function irParaResumo(){
-  if(!validarFreteCIF(g('cli-frete')||st.frete||'')) return;
+  if(!validarFreteCIF(g('cli-frete')||st.frete||'', null, 'cli-frete', st.clienteSel, 'cli-cidade')) return;
   goStep(6);renderStep();
 }
 function imgTag(k,w,h){const src=IMGS[k];if(src)return `<img src="${src}" class="item-thumb" style="width:${w}px;height:${h}px" alt="${k}">`;return `<div class="item-thumb-ph" style="width:${w}px;height:${h}px"><i class="ti ti-photo" style="font-size:18px;color:var(--text3)"></i></div>`;}
@@ -1300,7 +1318,7 @@ async function salvarOrcamentoRasthor(){
   if(!sel.length) return;
   const gr=fid=>(document.getElementById(fid)||{}).value||'';
   if(!validarPgtoFrete(gr('rc-pgto')||st.pgto||'', gr('rc-frete')||st.frete||'', 'rc-pgto','rc-frete')) return;
-  if(!validarFreteCIF(gr('rc-frete')||st.frete||'', getRasthorSel(), 'rc-frete')) return;
+  if(!validarFreteCIF(gr('rc-frete')||st.frete||'', getRasthorSel(), 'rc-frete', rasthorClienteSel, 'rc-cidade')) return;
   const itens = sel.map(r=>({cod:r.cod||'',nome:r.nome,desc:r.desc||'',qtd:getQtd(r.id),preco:precoAjustado(r.id,r.preco),preco_base:r.preco,ajuste:st.ajustes[r.id]||0}));
   const total0 = sel.reduce((t,r)=>t+precoAjustado(r.id,r.preco)*getQtd(r.id),0);
   const rcPgtoSalvar = gr('rc-pgto')||'';
@@ -1340,7 +1358,7 @@ function gerarPDFRasthor(){
   if(!sel.length)return;
   const gr=id=>( document.getElementById(id)||{} ).value||'';
   if(!validarPgtoFrete(gr('rc-pgto')||st.pgto||'', gr('rc-frete')||st.frete||'', 'rc-pgto','rc-frete')) return;
-  if(!validarFreteCIF(gr('rc-frete')||st.frete||'', getRasthorSel(), 'rc-frete')) return;
+  if(!validarFreteCIF(gr('rc-frete')||st.frete||'', getRasthorSel(), 'rc-frete', rasthorClienteSel, 'rc-cidade')) return;
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   const W=doc.internal.pageSize.getWidth();
@@ -1921,7 +1939,7 @@ async function salvarOrcamentoGenerico(){
   const {tipo}=_prodSel;
   const gn=fid=>(document.getElementById(fid)||{}).value||'';
   if(!validarPgtoFrete(gn('gn-pgto')||st.pgto||'', gn('gn-frete')||st.frete||'', 'gn-pgto','gn-frete')) return;
-  if(!validarFreteCIF(gn('gn-frete')||st.frete||'', getSelPorTipo(tipo), 'gn-frete')) return;
+  if(!validarFreteCIF(gn('gn-frete')||st.frete||'', getSelPorTipo(tipo), 'gn-frete', _cliGenSel, 'gn-cidade')) return;
   const itens = getSelPorTipo(tipo);
   if(!itens.length) return;
   const itensSalvar = itens.map(p=>({
@@ -1970,7 +1988,7 @@ function gerarPDFGenerico(){
   const {tipo}=_prodSel;
   const gn=fid=>(document.getElementById(fid)||{}).value||'';
   if(!validarPgtoFrete(gn('gn-pgto')||st.pgto||'', gn('gn-frete')||st.frete||'', 'gn-pgto','gn-frete')) return;
-  if(!validarFreteCIF(gn('gn-frete')||st.frete||'', getSelPorTipo(tipo), 'gn-frete')) return;
+  if(!validarFreteCIF(gn('gn-frete')||st.frete||'', getSelPorTipo(tipo), 'gn-frete', _cliGenSel, 'gn-cidade')) return;
 
   const itens = getSelPorTipo(tipo);
   if(!itens.length) return;
@@ -3230,7 +3248,7 @@ function s6(){
 
 async function salvarOrcamento(){
   if(!validarPgtoFrete(g('cli-pgto')||st.pgto||'', g('cli-frete')||st.frete||'', 'cli-pgto','cli-frete')) return;
-  if(!validarFreteCIF(g('cli-frete')||st.frete||'')) return;
+  if(!validarFreteCIF(g('cli-frete')||st.frete||'', null, 'cli-frete', st.clienteSel, 'cli-cidade')) return;
   const car=getCarregadoresSel()[0];
   const itens=montarItens();
   const total0=calcTotal();
@@ -3274,7 +3292,7 @@ async function salvarOrcamento(){
 
 function gerarPDF(){
   if(!validarPgtoFrete(g('cli-pgto')||st.pgto||'', g('cli-frete')||st.frete||'', 'cli-pgto','cli-frete')) return;
-  if(!validarFreteCIF(g('cli-frete')||st.frete||'')) return;
+  if(!validarFreteCIF(g('cli-frete')||st.frete||'', null, 'cli-frete', st.clienteSel, 'cli-cidade')) return;
   const {jsPDF} = window.jspdf;
   const doc = new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   const W = doc.internal.pageSize.getWidth();
