@@ -4015,7 +4015,7 @@ function abrirOrcamento(id){
         return `<div class="orc-row" style="flex-direction:column;align-items:stretch;gap:4px">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
           <span style="color:var(--text2);flex:1;min-width:0">${it.nome}${ajusteExibido?` <span style="font-size:10px;color:${ajusteExibido<0?'#c0392b':'#e67e22'}">(${ajusteExibido>0?'+':''}${ajusteExibido}%)</span>`:''}</span>
-          <span style="font-weight:600;flex-shrink:0">${temAcrescimoGeralNoTotal?'':fmt(it.precoTotal)}</span>
+          <span style="font-weight:600;flex-shrink:0">${fmt(temAcrescimoGeralNoTotal&&somaItensCalc>0 ? it.precoTotal*(Number(o.total||0)/somaItensCalc) : it.precoTotal)}</span>
           ${bloqueadoParaVendedor?'':`<button onclick="excluirItemOrc('${o.id}',${_idx})" title="Remover item" style="background:none;border:none;cursor:pointer;color:#c0392b;padding:2px 4px;flex-shrink:0;font-size:14px"><i class="ti ti-trash"></i></button>`}
         </div>
         ${bloqueadoParaVendedor?`<div style="font-size:11px;color:var(--text2)">Qtd: ${it.qtd||1}</div>`:`<div style="display:flex;align-items:center;gap:6px">
