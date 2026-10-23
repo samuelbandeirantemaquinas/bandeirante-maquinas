@@ -574,7 +574,7 @@ let IMPLEMENTOS = [
 ];
 
 let currentTab = 'orcamento';
-let st = {step:0,marcaSel:null,modeloSel:null,adaptDB:null,clienteSel:null,acrescimo:0,ajustes:{},ajustesTipo:{},pgto:'',frete:'',obs:'',vendedor:'',semEstrutura:false,estruturaAvulsa:null,mostrarEstruturaAvulsa:false,qtds:{},descAdaptJD6000:false};
+let st = {step:0,marcaSel:null,modeloSel:null,adaptDB:null,clienteSel:null,acrescimo:0,ajustes:{},ajustesTipo:{},pgto:'',frete:'',obs:'',vendedor:'',semEstrutura:false,estruturaAvulsa:null,mostrarEstruturaAvulsa:false,qtds:{},descAdaptJD6000:false,descAdaptTop5:false};
 let clientes = [];
 let orcamentos = [];
 let vendedores = [];
@@ -2514,7 +2514,7 @@ function renderOrcamento(){
   renderProg(); renderStep();
 }
 function novoOrcamento(){
-  st={step:0,marcaSel:null,modeloSel:null,adaptDB:null,clienteSel:null,acrescimo:0,ajustes:{},ajustesTipo:{},pgto:'',frete:'',obs:'',vendedor:'',semEstrutura:false,estruturaAvulsa:null,mostrarEstruturaAvulsa:false,qtds:{},descAdaptJD6000:false};
+  st={step:0,marcaSel:null,modeloSel:null,adaptDB:null,clienteSel:null,acrescimo:0,ajustes:{},ajustesTipo:{},pgto:'',frete:'',obs:'',vendedor:'',semEstrutura:false,estruturaAvulsa:null,mostrarEstruturaAvulsa:false,qtds:{},descAdaptJD6000:false,descAdaptTop5:false};
   showTab('orcamento');
 }
 function renderProg(){
@@ -2543,14 +2543,14 @@ function s0(){
     <button class="btn btn-primary" onclick="goStep(1)" ${!st.adaptDB?'disabled':''}>Próximo <i class="ti ti-arrow-right"></i></button>
   </div>`;
 }
-function selMarca(id){st.marcaSel=id;st.modeloSel=null;st.adaptDB=null;st.semEstrutura=false;st.estruturaAvulsa=null;st.mostrarEstruturaAvulsa=false;st.descAdaptJD6000=false;renderStep();setTimeout(()=>{const el=document.getElementById('busca-modelo');if(el)filtrarModelos();},50);}
+function selMarca(id){st.marcaSel=id;st.modeloSel=null;st.adaptDB=null;st.semEstrutura=false;st.estruturaAvulsa=null;st.mostrarEstruturaAvulsa=false;st.descAdaptJD6000=false;st.descAdaptTop5=false;renderStep();setTimeout(()=>{const el=document.getElementById('busca-modelo');if(el)filtrarModelos();},50);}
 function filtrarModelos(){renderModelos((document.getElementById('busca-modelo')?.value||'').toLowerCase());}
 function renderModelos(busca){
   const el=document.getElementById('modelo-list');if(!el||!st.marcaSel)return;
   const m=MARCAS.find(x=>x.id===st.marcaSel);
   const rows=ADAPTS_DB.filter(a=>a.marca===st.marcaSel&&(!busca||a.modelo.toLowerCase().includes(busca)));
   if(!rows.length){el.innerHTML=`<div class="empty" style="padding:1rem"><i class="ti ti-search"></i>Nenhum modelo</div>`;return;}
-  el.innerHTML=rows.map(r=>`<div class="modelo-item${st.adaptDB&&st.adaptDB.modelo===r.modelo?' sel':''}" onclick="selModelo('${r.marca}','${r.modelo}')" style="${st.adaptDB&&st.adaptDB.modelo===r.modelo?`border-color:${m.cor};background:${m.cor}10`:''}">
+  el.innerHTML=rows.map(r=>`<div class="modelo-item${st.adaptDB&&st.adaptDB.modelo===r.modelo&&st.adaptDB.adaptador===r.adaptador&&st.adaptDB.obs===r.obs?' sel':''}" onclick="selModelo('${r.marca}','${r.modelo}','${r.adaptador||''}','${r.obs||''}')" style="${st.adaptDB&&st.adaptDB.modelo===r.modelo?`border-color:${m.cor};background:${m.cor}10`:''}">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
       <div style="width:24px;height:24px;border-radius:50%;background:${m.cor};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:${m.txt};flex-shrink:0">${m.abbr}</div>
       <span style="font-size:13px;font-weight:600">${r.modelo}</span>
@@ -2563,8 +2563,19 @@ function renderModelos(busca){
     </div>
   </div>`).join('');
 }
-function selModelo(marcaId,modelo){
-  const row=ADAPTS_DB.find(a=>a.marca===marcaId&&a.modelo===modelo);
+// 5 tratores mais cotados (Admin → Performance, out/2026): 5% de desconto sobre a tabela no adaptador.
+// Exceção: adaptador 056431 (Massey Ferguson 265/275/283/290) não recebe o desconto.
+const TRATORES_DESC_ADAPT_5 = [
+  {marca:'fnh', modelo:'TL 75/80/85/90/95/100'},
+  {marca:'fnh', modelo:'TL 5.80/5.90/5.100'},
+  {marca:'jd',  modelo:'5603 / 5605 / 5705 / 5078 / 5085 / 5090'},
+  {marca:'fnh', modelo:'7630 GI — Exaust Central'},
+  {marca:'mf',  modelo:'4275 / 4283 / 4290'},
+  {marca:'case', modelo:'Farmall 60 / 80 / 90 / 95 / 100', adaptador:'068846'}, // só a versão após 2013 (mesmo adaptador do NH TL 5.80/5.90/5.100)
+];
+const ADAPT_SEM_DESC_TOP5 = ['056431'];
+function selModelo(marcaId,modelo,adaptSel,obsSel){
+  const row=ADAPTS_DB.find(a=>a.marca===marcaId&&a.modelo===modelo&&(adaptSel===undefined||(a.adaptador===adaptSel&&a.obs===obsSel)))||ADAPTS_DB.find(a=>a.marca===marcaId&&a.modelo===modelo);
   st.adaptDB=row;st.modeloSel=modelo;st.semEstrutura=false;st.estruturaAvulsa=null;
   limparQtds(CARREGADORES);
   const car=CARREGADORES.find(c=>c.estrutura===row.estrutura.split('/')[0]);
@@ -2572,9 +2583,10 @@ function selModelo(marcaId,modelo){
   // John Deere linha 6000 (modelo começando com "6") nas estruturas 1550/1950/2200
   // tem direito a 10% de desconto adicional no adaptador — aplicado automaticamente.
   st.descAdaptJD6000 = (marcaId==='jd' && /^6/.test(modelo.trim()) && ['1550','1950','2200'].includes(row.estrutura));
+  st.descAdaptTop5 = TRATORES_DESC_ADAPT_5.some(t=>t.marca===marcaId&&t.modelo===modelo&&(!t.adaptador||t.adaptador===row.adaptador)) && !ADAPT_SEM_DESC_TOP5.includes(row.adaptador);
   renderStep();setTimeout(()=>filtrarModelos(),50);
 }
-function pularTrator(){st.marcaSel=null;st.modeloSel=null;st.adaptDB=null;limparQtds(CARREGADORES);st.semEstrutura=false;st.estruturaAvulsa=null;st.mostrarEstruturaAvulsa=false;st.descAdaptJD6000=false;goStep(1);}
+function pularTrator(){st.marcaSel=null;st.modeloSel=null;st.adaptDB=null;limparQtds(CARREGADORES);st.semEstrutura=false;st.estruturaAvulsa=null;st.mostrarEstruturaAvulsa=false;st.descAdaptJD6000=false;st.descAdaptTop5=false;goStep(1);}
 function jaTemEstrutura(){st.mostrarEstruturaAvulsa=true;renderStep();}
 function selEstruturaAvulsa(estrutura){
   limparQtds(CARREGADORES);
@@ -2637,6 +2649,7 @@ function s2(){
     ${imgTag('adaptador',60,52)}<div><div style="font-size:11px;color:var(--text2);margin-bottom:4px">Código indicado — ${st.modeloSel}</div>
     <span class="badge badge-gray" style="font-family:monospace">${st.adaptDB.adaptador}</span>${st.adaptDB.obs?` <span class="badge badge-orange">${st.adaptDB.obs}</span>`:''}</div></div>`:''}
   ${st.semEstrutura?`<div style="margin-bottom:1rem"><span class="badge badge-orange"><i class="ti ti-package"></i> Venda avulsa — estrutura já possuída${st.estruturaAvulsa?`: ${st.estruturaAvulsa}`:''}</span></div>`:''}
+  ${st.descAdaptTop5?`<div style="margin-bottom:1rem"><span class="badge badge-green"><i class="ti ti-discount-2"></i> 5% de desconto aplicado automaticamente no adaptador</span></div>`:''}
   ${st.descAdaptJD6000?`<div style="margin-bottom:1rem"><span class="badge badge-green"><i class="ti ti-discount-2"></i> Linha JD 6000 — 10% de desconto adicional aplicado automaticamente no adaptador</span></div>`:''}
   ${lista.map(a=>{const sel=getQtd(a.id)>0;return `<div class="item-row${sel?' sel':''}" onclick="if(getQtd('${a.id}')===0){incQtd('${a.id}',1);}">
     ${a.id!=='adp_nao'?imgTag('adaptador',56,48):`<div class="item-thumb-ph" style="width:56px;height:48px"><i class="ti ti-circle-off" style="font-size:20px;color:var(--text3)"></i></div>`}
@@ -3003,7 +3016,10 @@ function precoAjustado(id, preco){
   // Desconto automático de 10% no adaptador para John Deere linha 6000 (estruturas
   // 1550/1950/2200), independente de quem está logado (Admin ou vendedor).
   const descJD6000 = (st.descAdaptJD6000 && typeof ADAPTADORES!=='undefined' && ADAPTADORES.some(a=>a.id===id)) ? 10 : 0;
-  const precoComDescJD = descJD6000===0 ? precoComAc : precoComAc*(1-descJD6000/100);
+  const precoComDescJD0 = descJD6000===0 ? precoComAc : precoComAc*(1-descJD6000/100);
+  // 5% sobre a tabela no adaptador dos 5 tratores mais cotados
+  const descTop5 = (st.descAdaptTop5 && typeof ADAPTADORES!=='undefined' && ADAPTADORES.some(a=>a.id===id)) ? 5 : 0;
+  const precoComDescJD = descTop5===0 ? precoComDescJD0 : precoComDescJD0*(1-descTop5/100);
   const de = descontoEspecialVendedor();
   return de===0 ? precoComDescJD : precoComDescJD*(1-de/100);
 }
