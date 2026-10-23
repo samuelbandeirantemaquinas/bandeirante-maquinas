@@ -867,6 +867,23 @@ function irParaResumo(){
   if(!validarFreteCIF(g('cli-frete')||st.frete||'', null, 'cli-frete', st.clienteSel, 'cli-cidade')) return;
   goStep(6);renderStep();
 }
+// Observações não podem conter condição de pagamento/frete (ex: "frete incluso", "3x sem juros",
+// "à vista"): essas informações só valem pelos campos próprios, que alimentam o PDF e as regras
+// de frete CIF. Vale só para vendedores — o Admin pode escrever livremente.
+const OBS_PROIBIDAS_RE = /\b(frete|cif|fob|vista|avista|parcel\w*|entrada|sinal|juros|boleto|financ\w*|finame|pix|cartao|cheque|carencia|safra|desconto|pagamento|pagar|pago|incluso|inclusa|incluido|inclusive|transportadora|\d+\s*x|x\s*\d+)\b/i;
+function obsTemCondicaoProibida(texto){
+  const t=(texto||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const m=OBS_PROIBIDAS_RE.exec(t);
+  return m?m[0]:null;
+}
+function validarObservacao(texto, fieldId){
+  if(isAdmin()) return true;
+  const achou=obsTemCondicaoProibida(texto);
+  if(!achou) return true;
+  const el=document.getElementById(fieldId); if(el){ el.style.borderColor='#dc3545'; el.scrollIntoView({behavior:'smooth',block:'center'}); }
+  toast('As observações não podem conter condições de pagamento ou frete (encontrado: "'+achou+'"). Use os campos Pagamento e Frete e remova esse trecho da observação.', 7000);
+  return false;
+}
 function imgTag(k,w,h){const src=IMGS[k];if(src)return `<img src="${src}" class="item-thumb" style="width:${w}px;height:${h}px" alt="${k}">`;return `<div class="item-thumb-ph" style="width:${w}px;height:${h}px"><i class="ti ti-photo" style="font-size:18px;color:var(--text3)"></i></div>`;}
 
 function showTab(tab){
@@ -1319,6 +1336,7 @@ async function salvarOrcamentoRasthor(){
   const gr=fid=>(document.getElementById(fid)||{}).value||'';
   if(!validarPgtoFrete(gr('rc-pgto')||st.pgto||'', gr('rc-frete')||st.frete||'', 'rc-pgto','rc-frete')) return;
   if(!validarFreteCIF(gr('rc-frete')||st.frete||'', getRasthorSel(), 'rc-frete', rasthorClienteSel, 'rc-cidade')) return;
+  if(!validarObservacao(gr('rc-obs'), 'rc-obs')) return;
   const itens = sel.map(r=>({cod:r.cod||'',nome:r.nome,desc:r.desc||'',qtd:getQtd(r.id),preco:precoAjustado(r.id,r.preco),preco_base:r.preco,ajuste:st.ajustes[r.id]||0}));
   const total0 = sel.reduce((t,r)=>t+precoAjustado(r.id,r.preco)*getQtd(r.id),0);
   const rcPgtoSalvar = gr('rc-pgto')||'';
@@ -1359,6 +1377,7 @@ function gerarPDFRasthor(){
   const gr=id=>( document.getElementById(id)||{} ).value||'';
   if(!validarPgtoFrete(gr('rc-pgto')||st.pgto||'', gr('rc-frete')||st.frete||'', 'rc-pgto','rc-frete')) return;
   if(!validarFreteCIF(gr('rc-frete')||st.frete||'', getRasthorSel(), 'rc-frete', rasthorClienteSel, 'rc-cidade')) return;
+  if(!validarObservacao(gr('rc-obs'), 'rc-obs')) return;
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   const W=doc.internal.pageSize.getWidth();
@@ -1940,6 +1959,7 @@ async function salvarOrcamentoGenerico(){
   const gn=fid=>(document.getElementById(fid)||{}).value||'';
   if(!validarPgtoFrete(gn('gn-pgto')||st.pgto||'', gn('gn-frete')||st.frete||'', 'gn-pgto','gn-frete')) return;
   if(!validarFreteCIF(gn('gn-frete')||st.frete||'', getSelPorTipo(tipo), 'gn-frete', _cliGenSel, 'gn-cidade')) return;
+  if(!validarObservacao(gn('gn-obs'), 'gn-obs')) return;
   const itens = getSelPorTipo(tipo);
   if(!itens.length) return;
   const itensSalvar = itens.map(p=>({
@@ -1989,6 +2009,7 @@ function gerarPDFGenerico(){
   const gn=fid=>(document.getElementById(fid)||{}).value||'';
   if(!validarPgtoFrete(gn('gn-pgto')||st.pgto||'', gn('gn-frete')||st.frete||'', 'gn-pgto','gn-frete')) return;
   if(!validarFreteCIF(gn('gn-frete')||st.frete||'', getSelPorTipo(tipo), 'gn-frete', _cliGenSel, 'gn-cidade')) return;
+  if(!validarObservacao(gn('gn-obs'), 'gn-obs')) return;
 
   const itens = getSelPorTipo(tipo);
   if(!itens.length) return;
@@ -3249,6 +3270,7 @@ function s6(){
 async function salvarOrcamento(){
   if(!validarPgtoFrete(g('cli-pgto')||st.pgto||'', g('cli-frete')||st.frete||'', 'cli-pgto','cli-frete')) return;
   if(!validarFreteCIF(g('cli-frete')||st.frete||'', null, 'cli-frete', st.clienteSel, 'cli-cidade')) return;
+  if(!validarObservacao(g('cli-obs')||st.obs||'', 'cli-obs')) return;
   const car=getCarregadoresSel()[0];
   const itens=montarItens();
   const total0=calcTotal();
@@ -3293,6 +3315,7 @@ async function salvarOrcamento(){
 function gerarPDF(){
   if(!validarPgtoFrete(g('cli-pgto')||st.pgto||'', g('cli-frete')||st.frete||'', 'cli-pgto','cli-frete')) return;
   if(!validarFreteCIF(g('cli-frete')||st.frete||'', null, 'cli-frete', st.clienteSel, 'cli-cidade')) return;
+  if(!validarObservacao(g('cli-obs')||st.obs||'', 'cli-obs')) return;
   const {jsPDF} = window.jspdf;
   const doc = new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   const W = doc.internal.pageSize.getWidth();
@@ -4142,6 +4165,7 @@ async function salvarStatusOrc(id){
 }
 
 async function salvarEdicaoOrc(id){
+  if(!validarObservacao(document.getElementById('edit-obs')?.value||'', 'edit-obs')) return;
   const body={
     cliente_nome:document.getElementById('edit-cli')?.value||null,
     vendedor:document.getElementById('edit-vend')?.value||null,
