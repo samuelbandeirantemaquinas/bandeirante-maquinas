@@ -5272,6 +5272,47 @@ async function renderAdminPerformance(){
   renderPerfBody();
 }
 
+function perfIndividualHTML(nome, listaGeral, prods){
+  const orcs = listaGeral.filter(o=>(o.vendedor||'—')===nome);
+  const soma = a=>a.reduce((t,o)=>t+Number(o.total||0),0);
+  const hoje=new Date();
+  const doMes = orcs.filter(o=>{const d=new Date(o.criado_em);return d.getMonth()===hoje.getMonth()&&d.getFullYear()===hoje.getFullYear();});
+  const ticket = orcs.length? soma(orcs)/orcs.length : 0;
+  const porStatus = {};
+  orcs.forEach(o=>{const st=o.status||'Em aberto';(porStatus[st]||(porStatus[st]={qtd:0,total:0})).qtd++;porStatus[st].total+=Number(o.total||0);});
+  const aprov = porStatus['Aprovado']?porStatus['Aprovado'].qtd:0;
+  const conv = orcs.length? (aprov/orcs.length*100) : 0;
+  const trat = {};
+  orcs.forEach(o=>{ if(!o.trator_modelo) return; const k=(o.trator_marca?o.trator_marca+' ':'')+o.trator_modelo; trat[k]=(trat[k]||0)+1; });
+  const tratOrd = Object.entries(trat).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const ufs = {};
+  orcs.forEach(o=>{const c=clientePorId(o.cliente_id);const uf=(c?.estado||'').toUpperCase().trim()||'—';(ufs[uf]||(ufs[uf]={qtd:0,total:0})).qtd++;ufs[uf].total+=Number(o.total||0);});
+  const ufOrd = Object.entries(ufs).sort((a,b)=>b[1].total-a[1].total);
+  const card=(t,v)=>`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:.55rem .7rem"><div style="font-size:10px;color:var(--text2)">${t}</div><div style="font-size:14px;font-weight:700">${v}</div></div>`;
+  const tit=t=>`<div style="font-size:11px;font-weight:700;color:var(--text2);margin:12px 0 6px">${t}</div>`;
+  const linha=(a,b)=>`<div style="display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:4px 0;border-bottom:1px solid var(--border)"><span style="flex:1;min-width:0">${a}</span><span style="color:var(--text2);white-space:nowrap">${b}</span></div>`;
+  return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px">
+      ${card('Orçamentos',orcs.length)}
+      ${card('Valor total',fmt(soma(orcs)))}
+      ${card('Ticket médio',fmt(ticket))}
+      ${card('Este mês',fmt(soma(doMes))+' · '+doMes.length+' orç.')}
+      ${card('Aprovados',aprov+' ('+conv.toFixed(0)+'%)')}
+    </div>
+    ${tit('POR STATUS')}
+    ${Object.entries(porStatus).map(([k,r])=>linha(k,r.qtd+' orç. · '+fmt(r.total))).join('')||'<div style="font-size:12px;color:var(--text2)">—</div>'}
+    ${tit('PRODUTOS COTADOS')}
+    ${prods.length===0?'<div style="font-size:12px;color:var(--text2)">Sem itens registrados.</div>':prods.map(([pn,r])=>linha(pn,r.qtd+' un. · '+r.orcs+' orç. · '+fmt(r.valor))).join('')}
+    ${tratOrd.length?tit('TRATORES MAIS COTADOS')+tratOrd.map(([k,q])=>linha(k,q+' orç.')).join(''):''}
+    ${tit('POR ESTADO (UF)')}
+    ${ufOrd.map(([uf,r])=>linha(uf,r.qtd+' orç. · '+fmt(r.total))).join('')}`;
+}
+let _perfVendAberto = null;      // vendedor com a lista de produtos expandida
+let _perfVendNomes = [];
+function togglePerfVendedor(i){
+  const nome=_perfVendNomes[i];
+  _perfVendAberto = (_perfVendAberto===nome) ? null : nome;
+  renderPerfBody();
+}
 function renderPerfBody(){
   const body = document.getElementById('perf-body');
   if(!body) return;
@@ -5330,6 +5371,22 @@ function renderPerfBody(){
     porVendedor[v].qtd += 1;
   });
   const vendedoresOrdenados = Object.entries(porVendedor).sort((a,b)=>b[1].total-a[1].total);
+  _perfVendNomes = vendedoresOrdenados.map(([n])=>n);
+  // Produtos cotados por cada vendedor (mesma regra de valor da curva ABC)
+  const produtosPorVend = {};
+  lista.forEach(o=>{
+    const v = o.vendedor || '—';
+    const mapa = produtosPorVend[v] || (produtosPorVend[v] = {});
+    const vistosNoOrc = new Set();
+    (o.itens||[]).forEach(it=>{
+      const nome = it.nome||'—';
+      const qtd = Number(it.qtd||1);
+      const valor = it.preco_unit!==undefined ? Number(it.preco||0) : Number(it.preco||0)*qtd;
+      const r = mapa[nome] || (mapa[nome] = {qtd:0,valor:0,orcs:0});
+      r.qtd += qtd; r.valor += valor;
+      if(!vistosNoOrc.has(nome)){ r.orcs += 1; vistosNoOrc.add(nome); }
+    });
+  });
   const maxVend = vendedoresOrdenados.length ? vendedoresOrdenados[0][1].total : 0;
 
   // ── Ranking de tratores mais solicitados ──
@@ -5368,19 +5425,28 @@ function renderPerfBody(){
       </div>
     </div>
 
-    <div style="font-size:13px;font-weight:700;margin-bottom:.75rem">Ranking de vendedores</div>
+    <div style="font-size:13px;font-weight:700;margin-bottom:.25rem">Ranking de vendedores</div>
+    <div style="font-size:11px;color:var(--text2);margin-bottom:.75rem">Clique no vendedor para abrir a performance individual dele (produtos cotados, status, tratores e estados).</div>
     <div style="margin-bottom:1.75rem">
       ${vendedoresOrdenados.length===0?`<div style="font-size:12px;color:var(--text2)">Nenhum orçamento no filtro selecionado.</div>`:
       vendedoresOrdenados.map(([nome,d],i)=>{
         const pct = maxVend>0 ? (d.total/maxVend*100) : 0;
+        const aberto = _perfVendAberto===nome;
+        const prods = Object.entries(produtosPorVend[nome]||{}).sort((a,b)=>b[1].valor-a[1].valor);
         return `<div style="margin-bottom:10px">
-          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
-            <span style="font-weight:600">${i+1}. ${nome}</span>
-            <span style="color:var(--text2)">${fmt(d.total)} · ${d.qtd} orç.</span>
+          <div style="cursor:pointer" onclick="togglePerfVendedor(${i})">
+            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+              <span style="font-weight:600"><i class="ti ti-chevron-${aberto?'down':'right'}" style="font-size:12px"></i> ${i+1}. ${nome}</span>
+              <span style="color:var(--text2)">${fmt(d.total)} · ${d.qtd} orç.</span>
+            </div>
+            <div style="background:var(--bg);border-radius:4px;height:8px;overflow:hidden">
+              <div style="background:var(--primary);height:100%;width:${pct}%"></div>
+            </div>
           </div>
-          <div style="background:var(--bg);border-radius:4px;height:8px;overflow:hidden">
-            <div style="background:var(--primary);height:100%;width:${pct}%"></div>
-          </div>
+          ${aberto?`<div style="margin-top:8px;padding:.75rem;background:var(--bg);border-radius:var(--radius-sm)">
+            <div style="font-size:12px;font-weight:700;margin-bottom:8px">Performance individual — ${nome}</div>
+            ${perfIndividualHTML(nome, lista, prods)}
+          </div>`:''}
         </div>`;
       }).join('')}
     </div>
