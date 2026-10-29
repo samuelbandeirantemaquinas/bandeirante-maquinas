@@ -1486,7 +1486,7 @@ function gerarPDFRasthor(){
     startY:y, margin:{left:M,right:M},
     styles:{fontSize:9,cellPadding:4},
     headStyles:{fillColor:[240,240,240],textColor:[40,40,40],fontStyle:'bold',lineWidth:0.3,lineColor:[200,200,200]},
-    columnStyles:{0:{cellWidth:22},1:{cellWidth:'auto'},2:{cellWidth:12,halign:'center'},3:{cellWidth:28,halign:'right'}},
+    columnStyles:{0:{cellWidth:22},1:{cellWidth:'auto'},2:{cellWidth:17,halign:'center'},3:{cellWidth:30,halign:'right'}},
     bodyStyles:{lineColor:[220,220,220],lineWidth:0.2,minCellHeight:20},
     didDrawCell:(data)=>{
       if(data.section==='body' && data.column.index===0){
@@ -2104,7 +2104,7 @@ function gerarPDFGenerico(){
     startY:y,margin:{left:M,right:M},
     styles:{fontSize:9,cellPadding:4},
     headStyles:{fillColor:[240,240,240],textColor:[40,40,40],fontStyle:'bold',lineWidth:0.3,lineColor:[200,200,200]},
-    columnStyles:{0:{cellWidth:22},1:{cellWidth:'auto'},2:{cellWidth:12,halign:'center'},3:{cellWidth:28,halign:'right'}},
+    columnStyles:{0:{cellWidth:22},1:{cellWidth:'auto'},2:{cellWidth:17,halign:'center'},3:{cellWidth:30,halign:'right'}},
     bodyStyles:{lineColor:[220,220,220],lineWidth:0.2,minCellHeight:20},
     didDrawCell:(data)=>{
       if(data.section==='body' && data.column.index===0){
