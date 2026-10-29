@@ -1473,19 +1473,20 @@ function gerarPDFRasthor(){
 
   // Itens
   doc.autoTable({
-    head:[['Foto','Produto','Qtde.']],
+    head:[['Foto','Produto','Qtde.','Valor']],
     body:itensRasthor.map((it,i)=>{
       const r=it.r;
       return [
         '',
         r.nome.toUpperCase()+'\n'+(r.desc||'')+(r.cod?'\nCódigo: '+r.cod:''),
-        String(it.qtd)
+        String(it.qtd),
+        'R$ '+it.subtotal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})
       ];
     }),
     startY:y, margin:{left:M,right:M},
     styles:{fontSize:9,cellPadding:4},
     headStyles:{fillColor:[240,240,240],textColor:[40,40,40],fontStyle:'bold',lineWidth:0.3,lineColor:[200,200,200]},
-    columnStyles:{0:{cellWidth:22},1:{cellWidth:'auto'},2:{cellWidth:12,halign:'center'}},
+    columnStyles:{0:{cellWidth:22},1:{cellWidth:'auto'},2:{cellWidth:12,halign:'center'},3:{cellWidth:28,halign:'right'}},
     bodyStyles:{lineColor:[220,220,220],lineWidth:0.2,minCellHeight:20},
     didDrawCell:(data)=>{
       if(data.section==='body' && data.column.index===0){
@@ -2095,15 +2096,15 @@ function gerarPDFGenerico(){
   }
   const body = itensCalc.map(({prod,qtd,subtotal})=>{
     const bodyDesc=prod.nome.toUpperCase()+'\n'+prod.desc+(prod.cod?'\nCódigo: '+prod.cod:'');
-    return ['', bodyDesc, String(qtd)];
+    return ['', bodyDesc, String(qtd), 'R$ '+subtotal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})];
   });
   doc.autoTable({
-    head:[['Foto','Produto / Descrição','Qtde.']],
+    head:[['Foto','Produto / Descrição','Qtde.','Valor']],
     body:body,
     startY:y,margin:{left:M,right:M},
     styles:{fontSize:9,cellPadding:4},
     headStyles:{fillColor:[240,240,240],textColor:[40,40,40],fontStyle:'bold',lineWidth:0.3,lineColor:[200,200,200]},
-    columnStyles:{0:{cellWidth:22},1:{cellWidth:'auto'},2:{cellWidth:12,halign:'center'}},
+    columnStyles:{0:{cellWidth:22},1:{cellWidth:'auto'},2:{cellWidth:12,halign:'center'},3:{cellWidth:28,halign:'right'}},
     bodyStyles:{lineColor:[220,220,220],lineWidth:0.2,minCellHeight:20},
     didDrawCell:(data)=>{
       if(data.section==='body' && data.column.index===0){
@@ -4280,10 +4281,12 @@ async function regenarPDFHistorico(id){
   const M=14;
   const itens=Array.isArray(o.itens)?o.itens:[];
   const total=Number(o.total||0);
-  const somaItensPDF = itens.reduce((t,it)=>t+Number(it.preco||0)*Number(it.qtd||1),0);
+  const totalItemPDF = it => (it.preco_unit!==undefined ? Number(it.preco||0) : Number(it.preco||0)*Number(it.qtd||1));
+  const somaItensPDF = itens.reduce((t,it)=>t+totalItemPDF(it),0);
   // Pedidos de conjunto frontal (têm estrutura/adaptador) imprimem só o total, sem valor por item.
   const ehConjuntoFrontal = !!(o.estrutura || o.adaptador_cod);
-  const esconderSubtotalItemPDF = true; // todos os produtos imprimem só o total, sem valor por item
+  const fatorItemPDF = (somaItensPDF>0 && total>0) ? total/somaItensPDF : 1; // itens somam o total (juros/acréscimo embutidos)
+  const esconderSubtotalItemPDF = ehConjuntoFrontal; // só conjuntos frontais (carregadores) imprimem apenas o total; demais produtos mostram o valor por item
   const hoje=new Date(o.criado_em).toLocaleDateString('pt-BR');
 
   // Busca os dados completos do cliente (CPF, IE, endereço, CEP, telefone, e-mail)
@@ -4382,7 +4385,7 @@ async function regenarPDFHistorico(id){
     doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(30);
     doc.text(String(it.qtd||1),W-M-26+5,y+8,{align:'center'});
     if(!esconderSubtotalItemPDF){
-      doc.text('R$ '+it.preco.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}),W-M-1,y+8,{align:'right'});
+      doc.text('R$ '+(totalItemPDF(it)*fatorItemPDF).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}),W-M-1,y+8,{align:'right'});
     }
     y+=rh;
   });
