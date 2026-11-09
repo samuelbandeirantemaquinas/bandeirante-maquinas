@@ -1640,11 +1640,16 @@ function arrayPorTipo(tipo){
 // Opção "Haste reta ou curvada" dos aeradores (escolhida por produto na lista; padrão: reta)
 let HASTE_AERADOR = {};
 function hasteAerador(id){ return HASTE_AERADOR[id]==='curvada' ? 'curvada' : 'reta'; }
+// Versão do aerador SEM o rolinho destorroador: desconta R$ 7.000 do valor de tabela.
+const DESC_SEM_ROLINHO_AERADOR = 7000;
+let SEM_ROLINHO_AERADOR = {};
+function semRolinhoAerador(id){ return !!SEM_ROLINHO_AERADOR[id]; }
+function setRolinhoAerador(id,v){ SEM_ROLINHO_AERADOR[id]=(v==='sem'); }
 function setHasteAerador(id,v){ HASTE_AERADOR[id]=(v==='curvada'?'curvada':'reta'); }
 function descComOpcao(tipo,p){
   const base = p.desc||'';
   if(tipo!=='aerador') return base;
-  const h = 'Haste '+(hasteAerador(p.id)==='curvada'?'curvada':'reta');
+  const h = 'Haste '+(hasteAerador(p.id)==='curvada'?'curvada':'reta') + (semRolinhoAerador(p.id)?' · Sem rolinho destorroador':'');
   return base ? base+' · '+h : h;
 }
 function getSelPorTipo(tipo){
@@ -1687,10 +1692,10 @@ function renderListaGenerica(tipo, lista, iconHtml){
       <div style="display:flex;justify-content:space-between;align-items:center">
         <div>
           <div style="font-size:11px;color:var(--text2)">Preço à vista</div>
-          <div style="font-size:16px;font-weight:700;color:var(--primary)">${fmt(p.preco)}</div>
+          <div style="font-size:16px;font-weight:700;color:var(--primary)">${fmt(tipo==='aerador'&&semRolinhoAerador(p.id)?Math.max(0,p.preco-DESC_SEM_ROLINHO_AERADOR):p.preco)}</div>
         </div>
       </div>
-      ${tipo==='aerador'?`<div style="display:flex;align-items:center;gap:8px;margin-bottom:.5rem"><label style="font-size:12px;font-weight:600;color:var(--text2)">Haste:</label><select onchange="setHasteAerador('${p.id}',this.value)" style="font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2)"><option value="reta"${hasteAerador(p.id)==='reta'?' selected':''}>Haste reta</option><option value="curvada"${hasteAerador(p.id)==='curvada'?' selected':''}>Haste curvada</option></select></div>`:''}
+      ${tipo==='aerador'?`<div style="display:flex;align-items:center;gap:8px;margin-bottom:.5rem"><label style="font-size:12px;font-weight:600;color:var(--text2)">Haste:</label><select onchange="setHasteAerador('${p.id}',this.value)" style="font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2)"><option value="reta"${hasteAerador(p.id)==='reta'?' selected':''}>Haste reta</option><option value="curvada"${hasteAerador(p.id)==='curvada'?' selected':''}>Haste curvada</option></select></div><div style="display:flex;align-items:center;gap:8px;margin-bottom:.5rem"><label style="font-size:12px;font-weight:600;color:var(--text2)">Rolinho:</label><select onchange="setRolinhoAerador('${p.id}',this.value);rerenderLista('${tipo}')" style="font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2)"><option value="com"${!semRolinhoAerador(p.id)?' selected':''}>Com rolinho destorroador</option><option value="sem"${semRolinhoAerador(p.id)?' selected':''}>Sem rolinho destorroador (− R$ 7.000)</option></select></div>`:''}
       ${campoQtdAjusteLista(p.id, p.preco, `rerenderLista('${tipo}')`)}
     </div>`;
   }).join('');
@@ -3031,6 +3036,7 @@ function podeVerDescontoEspecial(){
   return descontoEspecialVendedor()>0 && (isAdmin() || currentPerfil?.nome==='Gleycon Wilker');
 }
 function precoAjustado(id, preco){
+  if(semRolinhoAerador(id)) preco = Math.max(0, preco - DESC_SEM_ROLINHO_AERADOR); // aerador sem rolinho destorroador
   const ajBruto=st.ajustes[id]||0;
   const ac=st.acrescimo||0;
   // O tipo de ajuste (Desconto ou Acréscimo) agora é escolhido por item, guardado em
