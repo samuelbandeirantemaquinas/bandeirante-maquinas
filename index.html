@@ -286,7 +286,7 @@ async function loadCategorias(){
     if(Array.isArray(rows)){
       CATEGORIAS_CUSTOM = rows;
       // Foto da categoria "Plainas Traseiras" (aplicada pelo nome, vem do Admin)
-      CATEGORIAS_CUSTOM.forEach(c=>{ if(/plaina/i.test(c.nome||'') && /traseira/i.test(c.nome||'')) c.imagem = IMG_PLAINA_TRASEIRA; });
+      CATEGORIAS_CUSTOM.forEach(c=>{ if(/plaina/i.test(c.nome||'') && /traseira/i.test(c.nome||'')) { if(!c.imagem) c.imagem = IMG_PLAINA_TRASEIRA; } });
     }
   }catch(e){
     // Tabela pode não existir ainda em instalações antigas — não trava o app.
@@ -642,7 +642,7 @@ const IMG_AERODRILL_14 = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gH
 function aplicarImgAerodrill(){
   try{
     [AERADORES, ...Object.values(PRODUTOS_POR_CATEGORIA||{})].forEach(arr=>{
-      (arr||[]).forEach(x=>{ if(/aerodrill/i.test(x.nome||'') && /1[.,]4/.test(x.nome||'')) x.img = IMG_AERODRILL_14; });
+      (arr||[]).forEach(x=>{ if(/aerodrill/i.test(x.nome||'') && /1[.,]4/.test(x.nome||'')) { if(!x.img) x.img = IMG_AERODRILL_14; } });
     });
   }catch(e){}
 }
@@ -4657,6 +4657,14 @@ async function renderAdmin(){
               </select>
             </div>`:''}
           </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap">
+            <div id="adm-imgprev-${p.id}" style="width:64px;height:52px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;font-size:10px;color:var(--text3)">${p.img?`<img src="${p.img}" style="width:64px;height:52px;object-fit:contain">`:'sem foto'}</div>
+            <div style="flex:1;min-width:180px">
+              <label style="font-size:11px;font-weight:600;color:var(--text2);display:block;margin-bottom:2px">Imagem do produto</label>
+              <input type="file" id="adm-img-${p.id}" accept="image/*,.jfif,.jpg,.jpeg,.png,.webp" onchange="previaImagemProdutoAdmin('${p.id}')" style="font-size:11px;max-width:100%">
+            </div>
+            ${p.img?`<button class="btn btn-sm" type="button" style="color:#c0392b;border-color:#c0392b" onclick="removerImagemProdutoAdmin('${p.id}')"><i class="ti ti-photo-off"></i> Remover foto</button>`:''}
+          </div>
           <div style="display:flex;gap:8px;margin-top:8px">
             <button class="btn btn-sm btn-primary" onclick="salvarProduto('${p.id}')">
               <i class="ti ti-device-floppy"></i> Salvar
@@ -5598,6 +5606,25 @@ async function removerVendedor(id){
   }catch(e){toast('Erro ao remover.');}
 }
 
+// Edição da imagem do produto no Admin: escolher arquivo novo (aplicado ao clicar em Salvar)
+// ou remover a foto atual.
+let ADM_IMG_REMOVER = {};
+function previaImagemProdutoAdmin(id){
+  const inp=document.getElementById('adm-img-'+id);
+  const prev=document.getElementById('adm-imgprev-'+id);
+  const file=inp?.files?.[0];
+  if(!file||!prev) return;
+  ADM_IMG_REMOVER[id]=false;
+  const r=new FileReader();
+  r.onload=e=>{ prev.innerHTML=`<img src="${e.target.result}" style="width:64px;height:52px;object-fit:contain">`; };
+  r.readAsDataURL(file);
+}
+function removerImagemProdutoAdmin(id){
+  ADM_IMG_REMOVER[id]=true;
+  const inp=document.getElementById('adm-img-'+id); if(inp) inp.value='';
+  const prev=document.getElementById('adm-imgprev-'+id); if(prev) prev.innerHTML='sem foto';
+  toast('A foto será removida ao clicar em Salvar.');
+}
 async function salvarProduto(id){
   const nome=document.getElementById('adm-nome-'+id)?.value||'';
   const preco=parseFloat(document.getElementById('adm-preco-'+id)?.value)||0;
@@ -5607,8 +5634,21 @@ async function salvarProduto(id){
   const estrMinEl=document.getElementById('adm-estrmin-'+id);
   if(codEl) update.cod=codEl.value||'';
   if(estrMinEl) update.estrutura_min=estrMinEl.value||null;
+  const imgInp=document.getElementById('adm-img-'+id);
+  if(imgInp?.files?.[0]){
+    const novaImg=await lerImagemComoBase64(imgInp);
+    if(novaImg && novaImg.length>100) update.img=novaImg;
+    else { toast('⚠️ Não consegui ler a imagem escolhida. Tente outro arquivo.'); return; }
+  } else if(ADM_IMG_REMOVER[id]){
+    update.img=null;
+  }
   try{
     await sbReq('PATCH','produtos','id=eq.'+id,update);
+    if(update.img===null){
+      // limpa a foto também nas listas em memória (o carregamento só sobrescreve quando há foto nova)
+      try{ [RASTHOR,CARRETAS,AERADORES,PLANTADEIRAS,VIRTUOS,MTSB,IMPLEMENTOS,CARREGADORES,ADAPTADORES,JOYSTICKS,...Object.values(PRODUTOS_POR_CATEGORIA)].forEach(arr=>(arr||[]).forEach(x=>{ if(x.id===id) x.img=null; })); }catch(e){}
+    }
+    delete ADM_IMG_REMOVER[id];
     toast('✓ Produto atualizado!');
     // Atualizar arrays locais imediatamente
     await loadProdutos();
