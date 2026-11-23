@@ -1271,6 +1271,7 @@ function gerarOrcRasthor(){
       </div>
       <div class="ig"><label>Observações</label><textarea id="rc-obs" placeholder="Informações adicionais..."></textarea></div>
     </div>
+    ${chkOcultarValoresHTML('chk-ocultar-valores-rasthor', false)}
     <div style="display:flex;gap:8px">
       <button class="btn" id="btn-salvar-rasthor" onclick="salvarOrcamentoRasthor()"><i class="ti ti-device-floppy"></i> Salvar</button>
       <button class="btn btn-primary" id="btn-pdf-rasthor" style="flex:1;justify-content:center" onclick="gerarPDFRasthor()">
@@ -1393,7 +1394,16 @@ async function salvarOrcamentoRasthor(){
   }
 }
 
+// Opção "Ocultar valores individuais dos itens" (PDF mostra só o total quando marcada).
+function chkOcultarValoresHTML(id, marcado){
+  return `<label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);margin:0 0 .75rem;cursor:pointer"><input type="checkbox" id="${id}" ${marcado?'checked':''} style="width:16px;height:16px"> Ocultar os valores individuais dos itens no PDF (mostrar só o total)</label>`;
+}
+function ocultarValoresMarcado(id, padrao){
+  const el=document.getElementById(id);
+  return el ? !!el.checked : padrao;
+}
 function gerarPDFRasthor(){
+  const ocultarValRasthor = ocultarValoresMarcado('chk-ocultar-valores-rasthor', false);
   const sel=getRasthorSel();
   if(!sel.length)return;
   const gr=id=>( document.getElementById(id)||{} ).value||'';
@@ -1491,7 +1501,7 @@ function gerarPDFRasthor(){
 
   // Itens
   doc.autoTable({
-    head:[['Foto','Produto','Qtde.','Valor']],
+    head:[['Foto','Produto','Qtde.','Valor'].slice(0, ocultarValRasthor?3:4)],
     body:itensRasthor.map((it,i)=>{
       const r=it.r;
       return [
@@ -1499,7 +1509,7 @@ function gerarPDFRasthor(){
         r.nome.toUpperCase()+'\n'+(r.desc||'')+(r.cod?'\nCódigo: '+r.cod:''),
         String(it.qtd),
         'R$ '+it.subtotal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})
-      ];
+      ].slice(0, ocultarValRasthor?3:4);
     }),
     startY:y, margin:{left:M,right:M},
     styles:{fontSize:9,cellPadding:4},
@@ -1653,8 +1663,15 @@ function setRolinhoAerador(id,v){ SEM_ROLINHO_AERADOR[id]=(v==='sem'); }
 function setHasteAerador(id,v){ HASTE_AERADOR[id]=(v==='curvada'?'curvada':'reta'); }
 // Haste/rolinho valem só para os aeradores em si (nome com "Aerador" ou "Aerodrill"), não para acessórios da mesma categoria (ex.: caixa de sementes).
 function ehAeradorMaquina(tipo,p){ return tipo==='aerador' && /aerador|aerodrill/i.test((p&&p.nome)||''); }
+// Plaina FLAT (plainas traseiras): opção SEM PNEUS, desconta R$ 3.000 do valor de tabela.
+const DESC_SEM_PNEUS_FLAT = 3000;
+let SEM_PNEUS_FLAT = {};
+function ehFlat(p){ return /\bflat\b/i.test((p&&p.nome)||''); }
+function semPneusFlat(id){ return !!SEM_PNEUS_FLAT[id]; }
+function setPneusFlat(id,v){ SEM_PNEUS_FLAT[id]=(v==='sem'); }
 function descComOpcao(tipo,p){
   const base = p.desc||'';
+  if(ehFlat(p)){ const t = semPneusFlat(p.id)?'Sem pneus':''; return t ? (base?base+' · '+t:t) : base; }
   if(!ehAeradorMaquina(tipo,p)) return base;
   const h = 'Haste '+(hasteAerador(p.id)==='curvada'?'curvada':'reta') + (semRolinhoAerador(p.id)?' · Sem rolinho destorroador':'');
   return base ? base+' · '+h : h;
@@ -1699,10 +1716,11 @@ function renderListaGenerica(tipo, lista, iconHtml){
       <div style="display:flex;justify-content:space-between;align-items:center">
         <div>
           <div style="font-size:11px;color:var(--text2)">Preço à vista</div>
-          <div style="font-size:16px;font-weight:700;color:var(--primary)">${fmt(ehAeradorMaquina(tipo,p)&&semRolinhoAerador(p.id)?Math.max(0,p.preco-DESC_SEM_ROLINHO_AERADOR):p.preco)}</div>
+          <div style="font-size:16px;font-weight:700;color:var(--primary)">${fmt(ehAeradorMaquina(tipo,p)&&semRolinhoAerador(p.id)?Math.max(0,p.preco-DESC_SEM_ROLINHO_AERADOR):(ehFlat(p)&&semPneusFlat(p.id)?Math.max(0,p.preco-DESC_SEM_PNEUS_FLAT):p.preco))}</div>
         </div>
       </div>
       ${ehAeradorMaquina(tipo,p)?`<div style="display:flex;align-items:center;gap:8px;margin-bottom:.5rem"><label style="font-size:12px;font-weight:600;color:var(--text2)">Haste:</label><select onchange="setHasteAerador('${p.id}',this.value)" style="font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2)"><option value="reta"${hasteAerador(p.id)==='reta'?' selected':''}>Haste reta</option><option value="curvada"${hasteAerador(p.id)==='curvada'?' selected':''}>Haste curvada</option></select></div><div style="display:flex;align-items:center;gap:8px;margin-bottom:.5rem"><label style="font-size:12px;font-weight:600;color:var(--text2)">Rolinho:</label><select onchange="setRolinhoAerador('${p.id}',this.value);rerenderLista('${tipo}')" style="font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2)"><option value="com"${!semRolinhoAerador(p.id)?' selected':''}>Com rolinho destorroador</option><option value="sem"${semRolinhoAerador(p.id)?' selected':''}>Sem rolinho destorroador (− R$ 7.000)</option></select></div>`:''}
+      ${ehFlat(p)?`<div style="display:flex;align-items:center;gap:8px;margin-bottom:.5rem"><label style="font-size:12px;font-weight:600;color:var(--text2)">Pneus:</label><select onchange="setPneusFlat('${p.id}',this.value);rerenderLista('${tipo}')" style="font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2)"><option value="com"${!semPneusFlat(p.id)?' selected':''}>Com pneus</option><option value="sem"${semPneusFlat(p.id)?' selected':''}>Sem pneus (− R$ 3.000)</option></select></div>`:''}
       ${campoQtdAjusteLista(p.id, p.preco, `rerenderLista('${tipo}')`)}
     </div>`;
   }).join('');
@@ -1816,6 +1834,7 @@ function abrirFormProduto(tipo) {
       </div>
       <div class="ig"><label>Observações</label><textarea id="gn-obs" placeholder="Informações adicionais..."></textarea></div>
     </div>
+    ${chkOcultarValoresHTML('chk-ocultar-valores-gen', false)}
     <div style="display:flex;gap:8px">
       <button class="btn" id="btn-salvar-gen" onclick="salvarOrcamentoGenerico()"><i class="ti ti-device-floppy"></i> Salvar</button>
       <button class="btn btn-primary" id="btn-pdf-generico" style="flex:1;justify-content:center" onclick="gerarPDFGenerico()">
@@ -2045,6 +2064,7 @@ async function salvarOrcamentoGenerico(){
 }
 
 function gerarPDFGenerico(){
+  const ocultarValGen = ocultarValoresMarcado('chk-ocultar-valores-gen', false);
   if(!_prodSel) return;
   const {tipo}=_prodSel;
   const gn=fid=>(document.getElementById(fid)||{}).value||'';
@@ -2132,10 +2152,10 @@ function gerarPDFGenerico(){
   }
   const body = itensCalc.map(({prod,qtd,subtotal})=>{
     const bodyDesc=prod.nome.toUpperCase()+'\n'+descComOpcao(tipo,prod)+(prod.cod?'\nCódigo: '+prod.cod:'');
-    return ['', bodyDesc, String(qtd), 'R$ '+subtotal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})];
+    return ['', bodyDesc, String(qtd), 'R$ '+subtotal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})].slice(0, ocultarValGen?3:4);
   });
   doc.autoTable({
-    head:[['Foto','Produto / Descrição','Qtde.','Valor']],
+    head:[['Foto','Produto / Descrição','Qtde.','Valor'].slice(0, ocultarValGen?3:4)],
     body:body,
     startY:y,margin:{left:M,right:M},
     styles:{fontSize:9,cellPadding:4},
@@ -3044,6 +3064,7 @@ function podeVerDescontoEspecial(){
 }
 function precoAjustado(id, preco){
   if(semRolinhoAerador(id)) preco = Math.max(0, preco - DESC_SEM_ROLINHO_AERADOR); // aerador sem rolinho destorroador
+  if(semPneusFlat(id)) preco = Math.max(0, preco - DESC_SEM_PNEUS_FLAT); // plaina FLAT sem pneus
   const ajBruto=st.ajustes[id]||0;
   const ac=st.acrescimo||0;
   // O tipo de ajuste (Desconto ou Acréscimo) agora é escolhido por item, guardado em
@@ -3314,6 +3335,7 @@ function s6(){
     <div style="font-size:10px;color:var(--text2);margin-top:.5rem">Validade: 10 dias · Entrega: 30–60 dias · Sujeito a reajuste</div>
     ${(g('cli-obs')||st.obs)?`<hr style="border:none;border-top:1px solid var(--border);margin:.65rem 0"><div style="font-size:11px;color:var(--text2);font-weight:600;margin-bottom:3px">OBSERVAÇÕES</div><div style="font-size:12px">${g('cli-obs')||st.obs}</div>`:''}
   </div>
+  ${chkOcultarValoresHTML('chk-ocultar-valores', true)}
   <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between">
     <button class="btn" onclick="goStep(5)"><i class="ti ti-arrow-left"></i> Voltar</button>
     <div style="display:flex;gap:8px">
@@ -3483,6 +3505,7 @@ function gerarPDF(){
   y += 4;
 
   // ── TABELA DE ITENS ──
+  const ocultarValoresItens = ocultarValoresMarcado('chk-ocultar-valores', true);
   const colW = {num:8, cod:0, img:16, nome:W-M*2-8-16-26, val:26};
   const hRow = 7;
   let cx;
@@ -3503,7 +3526,7 @@ function gerarPDF(){
     doc.text('#', cx+2, y+5);                     cx+=colW.num;
     doc.text('Produto', cx+colW.img+1, y+5);      cx+=colW.img+colW.nome;
     doc.text('Qtde.', cx+1, y+5);
-    // Valor por item oculto de propósito: o PDF mostra só o Valor total.
+    if(!ocultarValoresItens) doc.text('Valor', W-M-1, y+5, {align:'right'});
     y += hRow;
   };
   desenharCabecalhoItens();
@@ -3557,7 +3580,7 @@ function gerarPDF(){
     doc.setFont('helvetica','bold');
     doc.setFontSize(8.5);
     doc.setTextColor(30);
-    // (valor por item não é impresso)
+    if(!ocultarValoresItens) doc.text('R$ '+Number(it.preco||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}), W-M-1, y+8, {align:'right'});
 
     y += rh;
   });
@@ -4168,6 +4191,7 @@ function abrirOrcamento(id){
       <button class="btn btn-primary btn-sm" style="margin-top:.5rem" onclick="salvarStatusOrc('${o.id}')"><i class="ti ti-device-floppy"></i> Atualizar status</button>
     </div>`}
 
+    ${chkOcultarValoresHTML('chk-ocultar-valores-hist', !!(o.estrutura||o.adaptador_cod))}
     <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="regenarPDFHistorico('${o.id}')">
       <i class="ti ti-file-type-pdf"></i> Baixar PDF
     </button>
@@ -4334,7 +4358,7 @@ async function regenarPDFHistorico(id){
   // Pedidos de conjunto frontal (têm estrutura/adaptador) imprimem só o total, sem valor por item.
   const ehConjuntoFrontal = !!(o.estrutura || o.adaptador_cod);
   const fatorItemPDF = (somaItensPDF>0 && total>0) ? total/somaItensPDF : 1; // itens somam o total (juros/acréscimo embutidos)
-  const esconderSubtotalItemPDF = ehConjuntoFrontal; // só conjuntos frontais (carregadores) imprimem apenas o total; demais produtos mostram o valor por item
+  const esconderSubtotalItemPDF = ocultarValoresMarcado('chk-ocultar-valores-hist', ehConjuntoFrontal); // padrão: só conjuntos frontais (carregadores) imprimem apenas o total; o checkbox da tela do pedido sobrepõe
   const hoje=new Date(o.criado_em).toLocaleDateString('pt-BR');
 
   // Busca os dados completos do cliente (CPF, IE, endereço, CEP, telefone, e-mail)
