@@ -1660,6 +1660,9 @@ const DESC_SEM_ROLINHO_AERADOR = 7000;
 let SEM_ROLINHO_AERADOR = {};
 function semRolinhoAerador(id){ return !!SEM_ROLINHO_AERADOR[id]; }
 function setRolinhoAerador(id,v){ SEM_ROLINHO_AERADOR[id]=(v==='sem'); }
+let ESPAC_AERADOR = {};
+function espacAerador(id){ return ESPAC_AERADOR[id]==='37x32' ? '37x32' : '30x25'; }
+function setEspacAerador(id,v){ ESPAC_AERADOR[id]=(v==='37x32'?'37x32':'30x25'); }
 function setHasteAerador(id,v){ HASTE_AERADOR[id]=(v==='curvada'?'curvada':'reta'); }
 // Haste/rolinho valem só para os aeradores em si (nome com "Aerador" ou "Aerodrill"), não para acessórios da mesma categoria (ex.: caixa de sementes).
 function ehAeradorMaquina(tipo,p){ return tipo==='aerador' && /aerador|aerodrill/i.test((p&&p.nome)||''); }
@@ -1673,7 +1676,7 @@ function descComOpcao(tipo,p){
   const base = p.desc||'';
   if(ehFlat(p)){ const t = semPneusFlat(p.id)?'Sem pneus':''; return t ? (base?base+' · '+t:t) : base; }
   if(!ehAeradorMaquina(tipo,p)) return base;
-  const h = 'Haste '+(hasteAerador(p.id)==='curvada'?'curvada':'reta') + (semRolinhoAerador(p.id)?' · Sem rolinho destorroador':'');
+  const h = 'Haste '+(hasteAerador(p.id)==='curvada'?'curvada':'reta') + ' · Espaçamento '+espacAerador(p.id)+'cm' + (semRolinhoAerador(p.id)?' · Sem rolinho destorroador':'');
   return base ? base+' · '+h : h;
 }
 function getSelPorTipo(tipo){
@@ -1719,7 +1722,7 @@ function renderListaGenerica(tipo, lista, iconHtml){
           <div style="font-size:16px;font-weight:700;color:var(--primary)">${fmt(ehAeradorMaquina(tipo,p)&&semRolinhoAerador(p.id)?Math.max(0,p.preco-DESC_SEM_ROLINHO_AERADOR):(ehFlat(p)&&semPneusFlat(p.id)?Math.max(0,p.preco-DESC_SEM_PNEUS_FLAT):p.preco))}</div>
         </div>
       </div>
-      ${ehAeradorMaquina(tipo,p)?`<div style="display:flex;align-items:center;gap:8px;margin-bottom:.5rem"><label style="font-size:12px;font-weight:600;color:var(--text2)">Haste:</label><select onchange="setHasteAerador('${p.id}',this.value)" style="font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2)"><option value="reta"${hasteAerador(p.id)==='reta'?' selected':''}>Haste reta</option><option value="curvada"${hasteAerador(p.id)==='curvada'?' selected':''}>Haste curvada</option></select></div><div style="display:flex;align-items:center;gap:8px;margin-bottom:.5rem"><label style="font-size:12px;font-weight:600;color:var(--text2)">Rolinho:</label><select onchange="setRolinhoAerador('${p.id}',this.value);rerenderLista('${tipo}')" style="font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2)"><option value="com"${!semRolinhoAerador(p.id)?' selected':''}>Com rolinho destorroador</option><option value="sem"${semRolinhoAerador(p.id)?' selected':''}>Sem rolinho destorroador (− R$ 7.000)</option></select></div>`:''}
+      ${ehAeradorMaquina(tipo,p)?`<div style="display:flex;align-items:center;gap:8px;margin-bottom:.5rem"><label style="font-size:12px;font-weight:600;color:var(--text2)">Haste:</label><select onchange="setHasteAerador('${p.id}',this.value)" style="font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2)"><option value="reta"${hasteAerador(p.id)==='reta'?' selected':''}>Haste reta</option><option value="curvada"${hasteAerador(p.id)==='curvada'?' selected':''}>Haste curvada</option></select></div><div style="display:flex;align-items:center;gap:8px;margin-bottom:.5rem"><label style="font-size:12px;font-weight:600;color:var(--text2)">Espaçamento:</label><select onchange="setEspacAerador('${p.id}',this.value)" style="font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2)"><option value="30x25"${espacAerador(p.id)==='30x25'?' selected':''}>30x25 cm</option><option value="37x32"${espacAerador(p.id)==='37x32'?' selected':''}>37x32 cm</option></select></div><div style="display:flex;align-items:center;gap:8px;margin-bottom:.5rem"><label style="font-size:12px;font-weight:600;color:var(--text2)">Rolinho:</label><select onchange="setRolinhoAerador('${p.id}',this.value);rerenderLista('${tipo}')" style="font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2)"><option value="com"${!semRolinhoAerador(p.id)?' selected':''}>Com rolinho destorroador</option><option value="sem"${semRolinhoAerador(p.id)?' selected':''}>Sem rolinho destorroador (− R$ 7.000)</option></select></div>`:''}
       ${ehFlat(p)?`<div style="display:flex;align-items:center;gap:8px;margin-bottom:.5rem"><label style="font-size:12px;font-weight:600;color:var(--text2)">Pneus:</label><select onchange="setPneusFlat('${p.id}',this.value);rerenderLista('${tipo}')" style="font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2)"><option value="com"${!semPneusFlat(p.id)?' selected':''}>Com pneus</option><option value="sem"${semPneusFlat(p.id)?' selected':''}>Sem pneus (− R$ 3.000)</option></select></div>`:''}
       ${campoQtdAjusteLista(p.id, p.preco, `rerenderLista('${tipo}')`)}
     </div>`;
