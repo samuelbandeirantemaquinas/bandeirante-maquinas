@@ -619,8 +619,7 @@ function aplicarProdutosNosArrays(rows){
         }
       } else if(p.categoria==='aerador'){
         const a=AERADORES.find(x=>x.id===p.id);
-        if(['aer2m','aer4m','aer6m'].includes(p.id)){ /* modelos antigos removidos */ }
-        else if(a){
+        if(a){
           a.preco=parseFloat(p.preco);if(p.nome)a.nome=p.nome;if(p.descricao)a.desc=p.descricao;
           if(p.cod) a.cod=p.cod; if(p.img) a.img=p.img; if(p.finame) a.finame=p.finame; if(p.ncm) a.ncm=p.ncm;
         } else {
@@ -787,7 +786,7 @@ function renderHome(){
       </div>
       <div style="flex:1">
         <div style="font-size:15px;font-weight:700;color:var(--text)">Aeradores</div>
-        <div style="font-size:12px;color:var(--text2);margin-top:2px">${AERADORES.length} modelos</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:2px">${AERADORES.filter(ehAerador).length} modelos</div>
       </div>
       <i class="ti ti-chevron-right" style="font-size:20px;color:var(--text3)"></i>
     </div>
@@ -1422,7 +1421,8 @@ function rerenderLista(tipo){
 }
 // Espaçamento (configuração escolhida pelo vendedor) — usado por produtos com p.espacamentos (ex.: Aero Drill)
 const ESPAC_AERADOR=['30x25cm','37x32cm'];
-function espacOpcoes(p){ return p&&(p.espacamentos||(AERADORES.some(x=>x.id===p.id)?ESPAC_AERADOR:null)); }
+function ehAerador(p){ return !!p&&AERADORES.some(x=>x.id===p.id)&&/aerador/i.test(p.nome||''); }
+function espacOpcoes(p){ return p&&(p.espacamentos||(ehAerador(p)?ESPAC_AERADOR:null)); }
 function espacSel(p){ return (espacOpcoes(p)&&st.espac&&st.espac[p.id])||''; }
 function descItemGen(p){ return p.desc||''; }
 function nomeItemGen(p){ const e=espacSel(p); return e?(p.nome+' — Haste '+e):p.nome; }
@@ -2013,7 +2013,7 @@ function linhaAerador(){
     <button class="btn btn-sm" onclick="showTab('home')"><i class="ti ti-arrow-left"></i></button>
     <div>
       <div style="font-size:14px;font-weight:700">Aeradores</div>
-      <div style="font-size:11px;color:var(--text2)">${AERADORES.length} modelos</div>
+      <div style="font-size:11px;color:var(--text2)">${AERADORES.filter(ehAerador).length} modelos</div>
     </div>
   </div>
   <div class="page-wrap" style="padding-bottom:90px">
