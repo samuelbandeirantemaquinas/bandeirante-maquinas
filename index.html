@@ -218,6 +218,29 @@ async function loadConfigPagamento(){
 }
 
 // Gera as <option> extras (criadas pelo Admin) para acrescentar nos selects de forma de pagamento.
+// Texto da condição de pagamento como aparece na lista de seleção (e não só o valor técnico, ex.: "2x")
+function labelCondicaoPagamento(v){
+  if(!v) return '';
+  const extra=(typeof CONDICOES_PGTO_EXTRA!=='undefined'?CONDICOES_PGTO_EXTRA:[]).find(c=>c.valor===v);
+  if(extra) return extra.nome;
+  const m=/^(\d+)x$/.exec(v);
+  if(m) return m[1]+'x mensais ('+TAXA_JUROS_MENSAL+'% a.m.)';
+  if(v==='7 dias') return '7 dias (sem juros)';
+  if(v==='15 dias') return '15 dias (sem juros)';
+  if(v==='20% Sinal + Saldo à vista') return '20% Sinal - Saldo à vista';
+  return v;
+}
+// Texto da condição realmente escolhida na lista (se houver duas com o mesmo valor técnico, ex.: "4x", usa a que está selecionada na tela)
+function textoCondicaoSelecionada(selId, valor){
+  try{
+    const el=document.getElementById(selId);
+    if(el && el.selectedIndex>=0 && el.value===valor){
+      const t=(el.options[el.selectedIndex].text||'').trim();
+      if(t && !/^—/.test(t)) return t;
+    }
+  }catch(e){}
+  return labelCondicaoPagamento(valor);
+}
 function optionsCondicoesExtra(valorAtual){
   return CONDICOES_PGTO_EXTRA.map(c=>`<option value="${c.valor}" ${valorAtual===c.valor?'selected':''}>${c.nome}</option>`).join('');
 }
@@ -1551,7 +1574,7 @@ function gerarPDFRasthor(){
   y+=8;
 
   // Info rodapé
-  [{label:'Condição de Pagamento:',val:pgto||'—'},{label:'Transportadora / Frete:',val:frete||'—'},{label:'Vendedor:',val:vendedor||'—'},{label:'Data de Emissão:',val:hoje}].forEach(row=>{
+  [{label:'Condição de Pagamento:',val:textoCondicaoSelecionada('rc-pgto',pgto)||'—'},{label:'Transportadora / Frete:',val:frete||'—'},{label:'Vendedor:',val:vendedor||'—'},{label:'Data de Emissão:',val:hoje}].forEach(row=>{
     y = pdfQuebraPagina(doc, y, 6, M);
     doc.setFillColor(248,248,248);doc.rect(M,y,W-M*2,6,'FD');
     doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(40);
@@ -2200,7 +2223,7 @@ function gerarPDFGenerico(){
 
   // Rodapé
   const mGenPdf = st.marcaSel?MARCAS.find(x=>x.id===st.marcaSel):null;
-  const rodapeGen = [{label:'Condição de Pagamento:',val:pgto||'—'},{label:'Transportadora / Frete:',val:frete||'—'}];
+  const rodapeGen = [{label:'Condição de Pagamento:',val:textoCondicaoSelecionada('gn-pgto',pgto)||'—'},{label:'Transportadora / Frete:',val:frete||'—'}];
   if(mGenPdf && st.modeloSel){
     rodapeGen.push({label:'Marca:',val:mGenPdf.label});
     rodapeGen.push({label:'Modelo:',val:st.modeloSel});
@@ -3627,7 +3650,7 @@ function gerarPDF(){
 
   // ── RODAPÉ INFO ──
   const infoRows = [];
-  if(pgto) infoRows.push({label:'Condição de Pagamento:', val:pgto});
+  if(pgto) infoRows.push({label:'Condição de Pagamento:', val:textoCondicaoSelecionada('cli-pgto',pgto)});
   if(frete) infoRows.push({label:'Transportadora / Frete:', val:frete});
   if(m&&st.modeloSel){
     infoRows.push({label:'Marca:', val:m.label});
@@ -4420,7 +4443,7 @@ async function regenarPDFHistorico(id){
   y+=5;
   df('Data:',hoje,M,y);
   df('Vendedor:',(o.vendedor||'—'),W/2,y); y+=5;
-  if(pgto) { df('Pagamento:',pgto,M,y); y+=5; }
+  if(pgto) { df('Pagamento:',labelCondicaoPagamento(pgto),M,y); y+=5; }
   if(frete) { df('Frete:',frete,M,y); y+=5; }
   if(o.obs){
     doc.setFontSize(8);doc.setTextColor(100);
@@ -4481,7 +4504,7 @@ async function regenarPDFHistorico(id){
 
   // Rodapé info: pagamento, frete, marca/modelo do trator (Carregadores), vendedor, data
   const infoRows=[];
-  if(pgto) infoRows.push({label:'Condição de Pagamento:',val:pgto});
+  if(pgto) infoRows.push({label:'Condição de Pagamento:',val:labelCondicaoPagamento(pgto)});
   if(frete) infoRows.push({label:'Transportadora / Frete:',val:frete});
   if(o.trator_marca && o.trator_modelo){
     infoRows.push({label:'Marca:',val:o.trator_marca});
