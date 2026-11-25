@@ -1420,13 +1420,18 @@ function rerenderLista(tipo){
   renderListaGenerica(tipo, arrayPorTipo(tipo), iconePorTipo(tipo));
 }
 // Espaçamento (configuração escolhida pelo vendedor) — usado por produtos com p.espacamentos (ex.: Aero Drill)
+const DESC_SEM_ROLO=7000;
 const ESPAC_AERADOR=['30x25cm','37x32cm'];
 function ehAerador(p){ return !!p&&AERADORES.some(x=>x.id===p.id)&&/aerador/i.test(p.nome||''); }
 function espacOpcoes(p){ return p&&(p.espacamentos||(ehAerador(p)?ESPAC_AERADOR:null)); }
 function espacSel(p){ return (espacOpcoes(p)&&st.espac&&st.espac[p.id])||''; }
 function descItemGen(p){ return p.desc||''; }
-function nomeItemGen(p){ const e=espacSel(p); return e?(p.nome+' — Haste '+e):p.nome; }
-function espacPendente(tipo){ return getSelPorTipo(tipo).some(p=>espacOpcoes(p)&&!espacSel(p)); }
+function tipoHasteSel(p){ return (ehAerador(p)&&st.tipoHaste&&st.tipoHaste[p.id])||''; }
+function roloSel(p){ return (ehAerador(p)&&st.rolo&&st.rolo[p.id])||''; }
+function nomeItemGen(p){ const e=espacSel(p), t=tipoHasteSel(p), r=roloSel(p); let n=e?(p.nome+' — Haste '+(t?t+' ':'')+e):p.nome; if(r) n+=' — '+r+' Rolo Destorroador'; return n; }
+function espacPendente(tipo){ return getSelPorTipo(tipo).some(p=>(espacOpcoes(p)&&!espacSel(p))||(ehAerador(p)&&(!tipoHasteSel(p)||!roloSel(p)))); }
+function setTipoHaste(id,tipo,val){ st.tipoHaste=st.tipoHaste||{}; st.tipoHaste[id]=val; rerenderLista(tipo); }
+function setRolo(id,tipo,val){ st.rolo=st.rolo||{}; st.rolo[id]=val; rerenderLista(tipo); }
 function setEspac(id,tipo,val){ st.espac=st.espac||{}; st.espac[id]=val; rerenderLista(tipo); }
 function renderListaGenerica(tipo, lista, iconHtml){
   const el = document.getElementById('lista-'+tipo);
@@ -1448,6 +1453,8 @@ function renderListaGenerica(tipo, lista, iconHtml){
           <div style="font-size:16px;font-weight:700;color:var(--primary)">${fmt(p.preco)}</div>
         </div>
       </div>
+      ${ehAerador(p)?`<div style="margin-bottom:8px"><label style="font-size:11px;color:var(--text2)">Tipo de haste</label><select style="width:100%;font-size:13px" onchange="setTipoHaste('${p.id}','${tipo}',this.value)"><option value="">Selecione o tipo de haste...</option><option value="Reta" ${tipoHasteSel(p)==='Reta'?'selected':''}>Haste Reta</option><option value="Curvada" ${tipoHasteSel(p)==='Curvada'?'selected':''}>Haste Curvada</option></select></div>`:''}
+      ${ehAerador(p)?`<div style="margin-bottom:8px"><label style="font-size:11px;color:var(--text2)">Rolo destorroador (sem rolo: −R$ 7.000,00)</label><select style="width:100%;font-size:13px" onchange="setRolo('${p.id}','${tipo}',this.value)"><option value="">Selecione...</option><option value="Com" ${roloSel(p)==='Com'?'selected':''}>Com Rolo Destorroador</option><option value="Sem" ${roloSel(p)==='Sem'?'selected':''}>Sem Rolo Destorroador</option></select></div>`:''}
       ${espacOpcoes(p)?`<div style="margin-bottom:8px"><label style="font-size:11px;color:var(--text2)">Espaçamento da haste</label><select style="width:100%;font-size:13px" onchange="setEspac('${p.id}','${tipo}',this.value)"><option value="">Selecione o espaçamento...</option>${espacOpcoes(p).map(e=>`<option value="${e}" ${espacSel(p)===e?'selected':''}>${e}</option>`).join('')}</select></div>`:''}
       ${campoQtdAjusteLista(p.id, p.preco, `rerenderLista('${tipo}')`)}
     </div>`;
@@ -1456,7 +1463,7 @@ function renderListaGenerica(tipo, lista, iconHtml){
   const temSel = getSelPorTipo(tipo).length>0;
   const btnArea = document.getElementById('btn-area-'+tipo);
   if(btnArea){
-    btnArea.innerHTML = `<button class="btn btn-primary" style="width:100%;justify-content:center" onclick="abrirFormProduto('${tipo}')" ${(!temSel||espacPendente(tipo))?'disabled title="Selecione o espaçamento da haste"':''}>
+    btnArea.innerHTML = `<button class="btn btn-primary" style="width:100%;justify-content:center" onclick="abrirFormProduto('${tipo}')" ${(!temSel||espacPendente(tipo))?'disabled title="Selecione tipo de haste, espaçamento e rolo destorroador"':''}>
       <i class="ti ti-receipt"></i> Gerar orçamento
     </button>`;
   }
@@ -2755,6 +2762,8 @@ function podeVerDescontoEspecial(){
   return descontoEspecialVendedor()>0 && (isAdmin() || currentPerfil?.nome==='Gleycon Wilker');
 }
 function precoAjustado(id, preco){
+  // Aeradores: "Sem Rolo Destorroador" reduz R$ 7.000,00 do valor base (antes de qualquer ajuste %)
+  if(st.rolo && st.rolo[id]==='Sem' && typeof AERADORES!=='undefined' && AERADORES.some(a=>a.id===id)) preco = preco - DESC_SEM_ROLO;
   const ajBruto=st.ajustes[id]||0;
   const ac=st.acrescimo||0;
   // O tipo de ajuste (Desconto ou Acréscimo) agora é escolhido por item, guardado em
