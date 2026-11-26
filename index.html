@@ -685,7 +685,7 @@ function aplicarProdutosNosArrays(rows){
         }
       } else if(p.categoria==='adaptador'){
         const a=ADAPTADORES.find(x=>x.id===p.id);
-        if(a){a.preco=parseFloat(p.preco);if(p.nome)a.nome=p.nome;if(p.descricao)a.desc=p.descricao;}
+        if(a){a.preco=parseFloat(p.preco);if(p.nome)a.nome=p.nome;if(p.descricao)a.desc=p.descricao;if(p.cod)a.cod=p.cod;}
       } else if(p.categoria==='joystick'){
         const j=JOYSTICKS.find(x=>x.id===p.id);
         if(j){j.preco=parseFloat(p.preco);if(p.nome)j.nome=p.nome;if(p.descricao)j.desc=p.descricao;}
@@ -4580,6 +4580,8 @@ async function rodarSeedProdutosEmSegundoPlano(rowsAtuais){
       // são gerenciados manualmente no banco) — evita sobrescrever dados que você
       // já ajustou nos demais carregadores.
       ...CARREGADORES.filter(p=>p.id==='hx1450auto').map(p=>({id:p.id,categoria:'carregador',nome:p.nome,preco:p.preco,descricao:p.desc||'',cod:p.cod||'',ativo:true})),
+      // Adaptador 1550 (novo): semeado para poder editar preço/nome/descrição no Admin.
+      ...ADAPTADORES.filter(p=>p.id==='adp1550b').map(p=>({id:p.id,categoria:'adaptador',nome:p.nome,preco:p.preco,descricao:p.desc||'',cod:p.cod||'',ativo:true})),
       ...CARRETAS.map(p=>({id:p.id,categoria:'carreta',nome:p.nome,preco:p.preco,descricao:p.desc||'',ativo:true})),
       ...AERADORES.map(p=>({id:p.id,categoria:'aerador',nome:p.nome,preco:p.preco,descricao:p.desc||'',ativo:true})),
       ...PLANTADEIRAS.map(p=>({id:p.id,categoria:'plantadeira',nome:p.nome,preco:p.preco,descricao:p.desc||'',ativo:true})),
