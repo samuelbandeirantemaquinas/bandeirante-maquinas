@@ -2730,10 +2730,13 @@ function s2(){
   // cai de volta para mostrar todos os adaptadores compatíveis com a estrutura —
   // assim o campo de quantidade e desconto/acréscimo sempre aparece para algum item.
   const temAdaptadorReal = listaPorCodigo.some(a=>a.id!=='adp_nao');
-  const lista = temAdaptadorReal ? listaPorCodigo : listaFull;
+  // Tratores com estrutura 1550: mostra só o adaptador 1550 (R$ 11.700) + "Sem adaptador".
+  // O botão "Ver todos os adaptadores" (st.verTodosAdapt) libera a lista completa.
+  const soAdapt1550 = estr==='1550' && st.adaptDB && !st.verTodosAdapt;
+  const lista = soAdapt1550 ? ADAPTADORES.filter(a=>a.id==='adp1550b'||a.id==='adp_nao') : (temAdaptadorReal ? listaPorCodigo : listaFull);
   const m=st.marcaSel?MARCAS.find(x=>x.id===st.marcaSel):null;
   return `<div style="margin-bottom:1rem"><div style="font-size:15px;font-weight:700;margin-bottom:4px">Adaptador</div>
-  ${st.adaptDB&&st.adaptDB.adaptador?`<button class="btn btn-sm" style="font-size:11px;color:var(--text2)" onclick="st.adaptDB.adaptador='';renderStep()"><i class="ti ti-refresh"></i> Ver todos os adaptadores</button>`:''}</div>
+  ${st.adaptDB&&st.adaptDB.adaptador?`<button class="btn btn-sm" style="font-size:11px;color:var(--text2)" onclick="st.adaptDB.adaptador='';st.verTodosAdapt=true;renderStep()"><i class="ti ti-refresh"></i> Ver todos os adaptadores</button>`:''}</div>
   ${st.adaptDB&&st.adaptDB.adaptador?`<div style="display:flex;gap:10px;align-items:center;background:${m?m.cor+'12':'var(--bg)'};border:1px solid ${m?m.cor+'44':'var(--border)'};border-radius:var(--radius);padding:.75rem;margin-bottom:1rem">
     ${imgTag('adaptador',60,52)}<div><div style="font-size:11px;color:var(--text2);margin-bottom:4px">Código indicado — ${st.modeloSel}</div>
     <span class="badge badge-gray" style="font-family:monospace">${st.adaptDB.adaptador}</span>${st.adaptDB.obs?` <span class="badge badge-orange">${st.adaptDB.obs}</span>`:''}</div></div>`:''}
@@ -2754,7 +2757,7 @@ function avancarAdapt(){
   // Se não selecionou nenhum, auto-selecionar o primeiro da lista (exceto 'sem adaptador')
   if(!ADAPTADORES.some(a=>getQtd(a.id)>0)){
     const estr=estruturaAtiva();
-    const lista=ADAPTADORES.filter(a=>a.estrutura.includes(estr)&&a.id!=='adp_nao');
+    const lista=(estr==='1550'&&st.adaptDB&&!st.verTodosAdapt)?ADAPTADORES.filter(a=>a.id==='adp1550b'):ADAPTADORES.filter(a=>a.estrutura.includes(estr)&&a.id!=='adp_nao');
     if(lista.length>0) st.qtds[lista[0].id]=1;
   }
   // Desconto automático de 10% no adaptador para John Deere linha 6000 (1550/1950/2200).
