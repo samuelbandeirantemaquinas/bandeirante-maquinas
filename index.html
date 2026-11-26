@@ -810,7 +810,19 @@ async function loadProdutos(){
         window.__usandoCacheLocal = true;
       }
     }catch(e2){console.warn('Erro ao aplicar cache local de produtos:', e2);}
+  } finally {
+    // A primeira tentativa de carga terminou (com sucesso ou não): libera as listas de produtos
+    // que ficam em branco ("Carregando...") até aqui, para não mostrar preço/modelo de fábrica.
+    window.__produtosCarregados = true;
+    if(typeof atualizarListasAbertas==='function') atualizarListasAbertas();
   }
+}
+
+// Redesenha as listas de produtos (Aeradores, Carretas, ...) que estiverem abertas na tela.
+function atualizarListasAbertas(){
+  ['aerador','carreta','plantadeira','virtuos','mtsb',...Object.keys(PRODUTOS_POR_CATEGORIA||{})].forEach(tipo=>{
+    if(document.getElementById('lista-'+tipo)){ try{ rerenderLista(tipo); }catch(e){} }
+  });
 }
 
 function fmt(v){return v===0?'—':'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
@@ -1730,6 +1742,10 @@ function rerenderLista(tipo){
 function renderListaGenerica(tipo, lista, iconHtml){
   const el = document.getElementById('lista-'+tipo);
   if(!el) return;
+  if(!window.__produtosCarregados){
+    el.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--text2);font-size:14px">⏳ Carregando modelos e preços…</div>';
+    return;
+  }
   el.innerHTML = lista.map(p=>{
     const qtd = getQtd(p.id);
     const sel = qtd>0;
