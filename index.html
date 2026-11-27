@@ -221,7 +221,7 @@ async function loadConfigPagamento(){
 // Texto da condição de pagamento como aparece na lista de seleção (e não só o valor técnico, ex.: "2x")
 function labelCondicaoPagamento(v){
   if(!v) return '';
-  const extra=(typeof CONDICOES_PGTO_EXTRA!=='undefined'?CONDICOES_PGTO_EXTRA:[]).find(c=>c.valor===v);
+  const extra=(typeof CONDICOES_PGTO_EXTRA!=='undefined'?CONDICOES_PGTO_EXTRA:[]).find(c=>valorCondicao(c)===v);
   if(extra) return extra.nome;
   const m=/^(\d+)x$/.exec(v);
   if(m) return m[1]+'x mensais ('+TAXA_JUROS_MENSAL+'% a.m.)';
@@ -241,8 +241,14 @@ function textoCondicaoSelecionada(selId, valor){
   }catch(e){}
   return labelCondicaoPagamento(valor);
 }
+// Valor único gravado no orçamento para cada condição criada no Admin (evita duas condições com o mesmo código, ex.: "2x")
+function valorCondicao(c){
+  const v=String(c.valor||c.nome||'');
+  const padrao=['À vista','7 dias','15 dias','20% Sinal + Saldo à vista'];
+  return (/^\d+x$/.test(v)||padrao.includes(v)) ? v+'|'+c.nome : v;
+}
 function optionsCondicoesExtra(valorAtual){
-  return CONDICOES_PGTO_EXTRA.map(c=>`<option value="${c.valor}" ${valorAtual===c.valor?'selected':''}>${c.nome}</option>`).join('');
+  return CONDICOES_PGTO_EXTRA.map(c=>{const v=valorCondicao(c);return `<option value="${v.replace(/"/g,'&quot;')}" ${valorAtual===v?'selected':''}>${c.nome}</option>`;}).join('');
 }
 let PRODUTOS_POR_CATEGORIA = {};
 
@@ -1237,7 +1243,7 @@ function gerarOrcRasthor(){
   const tituloHdr = sel.length===1 ? sel[0].nome : sel.length+' itens selecionados';
   const totalGeral0 = sel.reduce((t,r)=>t+precoAjustado(r.id,r.preco)*getQtd(r.id),0);
   const rcPgtoAtual = (document.getElementById('rc-pgto')||{}).value||'';
-  const matchParcRcLib = /^(\d+)x$/.exec(rcPgtoAtual);
+  const matchParcRcLib = /^(\d+)x(?:\|.*)?$/.exec(rcPgtoAtual);
   const nParcRcLib = matchParcRcLib ? parseInt(matchParcRcLib[1]) : NaN;
   // A comparação usa o total COM juros, pois é esse valor que fica salvo no banco (salvarOrcamentoRasthor).
   const totalGeral = (!isNaN(nParcRcLib) && nParcRcLib>1) ? totalGeral0*(1+nParcRcLib*(TAXA_JUROS_MENSAL/100)) : totalGeral0;
@@ -1407,7 +1413,7 @@ async function salvarOrcamentoRasthor(){
   const itens = sel.map(r=>({cod:r.cod||'',nome:r.nome,desc:r.desc||'',qtd:getQtd(r.id),preco:precoAjustado(r.id,r.preco),preco_base:r.preco,ajuste:st.ajustes[r.id]||0}));
   const total0 = sel.reduce((t,r)=>t+precoAjustado(r.id,r.preco)*getQtd(r.id),0);
   const rcPgtoSalvar = gr('rc-pgto')||'';
-  const matchParcRcSalvar=/^(\d+)x$/.exec(rcPgtoSalvar);
+  const matchParcRcSalvar=/^(\d+)x(?:\|.*)?$/.exec(rcPgtoSalvar);
   const nParcRcSalvar=matchParcRcSalvar?parseInt(matchParcRcSalvar[1]):NaN;
   const total = (!isNaN(nParcRcSalvar)&&nParcRcSalvar>1) ? total0*(1+nParcRcSalvar*(TAXA_JUROS_MENSAL/100)) : total0;
   const btn=document.getElementById('btn-salvar-rasthor');
@@ -1462,7 +1468,7 @@ function gerarPDFRasthor(){
   const hoje=new Date().toLocaleDateString('pt-BR');
   // Só reconhece o padrão "Nx" (ex: "3x") como parcelamento com juros;
   // "À vista", "7 dias" e "15 dias" não têm juros.
-  const matchParcR=/^(\d+)x$/.exec(gr('rc-pgto'));
+  const matchParcR=/^(\d+)x(?:\|.*)?$/.exec(gr('rc-pgto'));
   const nParc=matchParcR?parseInt(matchParcR[1]):NaN;
   const itensRasthor=sel.map(r=>{
     const qtd=getQtd(r.id);
@@ -1916,7 +1922,7 @@ function renderItensFormGenerico(tipo){
   if(!card) return;
   const totalGeral0 = sel.reduce((t,p)=>t+precoAjustado(p.id,p.preco)*getQtd(p.id),0);
   const gnPgtoAtual = (document.getElementById('gn-pgto')||{}).value||'';
-  const matchParcGenLib = /^(\d+)x$/.exec(gnPgtoAtual);
+  const matchParcGenLib = /^(\d+)x(?:\|.*)?$/.exec(gnPgtoAtual);
   const nParcGenLib = matchParcGenLib ? parseInt(matchParcGenLib[1]) : NaN;
   // A comparação usa o total COM juros, pois é esse valor que fica salvo no banco (salvarOrcamentoGenerico).
   const totalGeral = (!isNaN(nParcGenLib) && nParcGenLib>1) ? totalGeral0*(1+nParcGenLib*(TAXA_JUROS_MENSAL/100)) : totalGeral0;
@@ -2079,7 +2085,7 @@ async function salvarOrcamentoGenerico(){
   }));
   const total0 = itens.reduce((t,p)=>t+precoAjustado(p.id,p.preco)*getQtd(p.id),0);
   const pgtoSalvo = gn('gn-pgto')||'';
-  const matchParcGenSalvar=/^(\d+)x$/.exec(pgtoSalvo);
+  const matchParcGenSalvar=/^(\d+)x(?:\|.*)?$/.exec(pgtoSalvo);
   const nParcGenSalvar=matchParcGenSalvar?parseInt(matchParcGenSalvar[1]):NaN;
   const total = (!isNaN(nParcGenSalvar)&&nParcGenSalvar>1) ? total0*(1+nParcGenSalvar*(TAXA_JUROS_MENSAL/100)) : total0;
   const btn=document.getElementById('btn-salvar-gen');
@@ -2194,7 +2200,7 @@ function gerarPDFGenerico(){
   let subtotalGeral = itensCalc.reduce((t,it)=>t+it.subtotal,0);
   // Quando há juros (parcelado), escala o subtotal de cada item proporcionalmente —
   // assim o cliente não vê o preço à vista ao lado do total financiado e não descobre o juro.
-  const matchParcGenPdf = /^(\d+)x$/.exec(pgto);
+  const matchParcGenPdf = /^(\d+)x(?:\|.*)?$/.exec(pgto);
   const nParcGenPdf = matchParcGenPdf ? parseInt(matchParcGenPdf[1]) : NaN;
   const totalFinalGenPdf = (!isNaN(nParcGenPdf) && nParcGenPdf>1) ? subtotalGeral*(1+nParcGenPdf*(TAXA_JUROS_MENSAL/100)) : subtotalGeral;
   if(totalFinalGenPdf!==subtotalGeral && subtotalGeral>0){
@@ -2234,7 +2240,7 @@ function gerarPDFGenerico(){
 
   // Calcular total com juros — só reconhece o padrão "Nx" (ex: "3x") como parcelamento;
   // opções como "À vista", "7 dias" e "15 dias" não têm juros.
-  const matchParcGen=/^(\d+)x$/.exec(pgto);
+  const matchParcGen=/^(\d+)x(?:\|.*)?$/.exec(pgto);
   const nParcGen=matchParcGen?parseInt(matchParcGen[1]):NaN;
   const totalFinalGen=(!isNaN(nParcGen)&&nParcGen>1)?subtotalGeral*(1+nParcGen*(TAXA_JUROS_MENSAL/100)):subtotalGeral;
 
@@ -3347,7 +3353,7 @@ function s6(){
   // Acréscimo de juros do parcelamento — só reconhece o padrão "Nx" (ex: "6x");
   // "À vista", "7 dias" e "15 dias" não têm juros. Mesma regra usada no PDF.
   const pgtoAtual = g('cli-pgto')||st.pgto||'';
-  const matchParcS6 = /^(\d+)x$/.exec(pgtoAtual);
+  const matchParcS6 = /^(\d+)x(?:\|.*)?$/.exec(pgtoAtual);
   const nParcS6 = matchParcS6 ? parseInt(matchParcS6[1]) : NaN;
   const totalComJuros = (!isNaN(nParcS6) && nParcS6>1) ? total*(1+nParcS6*(TAXA_JUROS_MENSAL/100)) : total;
   // A comparação usa o total COM juros, pois é esse valor que fica salvo no banco (salvarOrcamento).
@@ -3409,7 +3415,7 @@ async function salvarOrcamento(){
   const itens=montarItens();
   const total0=calcTotal();
   const pgtoAtualSalvar=g('cli-pgto')||st.pgto||'';
-  const matchParcSalvar=/^(\d+)x$/.exec(pgtoAtualSalvar);
+  const matchParcSalvar=/^(\d+)x(?:\|.*)?$/.exec(pgtoAtualSalvar);
   const nParcSalvar=matchParcSalvar?parseInt(matchParcSalvar[1]):NaN;
   const total=(!isNaN(nParcSalvar)&&nParcSalvar>1)?total0*(1+nParcSalvar*(TAXA_JUROS_MENSAL/100)):total0;
   const m=st.marcaSel?MARCAS.find(x=>x.id===st.marcaSel):null;
@@ -3476,7 +3482,7 @@ function gerarPDF(){
 
   // Calcular total com juros — só reconhece o padrão "Nx" (ex: "3x") como parcelamento;
   // opções como "À vista", "7 dias" e "15 dias" não têm juros.
-  const matchParc=/^(\d+)x$/.exec(pgto);
+  const matchParc=/^(\d+)x(?:\|.*)?$/.exec(pgto);
   const nParc=matchParc?parseInt(matchParc[1]):NaN;
   const totalFinal=(!isNaN(nParc)&&nParc>1)?total*(1+nParc*(TAXA_JUROS_MENSAL/100)):total;
 
@@ -4118,7 +4124,7 @@ function abrirOrcamento(id){
   const somaItensCalc = itensCalc.reduce((t,it)=>t+it.precoTotal,0);
   const temAcrescimoGeralNoTotal = Math.abs(Number(o.total||0) - somaItensCalc) > 0.01;
   const nParcAtual = parseInt((o.pgto||'').replace('x',''));
-  const baseTotalEdicao = (!isNaN(nParcAtual) && nParcAtual>1 && /^\d+x$/.test(o.pgto||'')) ? Number(o.total||0)/(1+nParcAtual*(TAXA_JUROS_MENSAL/100)) : Number(o.total||0);
+  const baseTotalEdicao = (!isNaN(nParcAtual) && nParcAtual>1 && /^\d+x(?:\|.*)?$/.test(o.pgto||'')) ? Number(o.total||0)/(1+nParcAtual*(TAXA_JUROS_MENSAL/100)) : Number(o.total||0);
 
   document.getElementById('app-content').innerHTML=`
   <div class="page-wrap">
@@ -4255,7 +4261,7 @@ function abrirOrcamento(id){
 function atualizarTotalPgtoEdicao(sel){
   const base=parseFloat(sel.dataset.base)||0;
   const nParc=parseInt((sel.value||'').replace('x',''));
-  const comJuros = (!isNaN(nParc)&&nParc>1&&/^\d+x$/.test(sel.value)) ? base*(1+nParc*(TAXA_JUROS_MENSAL/100)) : base;
+  const comJuros = (!isNaN(nParc)&&nParc>1&&/^\d+x(?:\|.*)?$/.test(sel.value)) ? base*(1+nParc*(TAXA_JUROS_MENSAL/100)) : base;
   const totalEl=document.getElementById('edit-total');
   if(totalEl){
     totalEl.value = comJuros.toFixed(2);
@@ -4324,11 +4330,14 @@ async function salvarEdicaoOrc(id){
     obs:document.getElementById('edit-obs')?.value||null,
   };
   try{
-    await sbReq('PATCH','orcamentos','id=eq.'+id,body);
-    toast('Orçamento atualizado! ✓');
+    const salvo = await sbReq('PATCH','orcamentos','id=eq.'+id,body);
+    if(Array.isArray(salvo) && salvo.length && (salvo[0].pgto||null)!==(body.pgto||null)){
+      toast('A condição não foi gravada no banco (voltou: '+(salvo[0].pgto||'vazio')+').');
+      console.warn('pgto enviado:',body.pgto,'retorno:',salvo[0]);
+    } else toast('Orçamento atualizado! ✓');
     await loadOrcamentos();
     abrirOrcamento(id);
-  }catch(e){toast('Erro ao salvar.');}
+  }catch(e){console.error('Erro ao salvar orçamento:',e);toast('Erro ao salvar: '+(e.message||'tente novamente.'));}
 }
 
 async function excluirOrc(id){
