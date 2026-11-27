@@ -819,10 +819,17 @@ async function loadProdutos(){
 }
 
 // Redesenha as listas de produtos (Aeradores, Carretas, ...) que estiverem abertas na tela.
+// Texto do card "Aeradores" na tela inicial: conta só os aeradores de verdade (nome com "Aerador"/"Aerodrill"),
+// sem listar larguras fixas e sem contar acessórios da categoria (ex.: caixa de sementes).
+function textoModelosAeradores(){
+  const n = AERADORES.filter(p=>/aerador|aerodrill/i.test(p.nome||'')).length;
+  return n+' '+(n===1?'modelo':'modelos');
+}
 function atualizarListasAbertas(){
   ['aerador','carreta','plantadeira','virtuos','mtsb',...Object.keys(PRODUTOS_POR_CATEGORIA||{})].forEach(tipo=>{
     if(document.getElementById('lista-'+tipo)){ try{ rerenderLista(tipo); }catch(e){} }
   });
+  const sub=document.getElementById('home-aerador-sub'); if(sub) sub.textContent=textoModelosAeradores();
 }
 
 function fmt(v){return v===0?'—':'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
@@ -1069,7 +1076,7 @@ function renderHome(){
       </div>
       <div style="flex:1">
         <div style="font-size:15px;font-weight:700;color:var(--text)">Aeradores</div>
-        <div style="font-size:12px;color:var(--text2);margin-top:2px">2m · 4m · 6m — 3 modelos</div>
+        <div id="home-aerador-sub" style="font-size:12px;color:var(--text2);margin-top:2px">${textoModelosAeradores()}</div>
       </div>
       <i class="ti ti-chevron-right" style="font-size:20px;color:var(--text3)"></i>
     </div>
@@ -4892,7 +4899,7 @@ async function renderAdmin(){
         <div style="font-size:13px;font-weight:700;margin-bottom:.35rem">Backup completo dos dados</div>
         <div style="font-size:12px;color:var(--text2);line-height:1.5">
           Baixa um arquivo com uma cópia de tudo que está salvo no banco agora: Clientes, Orçamentos,
-          Vendedores, Produtos e Categorias. Guarde esse arquivo em algum lugar seguro (Google Drive, e-mail para você mesmo, etc.).
+          Vendedores, Produtos, Categorias e Pagamento. Guarde esse arquivo em algum lugar seguro (Google Drive, e-mail para você mesmo, etc.).
           Recomendado fazer isso periodicamente — por exemplo, uma vez por semana.
         </div>
       </div>
@@ -4903,9 +4910,9 @@ async function renderAdmin(){
       <div style="margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--border)">
         <div style="font-size:13px;font-weight:700;margin-bottom:.35rem">Como restaurar um backup</div>
         <div style="font-size:12px;color:var(--text2);line-height:1.5">
-          O arquivo baixado é um .json com todos os dados. Se precisar restaurar, me envie o arquivo
-          (ou peça para alguém técnico importar de volta nas tabelas do Supabase) — não é uma operação
-          para fazer sozinho sem orientação, para evitar duplicar ou sobrescrever dados por engano.
+          O arquivo baixado é um .json com todos os dados. Para restaurar (as tabelas já precisam existir no Supabase),
+          escolha o arquivo abaixo. Registros com o mesmo ID são sobrescritos, os demais são adicionados — nada é apagado.
+          <div style="margin-top:.6rem"><input type="file" accept=".json,application/json" onchange="restaurarBackup(this)"></div>
         </div>
       </div>
     </div>
@@ -5344,12 +5351,14 @@ async function fazerBackupCompleto(){
   if(btn) btn.disabled = true;
   if(status) status.textContent = 'Buscando dados... isso pode levar alguns segundos.';
   try{
-    const [clientesBk, orcamentosBk, vendedoresBk, produtosBk, categoriasBk] = await Promise.all([
+    const [clientesBk, orcamentosBk, vendedoresBk, produtosBk, categoriasBk, configBk, condicoesBk] = await Promise.all([
       sbGetTudo('clientes','nome.asc'),
       sbGetTudo('orcamentos','criado_em.desc'),
       sbGetTudo('vendedores','nome.asc'),
       sbGetTudo('produtos','categoria.asc'),
-      sbGetTudo('categorias','nome.asc').catch(()=>[])
+      sbGetTudo('categorias','nome.asc').catch(()=>[]),
+      sbGetTudo('config_sistema','chave.asc').catch(()=>[]),
+      sbGetTudo('condicoes_pagamento','nome.asc').catch(()=>[])
     ]);
 
     const backup = {
@@ -5357,13 +5366,16 @@ async function fazerBackupCompleto(){
       sistema: 'Bandeirante Máquinas',
       totais: {
         clientes: clientesBk.length, orcamentos: orcamentosBk.length,
-        vendedores: vendedoresBk.length, produtos: produtosBk.length, categorias: categoriasBk.length
+        vendedores: vendedoresBk.length, produtos: produtosBk.length, categorias: categoriasBk.length,
+        config_sistema: configBk.length, condicoes_pagamento: condicoesBk.length
       },
       clientes: clientesBk,
       orcamentos: orcamentosBk,
       vendedores: vendedoresBk,
       produtos: produtosBk,
-      categorias: categoriasBk
+      categorias: categoriasBk,
+      config_sistema: configBk,
+      condicoes_pagamento: condicoesBk
     };
 
     const blob = new Blob([JSON.stringify(backup, null, 2)], {type:'application/json'});
@@ -5386,6 +5398,32 @@ async function fazerBackupCompleto(){
   }finally{
     if(btn) btn.disabled = false;
   }
+}
+
+async function restaurarBackup(input){
+  const f = input.files && input.files[0];
+  const status = document.getElementById('backup-status');
+  if(!f) return;
+  try{
+    const bk = JSON.parse(await f.text());
+    const tabelas = ['categorias','vendedores','clientes','produtos','orcamentos','config_sistema','condicoes_pagamento'];
+    const resumo = tabelas.map(t=>t+': '+((bk[t]||[]).length)).join(', ');
+    if(!confirm('Restaurar este backup?\n\n'+resumo+'\n\nRegistros com o mesmo ID serão sobrescritos; os demais serão adicionados. Nada é apagado.')){ input.value=''; return; }
+    for(const t of tabelas){
+      const rows = bk[t]||[];
+      for(let i=0;i<rows.length;i+=200){
+        if(status) status.textContent = 'Restaurando '+t+' ('+Math.min(i+200,rows.length)+'/'+rows.length+')...';
+        await sbReq('POST',t,'',rows.slice(i,i+200),{'Prefer':'resolution=merge-duplicates,return=minimal'});
+      }
+    }
+    if(status) status.textContent = '✓ Backup restaurado. Recarregue a página (Ctrl+Shift+R).';
+    toast('✓ Backup restaurado!');
+  }catch(e){
+    console.error(e);
+    if(status) status.textContent = 'Erro ao restaurar: '+(e.message||e);
+    toast('Erro ao restaurar backup.');
+  }
+  input.value='';
 }
 
 // Filtra a lista de categorias visíveis na aba Produtos do Admin, conforme a
